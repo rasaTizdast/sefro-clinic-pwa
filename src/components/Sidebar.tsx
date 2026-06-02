@@ -90,7 +90,7 @@ const getGroupedItems = (items: SidebarItem[]): SidebarSection[] => {
   };
 
   for (const item of items) {
-    sectionItems[item.group || 'primary'].push(item);
+    sectionItems[item.group!].push(item);
   }
 
   const sections: SidebarSection[] = [];
@@ -119,9 +119,9 @@ const DesktopNavItem = ({
 }) => (
   <Link
     to={item.path}
-    className={`group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 ${
+    className={`group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary-600/80 focus-visible:ring-offset-2 ${
       isActive
-        ? 'bg-primary/10 text-primary shadow-sm'
+        ? 'bg-primary-400/50 text-primary shadow-sm'
         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-950'
     } ${isCollapsed ? 'justify-center' : ''}`}
     aria-current={isActive ? 'page' : undefined}
@@ -185,18 +185,15 @@ const DesktopSidebar = ({
 
   return (
     <aside
-      className={`sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col overflow-visible rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm backdrop-blur transition-all duration-300 md:flex ${
+      className={`sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col overflow-visible rounded-2xl border border-primary-300 bg-primary-50 p-4 shadow-sm backdrop-blur transition-all duration-300 md:flex ${
         isCollapsed ? 'w-20' : 'w-64'
       } ${className || ''}`}
     >
       <div className="mb-6 flex items-center justify-between gap-3">
         {!isCollapsed && (
-          <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-gray-950">
-              Clinic Manager
+              مدیریت کلینیک
             </p>
-            <p className="truncate text-xs text-gray-500">Workspace</p>
-          </div>
         )}
         <button
           type="button"
