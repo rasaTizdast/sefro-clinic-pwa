@@ -5,6 +5,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Link, useLocation } from 'react-router';
+import { Avatar } from './ui/Avatar';
 
 type SidebarItemGroup = 'primary' | 'secondary';
 
@@ -121,8 +122,8 @@ const DesktopNavItem = ({
     to={item.path}
     className={`group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary-600/80 focus-visible:ring-offset-2 ${
       isActive
-        ? 'bg-primary-400/50 text-primary shadow-sm'
-        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-950'
+        ? 'bg-primary-600/15 text-primary-700 shadow-sm'
+        : 'text-surface-500 hover:bg-surface-100 hover:text-surface-800'
     } ${isCollapsed ? 'justify-center' : ''}`}
     aria-current={isActive ? 'page' : undefined}
     aria-label={isCollapsed ? item.label : undefined}
@@ -136,11 +137,11 @@ const DesktopNavItem = ({
     )}
 
     {isActive && isCollapsed && (
-      <span className="absolute inset-s-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-e-full bg-primary" />
+      <span className="absolute inset-s-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-e-full bg-primary-600" />
     )}
 
     {isCollapsed && (
-      <span className="pointer-events-none absolute inset-s-[calc(100%+0.75rem)] top-1/2 z-30 -translate-y-1/2 whitespace-nowrap rounded-lg bg-gray-950 px-3 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+      <span className="pointer-events-none absolute inset-s-[calc(100%+0.75rem)] top-1/2 z-30 -translate-y-1/2 whitespace-nowrap rounded-lg bg-surface-900 px-3 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
         {item.label}
       </span>
     )}
@@ -159,10 +160,10 @@ const SheetNavItem = ({
   <Link
     to={item.path}
     onClick={onNavigate}
-    className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/40 ${
+    className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-600/40 ${
       isActive
-        ? 'bg-primary/10 text-primary'
-        : 'text-gray-700 hover:bg-gray-100'
+        ? 'bg-primary-600/10 text-primary-700'
+        : 'text-surface-600 hover:bg-surface-100'
     }`}
     aria-current={isActive ? 'page' : undefined}
   >
@@ -185,21 +186,26 @@ const DesktopSidebar = ({
 
   return (
     <aside
-      className={`sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col overflow-visible rounded-2xl border border-primary-300 bg-primary-50 p-4 shadow-sm backdrop-blur transition-all duration-300 md:flex ${
+      className={`sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col overflow-visible rounded-2xl border border-primary-200 bg-primary-50/80 p-4 shadow-sm backdrop-blur transition-all duration-300 md:flex ${
         isCollapsed ? 'w-20' : 'w-64'
       } ${className || ''}`}
     >
       <div className="mb-6 flex items-center justify-between gap-3">
         {!isCollapsed && (
-            <p className="truncate text-sm font-semibold text-gray-950">
-              مدیریت کلینیک
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-600 text-sm font-bold text-white shadow-sm">
+              S
+            </span>
+            <p className="truncate text-sm font-semibold text-surface-800">
+              کلینیک سفرو
             </p>
+          </div>
         )}
         <button
           type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="grid size-10 shrink-0 place-items-center rounded-xl text-gray-600 outline-none transition-colors hover:bg-gray-100 hover:text-gray-950 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2"
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="grid size-9 shrink-0 place-items-center rounded-xl text-surface-500 outline-none transition-colors hover:bg-surface-100 hover:text-surface-800 focus-visible:ring-2 focus-visible:ring-primary-600/40 focus-visible:ring-offset-2 cursor-pointer"
+          aria-label={isCollapsed ? 'باز کردن منو' : 'بستن منو'}
         >
           {isCollapsed ? (
             <ChevronIcon direction="right" />
@@ -211,17 +217,17 @@ const DesktopSidebar = ({
 
       <nav
         className="flex flex-1 flex-col gap-4 overflow-visible"
-        aria-label="Main navigation"
+        aria-label="منوی اصلی"
       >
         {sections.map((section, index) => (
           <div
             key={section.group}
             className={`flex flex-col gap-1.5 ${
-              index > 0 ? 'border-t border-gray-100 pt-4' : ''
+              index > 0 ? 'border-t border-surface-200/60 pt-4' : ''
             }`}
           >
             {!isCollapsed && (
-              <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-surface-400">
                 {section.label}
               </p>
             )}
@@ -237,18 +243,18 @@ const DesktopSidebar = ({
         ))}
       </nav>
 
-      <div className="mt-4 border-t border-gray-100 pt-4">
+      <div className="mt-4 border-t border-surface-200/60 pt-4">
         <div
-          className={`flex min-h-12 items-center gap-3 rounded-xl px-3 ${
+          className={`flex items-center gap-3 rounded-xl px-3 py-2 ${
             isCollapsed ? 'justify-center px-0' : ''
           }`}
         >
-          <div className="size-9 shrink-0 rounded-full bg-gray-200 ring-1 ring-gray-300" />
+          <Avatar size={isCollapsed ? 'sm' : 'md'} name="کاربر" />
           {!isCollapsed && (
             <div className="min-w-0 text-sm">
-              <p className="truncate font-medium text-gray-900">User</p>
-              <p className="truncate text-xs text-gray-500">
-                user@example.com
+              <p className="truncate font-medium text-surface-800">کاربر</p>
+              <p className="truncate text-xs text-surface-500">
+                admin@sefroclinic.ir
               </p>
             </div>
           )}
@@ -267,10 +273,10 @@ const MobileBottomItem = ({
 }) => (
   <Link
     to={item.path}
-    className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/40 ${
+    className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-600/40 ${
       isActive
-        ? 'bg-primary/10 text-primary'
-        : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+        ? 'bg-primary-600/10 text-primary-700'
+        : 'text-surface-400 hover:bg-surface-100 hover:text-surface-700'
     }`}
     aria-current={isActive ? 'page' : undefined}
     aria-label={item.label}
@@ -304,16 +310,16 @@ const MobileMoreSheet = ({
   return (
     <dialog
       ref={dialogRef}
-      className="m-0 h-dvh max-h-none w-dvw max-w-none border-0 bg-transparent p-0 backdrop:bg-gray-950/35 md:hidden"
+      className="m-0 h-dvh max-h-none w-dvw max-w-none border-0 bg-transparent p-0 backdrop:bg-surface-900/35 md:hidden"
       aria-labelledby="mobile-sidebar-title"
       onClose={onClose}
     >
       <div className="fixed inset-0 z-50">
         <button
           type="button"
-          className="absolute inset-0 h-full w-full cursor-default bg-gray-950/35"
+          className="absolute inset-0 h-full w-full cursor-default bg-surface-900/35"
           onClick={onClose}
-          aria-label="Close navigation menu"
+          aria-label="بستن منوی ناوبری"
         />
 
         <div
@@ -325,31 +331,31 @@ const MobileMoreSheet = ({
         >
           <button
             type="button"
-            className="mx-auto mb-3 flex h-7 w-24 touch-none items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="mx-auto mb-3 flex h-7 w-24 touch-none items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary-600/40 cursor-pointer"
             onPointerDown={onDragStart}
             onPointerMove={onDragMove}
             onPointerUp={onDragEnd}
             onPointerCancel={onDragEnd}
-            aria-label="Drag down to close navigation menu"
+            aria-label="بکشید تا بسته شود"
           >
-            <span className="h-1.5 w-12 rounded-full bg-gray-200" />
+            <span className="h-1.5 w-12 rounded-full bg-surface-200" />
           </button>
 
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h2
                 id="mobile-sidebar-title"
-                className="text-base font-semibold text-gray-950"
+                className="text-base font-semibold text-surface-900"
               >
-                Navigation
+                همه بخش‌ها
               </h2>
-              <p className="text-xs text-gray-500">All clinic sections</p>
+              <p className="text-xs text-surface-500">دسترسی سریع به تمام بخش‌های کلینیک</p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="grid size-10 place-items-center rounded-xl text-gray-600 outline-none transition-colors hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-primary/40"
-              aria-label="Close navigation menu"
+              className="grid size-10 place-items-center rounded-xl text-surface-500 outline-none transition-colors hover:bg-surface-100 focus-visible:ring-2 focus-visible:ring-primary-600/40 cursor-pointer"
+              aria-label="بستن منو"
             >
               <CloseIcon />
             </button>
@@ -360,10 +366,10 @@ const MobileMoreSheet = ({
               <div
                 key={section.group}
                 className={`flex flex-col gap-1.5 ${
-                  index > 0 ? 'border-t border-gray-100 pt-4' : ''
+                  index > 0 ? 'border-t border-surface-100 pt-4' : ''
                 }`}
               >
-                <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-surface-400">
                   {section.label}
                 </p>
                 {section.items.map((item) => (
@@ -470,8 +476,8 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
   return (
     <>
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
-        aria-label="Mobile navigation"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-surface-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
+        aria-label="ناوبری موبایل"
       >
         <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
           {bottomItems.map((item) => (
@@ -485,19 +491,19 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
           <button
             type="button"
             onClick={openMoreMenu}
-            className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/40 ${
+            className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-600/40 cursor-pointer ${
               isMoreActive || isMoreOpen
-                ? 'bg-primary/10 text-primary'
-                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                ? 'bg-primary-600/10 text-primary-700'
+                : 'text-surface-400 hover:bg-surface-100 hover:text-surface-700'
             }`}
-            aria-label="Open more navigation items"
+            aria-label="نمایش بقیه بخش‌ها"
             aria-expanded={isMoreOpen}
             aria-controls="mobile-sidebar-more"
           >
             <span className="grid size-6 place-items-center">
               <MoreIcon />
             </span>
-            <span>More</span>
+            <span>بیشتر</span>
           </button>
         </div>
       </nav>
