@@ -72,7 +72,7 @@ export default function DesignSystem() {
         </Badge>
       ),
     },
-    { key: 'name', header: 'عملیات', render: () => <Button size="sm" variant="ghost">ویرایش</Button> },
+    { key: 'actions', header: 'عملیات', render: () => <Button size="sm" variant="ghost">ویرایش</Button> },
   ]
 
   const tableData = [

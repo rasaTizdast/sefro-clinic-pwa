@@ -92,6 +92,11 @@ const patientColumns: Column<Patient>[] = [
   },
 ]
 
+function toLatinDigits(str: string): string {
+  const persian = '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩'
+  return str.replace(/[۰-۹٠-٩]/g, (d) => String(persian.indexOf(d) % 10))
+}
+
 const mockAppointments: Appointment[] = [
   { id: 1, time: '۰۹:۰۰', patient: 'علی رضایی', doctor: 'دکتر محمدی', status: 'completed' },
   { id: 2, time: '۰۹:۳۰', patient: 'سارا احمدی', doctor: 'دکتر محمدی', status: 'confirmed' },
@@ -252,7 +257,7 @@ function Dashboard() {
               </div>
             </div>
             <Progress
-              value={Number(stat.value.replace(/[^\d]/g, '')) * 7}
+              value={Number(toLatinDigits(stat.value).replace(/[^\d]/g, '')) * 7}
               variant={stat.variant}
               size="sm"
               className="mt-4"
