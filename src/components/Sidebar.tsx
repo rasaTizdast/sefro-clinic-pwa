@@ -1,7 +1,9 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
+
+import type { SidebarItem, SidebarItemGroup, SidebarSection } from "../types/sidebar";
 import { Avatar } from "./ui/Avatar";
-import type { SidebarItem, SidebarSection, SidebarItemGroup } from "../types/sidebar";
 
 interface SidebarProps {
   items: SidebarItem[];
@@ -99,30 +101,52 @@ const DesktopNavItem = ({
   isActive: boolean;
   isCollapsed: boolean;
 }) => (
-  <Link
-    to={item.path}
-    className={`group focus-visible:ring-primary-600/80 relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-      isActive
-        ? "bg-primary-600/15 text-primary-700 shadow-sm"
-        : "text-surface-500 hover:bg-surface-100 hover:text-surface-800"
-    } ${isCollapsed ? "justify-center" : ""}`}
-    aria-current={isActive ? "page" : undefined}
-    aria-label={isCollapsed ? item.label : undefined}
+  <motion.div
+    layout
+    whileHover={isCollapsed ? undefined : { scale: 1.03 }}
+    whileTap={isCollapsed ? undefined : { scale: 0.97 }}
+    transition={{ type: "spring", stiffness: 400, damping: 20 }}
   >
-    <span className="grid size-6 shrink-0 place-items-center text-xl">{item.icon}</span>
+    <Link
+      to={item.path}
+      className={`group focus-visible:ring-primary-600/80 relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+        isActive
+          ? "bg-primary-200 text-primary-900 hover:bg-primary-300 shadow-sm"
+          : "text-surface-500 hover:bg-primary-100 hover:text-primary-800"
+      } ${isCollapsed ? "justify-center" : ""}`}
+      aria-current={isActive ? "page" : undefined}
+      aria-label={isCollapsed ? item.label : undefined}
+    >
+      <span className="grid size-6 shrink-0 place-items-center text-xl">{item.icon}</span>
 
-    {!isCollapsed && <span className="min-w-0 flex-1 truncate font-medium">{item.label}</span>}
+      <AnimatePresence mode="wait">
+        {!isCollapsed && (
+          <motion.span
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10, scale: 0.95 }}
+            transition={{ duration: 0.08 }}
+            className="min-w-0 flex-1 truncate font-medium"
+          >
+            {item.label}
+          </motion.span>
+        )}
+      </AnimatePresence>
 
-    {isActive && isCollapsed && (
-      <span className="bg-primary-600 absolute inset-s-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-e-full" />
-    )}
+      {isActive && isCollapsed && (
+        <motion.span
+          layoutId="activeIndicator"
+          className="bg-primary-600 absolute inset-s-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-e-full"
+        />
+      )}
 
-    {isCollapsed && (
-      <span className="bg-surface-900 pointer-events-none absolute inset-s-[calc(100%+0.75rem)] top-1/2 z-30 -translate-y-1/2 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-        {item.label}
-      </span>
-    )}
-  </Link>
+      {isCollapsed && (
+        <span className="bg-surface-900 pointer-events-none absolute inset-s-[calc(100%+0.75rem)] top-1/2 z-30 -translate-y-1/2 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+          {item.label}
+        </span>
+      )}
+    </Link>
+  </motion.div>
 );
 
 const SheetNavItem = ({
@@ -134,17 +158,22 @@ const SheetNavItem = ({
   isActive: boolean;
   onNavigate: () => void;
 }) => (
-  <Link
-    to={item.path}
-    onClick={onNavigate}
-    className={`focus-visible:ring-primary-600/40 flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 ${
-      isActive ? "bg-primary-600/10 text-primary-700" : "text-surface-600 hover:bg-surface-100"
-    }`}
-    aria-current={isActive ? "page" : undefined}
+  <motion.div
+    whileTap={{ scale: 0.97 }}
+    transition={{ type: "spring", stiffness: 400, damping: 20 }}
   >
-    <span className="grid size-7 shrink-0 place-items-center text-xl">{item.icon}</span>
-    <span>{item.label}</span>
-  </Link>
+    <Link
+      to={item.path}
+      onClick={onNavigate}
+      className={`focus-visible:ring-primary-600/40 flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 ${
+        isActive ? "bg-primary-600/10 text-primary-700" : "text-surface-600 hover:bg-primary-50"
+      }`}
+      aria-current={isActive ? "page" : undefined}
+    >
+      <span className="grid size-7 shrink-0 place-items-center text-xl">{item.icon}</span>
+      <span>{item.label}</span>
+    </Link>
+  </motion.div>
 );
 
 const DesktopSidebar = ({
@@ -155,30 +184,64 @@ const DesktopSidebar = ({
   className?: string;
 }) => {
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("sidebar-collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("sidebar-collapsed", String(isCollapsed));
+    } catch {
+      /* empty */
+    }
+  }, [isCollapsed]);
 
   return (
-    <aside
-      className={`border-primary-200 bg-primary-50/80 sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col overflow-visible rounded-2xl border p-4 shadow-sm backdrop-blur transition-all duration-300 md:flex ${
-        isCollapsed ? "w-20" : "w-64"
-      } ${className || ""}`}
+    <motion.aside
+      animate={{ width: isCollapsed ? 80 : 256 }}
+      transition={{ type: "spring", stiffness: 250, damping: 25, mass: 0.8 }}
+      className={`border-primary-200 bg-primary-50/80 sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col overflow-visible rounded-2xl border p-4 shadow-sm backdrop-blur md:flex ${className || ""}`}
     >
       <div className="mb-6 flex items-center justify-between gap-3">
-        {!isCollapsed && (
-          <div className="flex items-center gap-2.5">
-            <span className="bg-primary-600 grid size-9 shrink-0 place-items-center rounded-xl text-sm font-bold text-white shadow-sm">
-              S
-            </span>
-            <p className="text-surface-800 truncate text-sm font-semibold">کلینیک سفرو</p>
-          </div>
-        )}
+        <div className="flex items-center gap-2.5">
+          <AnimatePresence mode="wait">
+            {!isCollapsed && (
+              <motion.span
+                initial={{ opacity: 0, x: -8, scale: 0.9 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -8, scale: 0.9 }}
+                transition={{ duration: 0.08 }}
+                className="bg-primary-600 grid size-9 shrink-0 place-items-center rounded-xl text-sm font-bold text-white shadow-sm"
+              >
+                S
+              </motion.span>
+            )}
+          </AnimatePresence>
+          <AnimatePresence mode="wait">
+            {!isCollapsed && (
+              <motion.p
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8, scale: 0.95 }}
+                transition={{ duration: 0.08 }}
+                className="text-surface-800 truncate text-sm font-semibold"
+              >
+                کلینیک سفرو
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
         <button
           type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="text-surface-500 hover:bg-surface-100 hover:text-surface-800 focus-visible:ring-primary-600/40 grid size-9 shrink-0 cursor-pointer place-items-center rounded-xl transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           aria-label={isCollapsed ? "باز کردن منو" : "بستن منو"}
         >
-          {isCollapsed ? <ChevronIcon direction="right" /> : <ChevronIcon direction="left" />}
+          <ChevronIcon direction={isCollapsed ? "right" : "left"} />
         </button>
       </div>
 
@@ -190,11 +253,19 @@ const DesktopSidebar = ({
               index > 0 ? "border-surface-200/60 border-t pt-4" : ""
             }`}
           >
-            {!isCollapsed && (
-              <p className="text-surface-400 px-3 text-[11px] font-semibold tracking-wide uppercase">
-                {section.label}
-              </p>
-            )}
+            <AnimatePresence mode="wait">
+              {!isCollapsed && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.95 }}
+                  transition={{ duration: 0.06 }}
+                  className="text-surface-400 px-3 text-[11px] font-semibold tracking-wide uppercase"
+                >
+                  {section.label}
+                </motion.p>
+              )}
+            </AnimatePresence>
             {section.items.map((item) => (
               <DesktopNavItem
                 key={item.path}
@@ -214,54 +285,93 @@ const DesktopSidebar = ({
           }`}
         >
           <Avatar size={isCollapsed ? "sm" : "md"} name="کاربر" />
-          {!isCollapsed && (
-            <div className="min-w-0 text-sm">
-              <p className="text-surface-800 truncate font-medium">کاربر</p>
-              <p className="text-surface-500 truncate text-xs">admin@sefroclinic.ir</p>
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {!isCollapsed && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.08 }}
+                className="min-w-0 text-sm"
+              >
+                <p className="text-surface-800 truncate font-medium">کاربر</p>
+                <p className="text-surface-500 truncate text-xs">admin@sefroclinic.ir</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
-    </aside>
+    </motion.aside>
   );
 };
 
 const MobileBottomItem = ({ item, isActive }: { item: SidebarItem; isActive: boolean }) => (
-  <Link
-    to={item.path}
-    className={`focus-visible:ring-primary-600/40 flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 ${
-      isActive
-        ? "bg-primary-600/10 text-primary-700"
-        : "text-surface-400 hover:bg-surface-100 hover:text-surface-700"
-    }`}
-    aria-current={isActive ? "page" : undefined}
-    aria-label={item.label}
+  <motion.div
+    whileTap={{ scale: 0.93 }}
+    transition={{ type: "spring", stiffness: 400, damping: 20 }}
   >
-    <span className="grid size-6 place-items-center text-xl">{item.icon}</span>
-    <span className="max-w-full truncate">{item.label}</span>
-  </Link>
+    <Link
+      to={item.path}
+      className={`focus-visible:ring-primary-600/40 flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 ${
+        isActive
+          ? "bg-primary-600/10 text-primary-700"
+          : "text-surface-400 hover:bg-primary-100 hover:text-primary-700"
+      }`}
+      aria-current={isActive ? "page" : undefined}
+      aria-label={item.label}
+    >
+      <span className="grid size-6 place-items-center text-xl">{item.icon}</span>
+      <span className="max-w-full truncate">{item.label}</span>
+    </Link>
+  </motion.div>
 );
 
 const MobileMoreSheet = ({
   sections,
-  dragOffset,
-  isDragging,
+  isOpen,
   dialogRef,
   onClose,
-  onDragStart,
-  onDragMove,
-  onDragEnd,
 }: {
   sections: SidebarSection[];
-  dragOffset: number;
-  isDragging: boolean;
+  isOpen: boolean;
   dialogRef: React.RefObject<HTMLDialogElement | null>;
   onClose: () => void;
-  onDragStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-  onDragMove: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-  onDragEnd: (event: ReactPointerEvent<HTMLButtonElement>) => void;
 }) => {
   const location = useLocation();
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartYRef = useRef<number | null>(null);
+  const dragOffsetRef = useRef(0);
+
+  const handleSheetDragStart = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    dragStartYRef.current = event.clientY;
+    dragOffsetRef.current = 0;
+    setDragOffset(0);
+    setIsDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleSheetDragMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (dragStartYRef.current == null) return;
+    const nextOffset = Math.max(0, event.clientY - dragStartYRef.current);
+    dragOffsetRef.current = nextOffset;
+    setDragOffset(nextOffset);
+  };
+
+  const handleSheetDragEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (dragStartYRef.current == null) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    const shouldClose = dragOffsetRef.current > 80;
+    dragStartYRef.current = null;
+    dragOffsetRef.current = 0;
+    setIsDragging(false);
+    setDragOffset(0);
+    if (shouldClose) {
+      onClose();
+    }
+  };
 
   return (
     <dialog
@@ -271,27 +381,34 @@ const MobileMoreSheet = ({
       onClose={onClose}
     >
       <div className="fixed inset-0 z-50">
-        <button
+        <motion.button
           type="button"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
           className="bg-surface-900/35 absolute inset-0 h-full w-full cursor-default"
           onClick={onClose}
           aria-label="بستن منوی ناوبری"
         />
 
-        <div
+        <motion.div
           id="mobile-sidebar-more"
-          className={`absolute inset-x-0 bottom-0 rounded-t-3xl bg-white px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl ${
-            isDragging ? "" : "transition-transform duration-200 ease-out"
-          }`}
-          style={{ transform: `translateY(${dragOffset}px)` }}
+          animate={{ y: isDragging ? dragOffset : isOpen ? 0 : "100%" }}
+          transition={
+            isDragging
+              ? { type: "tween", duration: 0 }
+              : { type: "spring", damping: 30, stiffness: 300 }
+          }
+          className="absolute inset-x-0 bottom-0 rounded-t-3xl bg-white px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl"
         >
           <button
             type="button"
             className="focus-visible:ring-primary-600/40 mx-auto mb-3 flex h-7 w-24 cursor-pointer touch-none items-center justify-center rounded-full outline-none focus-visible:ring-2"
-            onPointerDown={onDragStart}
-            onPointerMove={onDragMove}
-            onPointerUp={onDragEnd}
-            onPointerCancel={onDragEnd}
+            onPointerDown={handleSheetDragStart}
+            onPointerMove={handleSheetDragMove}
+            onPointerUp={handleSheetDragEnd}
+            onPointerCancel={handleSheetDragEnd}
             aria-label="بکشید تا بسته شود"
           >
             <span className="bg-surface-200 h-1.5 w-12 rounded-full" />
@@ -336,7 +453,7 @@ const MobileMoreSheet = ({
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </div>
     </dialog>
   );
@@ -345,11 +462,7 @@ const MobileMoreSheet = ({
 const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
   const location = useLocation();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
-  const [sheetDragOffset, setSheetDragOffset] = useState(0);
-  const [isDraggingSheet, setIsDraggingSheet] = useState(false);
   const moreDialogRef = useRef<HTMLDialogElement>(null);
-  const dragStartYRef = useRef<number | null>(null);
-  const dragOffsetRef = useRef(0);
   const primaryItems = sections.find((section) => section.group === "primary")?.items ?? [];
   const bottomItems = primaryItems.slice(0, 4);
   const bottomItemPaths = new Set(bottomItems.map((item) => item.path));
@@ -359,9 +472,6 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
 
   const openMoreMenu = () => {
     setIsMoreOpen(true);
-    setSheetDragOffset(0);
-    setIsDraggingSheet(false);
-    dragOffsetRef.current = 0;
     const dialog = moreDialogRef.current;
     if (dialog && !dialog.open) {
       dialog.showModal();
@@ -370,50 +480,12 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
 
   const closeMoreMenu = () => {
     setIsMoreOpen(false);
-    setSheetDragOffset(0);
-    setIsDraggingSheet(false);
-    dragStartYRef.current = null;
-    dragOffsetRef.current = 0;
-    const dialog = moreDialogRef.current;
-    if (dialog?.open) {
-      dialog.close();
-    }
-  };
-
-  const handleSheetDragStart = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    dragStartYRef.current = event.clientY;
-    dragOffsetRef.current = 0;
-    setSheetDragOffset(0);
-    setIsDraggingSheet(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handleSheetDragMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (dragStartYRef.current == null) return;
-
-    const nextOffset = Math.max(0, event.clientY - dragStartYRef.current);
-    dragOffsetRef.current = nextOffset;
-    setSheetDragOffset(nextOffset);
-  };
-
-  const handleSheetDragEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (dragStartYRef.current == null) return;
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    const shouldClose = dragOffsetRef.current > 80;
-    dragStartYRef.current = null;
-    dragOffsetRef.current = 0;
-    setIsDraggingSheet(false);
-
-    if (shouldClose) {
-      closeMoreMenu();
-      return;
-    }
-
-    setSheetDragOffset(0);
+    setTimeout(() => {
+      const dialog = moreDialogRef.current;
+      if (dialog?.open) {
+        dialog.close();
+      }
+    }, 250);
   };
 
   return (
@@ -431,13 +503,15 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
             />
           ))}
 
-          <button
+          <motion.button
             type="button"
             onClick={openMoreMenu}
+            whileTap={{ scale: 0.93 }}
+            transition={{ type: "spring", stiffness: 400, damping: 20 }}
             className={`focus-visible:ring-primary-600/40 flex min-h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 ${
               isMoreActive || isMoreOpen
                 ? "bg-primary-600/10 text-primary-700"
-                : "text-surface-400 hover:bg-surface-100 hover:text-surface-700"
+                : "text-surface-400 hover:bg-primary-100 hover:text-primary-700"
             }`}
             aria-label="نمایش بقیه بخش‌ها"
             aria-expanded={isMoreOpen}
@@ -447,19 +521,15 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
               <MoreIcon />
             </span>
             <span>بیشتر</span>
-          </button>
+          </motion.button>
         </div>
       </nav>
 
       <MobileMoreSheet
         sections={sections}
-        dragOffset={sheetDragOffset}
-        isDragging={isDraggingSheet}
+        isOpen={isMoreOpen}
         dialogRef={moreDialogRef}
         onClose={closeMoreMenu}
-        onDragStart={handleSheetDragStart}
-        onDragMove={handleSheetDragMove}
-        onDragEnd={handleSheetDragEnd}
       />
     </>
   );
