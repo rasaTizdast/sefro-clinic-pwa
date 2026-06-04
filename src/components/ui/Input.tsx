@@ -4,13 +4,13 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
   helperText?: string
-  leftIcon?: ReactNode
-  rightIcon?: ReactNode
+  startIcon?: ReactNode
+  endIcon?: ReactNode
   containerClassName?: string
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helperText, leftIcon, rightIcon, className = '', containerClassName = '', id, ...props }, ref) => {
+  ({ label, error, helperText, startIcon, endIcon, className = '', containerClassName = '', id, ...props }, ref) => {
     const inputId = id || (label ? label.replace(/\s+/g, '-').toLowerCase() : undefined)
     const errorId = inputId ? `${inputId}-error` : undefined
     const helperId = inputId ? `${inputId}-helper` : undefined
@@ -26,9 +26,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           </label>
         )}
         <div className="relative">
-          {leftIcon && (
-            <span className="absolute inset-s-0 top-0 flex items-center ps-3 text-surface-400 pointer-events-none">
-              {leftIcon}
+          {startIcon && (
+            <span className="absolute inset-y-0 inset-s-0 flex items-center ps-3 text-surface-400 pointer-events-none">
+              {startIcon}
             </span>
           )}
           <input
@@ -40,12 +40,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               error
                 ? 'border-danger-400 focus-visible:border-danger-500 focus-visible:ring-danger-500/30'
                 : 'border-surface-300 focus-visible:border-primary-500 focus-visible:ring-primary-500/30'
-            } ${leftIcon ? 'ps-9' : 'ps-3'} ${rightIcon ? 'pe-9' : 'pe-3'} py-2 ${className}`}
+            } ${startIcon ? 'ps-9' : 'ps-3'} ${endIcon ? 'pe-9' : 'pe-3'} py-2 ${className}`}
             {...props}
           />
-          {rightIcon && (
-            <span className="absolute inset-e-0 top-0 flex items-center pe-3 text-surface-400">
-              {rightIcon}
+          {endIcon && (
+            <span className="absolute inset-y-0 inset-e-0 flex items-center pe-3 text-surface-400">
+              {endIcon}
             </span>
           )}
         </div>

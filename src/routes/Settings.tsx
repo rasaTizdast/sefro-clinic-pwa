@@ -138,8 +138,8 @@ function Settings() {
       align: 'center',
       render: () => (
         <div className="flex items-center justify-center gap-1">
-          <Button variant="ghost" size="sm" icon={<BiPencil className="size-4" />} />
-          <Button variant="ghost" size="sm" icon={<BiTrash className="size-4 text-danger-500" />} />
+          <Button variant="ghost" size="sm" startIcon={<BiPencil className="size-4" />} />
+          <Button variant="ghost" size="sm" startIcon={<BiTrash className="size-4 text-danger-500" />} />
         </div>
       ),
     },
@@ -193,7 +193,7 @@ function Settings() {
                 label="نام کاربری"
                 value={profile.username}
                 onChange={(e) => setProfileField('username', e.target.value)}
-                leftIcon={<BiUser className="size-4" />}
+                startIcon={<BiUser className="size-4" />}
               />
               <Input
                 label="نام و نام خانوادگی"
@@ -205,14 +205,14 @@ function Settings() {
                 type="email"
                 value={profile.email}
                 onChange={(e) => setProfileField('email', e.target.value)}
-                leftIcon={<IoMailOutline className="size-4" />}
+                startIcon={<IoMailOutline className="size-4" />}
               />
               <Input
                 label="شماره تماس"
                 type="tel"
                 value={profile.phone}
                 onChange={(e) => setProfileField('phone', e.target.value)}
-                leftIcon={<BiPhone className="size-4" />}
+                startIcon={<BiPhone className="size-4" />}
               />
             </div>
           </Card>
@@ -225,27 +225,27 @@ function Settings() {
                 type="password"
                 value={password.current}
                 onChange={(e) => setPasswordField('current', e.target.value)}
-                leftIcon={<BiLock className="size-4" />}
+                startIcon={<BiLock className="size-4" />}
               />
               <Input
                 label="رمز جدید"
                 type="password"
                 value={password.new}
                 onChange={(e) => setPasswordField('new', e.target.value)}
-                leftIcon={<BiLock className="size-4" />}
+                startIcon={<BiLock className="size-4" />}
               />
               <Input
                 label="تکرار رمز جدید"
                 type="password"
                 value={password.confirm}
                 onChange={(e) => setPasswordField('confirm', e.target.value)}
-                leftIcon={<BiLock className="size-4" />}
+                startIcon={<BiLock className="size-4" />}
               />
             </div>
           </Card>
 
           <div className="flex justify-start">
-            <Button variant="primary" icon={<BiSave className="size-5" />}>
+            <Button variant="primary" startIcon={<BiSave className="size-5" />}>
               ذخیره تغییرات
             </Button>
           </div>
@@ -261,14 +261,14 @@ function Settings() {
                 label="نام کلینیک"
                 value={clinic.name}
                 onChange={(e) => setClinicField('name', e.target.value)}
-                leftIcon={<BiBuildings className="size-4" />}
+                startIcon={<BiBuildings className="size-4" />}
               />
               <Input
                 label="تلفن"
                 type="tel"
                 value={clinic.phone}
                 onChange={(e) => setClinicField('phone', e.target.value)}
-                leftIcon={<BiPhone className="size-4" />}
+                startIcon={<BiPhone className="size-4" />}
               />
               <div className="sm:col-span-2">
                 <Textarea
@@ -315,7 +315,7 @@ function Settings() {
           </Card>
 
           <div className="flex justify-start">
-            <Button variant="primary" icon={<BiSave className="size-5" />}>
+            <Button variant="primary" startIcon={<BiSave className="size-5" />}>
               ذخیره تغییرات
             </Button>
           </div>
@@ -328,7 +328,7 @@ function Settings() {
             <h2 className="text-lg font-semibold text-surface-900">مدیریت کاربران</h2>
             <Button
               variant="primary"
-              icon={<BiPlus className="size-5" />}
+              startIcon={<BiPlus className="size-5" />}
               onClick={() => setUserModalOpen(true)}
             >
               کاربر جدید
@@ -349,18 +349,18 @@ function Settings() {
                 <Button variant="ghost" onClick={() => setUserModalOpen(false)}>
                   انصراف
                 </Button>
-                <Button variant="primary" icon={<BiPlus className="size-5" />}>
+                <Button variant="primary" startIcon={<BiPlus className="size-5" />}>
                   ذخیره
                 </Button>
               </>
             }
           >
             <div className="flex flex-col gap-4">
-              <Input label="نام کاربری" leftIcon={<BiUser className="size-4" />} />
-              <Input label="ایمیل" type="email" leftIcon={<IoMailOutline className="size-4" />} />
+              <Input label="نام کاربری" startIcon={<BiUser className="size-4" />} />
+              <Input label="ایمیل" type="email" startIcon={<IoMailOutline className="size-4" />} />
               <Select label="نقش" options={roleOptions} placeholder="انتخاب نقش" />
-              <Input label="رمز عبور" type="password" leftIcon={<BiLock className="size-4" />} />
-              <Input label="تکرار رمز عبور" type="password" leftIcon={<BiLock className="size-4" />} />
+              <Input label="رمز عبور" type="password" startIcon={<BiLock className="size-4" />} />
+              <Input label="تکرار رمز عبور" type="password" startIcon={<BiLock className="size-4" />} />
             </div>
           </Modal>
         </div>

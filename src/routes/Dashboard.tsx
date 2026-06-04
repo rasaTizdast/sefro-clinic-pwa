@@ -220,7 +220,7 @@ function Dashboard() {
           icon={<MdEventAvailable className="size-12" />}
           title="داشبورد خالی است"
           description="هنوز هیچ داده‌ای برای نمایش وجود ندارد. با ثبت اولین مراجعه، داشبورد شما فعال می‌شود."
-          action={<Button variant="primary" icon={<BiPlus className="size-5" />}>ثبت اولین مراجعه</Button>}
+          action={<Button variant="primary" startIcon={<BiPlus className="size-5" />}>ثبت اولین مراجعه</Button>}
         />
       </div>
     )
@@ -235,7 +235,7 @@ function Dashboard() {
             امروز: {today}
           </p>
         </div>
-        <Button variant="primary" icon={<BiPlus className="size-5" />} className="mt-3 sm:mt-0">
+        <Button variant="primary" startIcon={<BiPlus className="size-5" />} className="mt-3 sm:mt-0">
           نوبت جدید
         </Button>
       </div>
@@ -273,7 +273,7 @@ function Dashboard() {
             <Button
               key={action.label}
               variant={action.variant}
-              icon={action.icon}
+              startIcon={action.icon}
               size="md"
             >
               {action.label}
@@ -354,7 +354,7 @@ function Dashboard() {
         <EmptyState
           title="داده‌ای وجود ندارد"
           description="با استفاده از دکمه بالای صفحه، اولین نوبت امروز را ثبت کنید."
-          action={<Button variant="primary" icon={<BiPlus />}>ثبت نوبت جدید</Button>}
+          action={<Button variant="primary" startIcon={<BiPlus />}>ثبت نوبت جدید</Button>}
         />
       )}
     </div>
