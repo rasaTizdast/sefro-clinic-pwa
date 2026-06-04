@@ -1,25 +1,27 @@
+import type { Service } from "./service";
+import type { WarehouseItem } from "./warehouse";
+
 export type PatientStatus = "active" | "inactive" | "new";
 
 export interface Patient {
   id: number;
-  name: string;
+  firstName: string;
+  lastName: string;
   phone: string;
-  nationalCode: string;
-  birthDate: string;
-  address: string;
-  notes: string;
+  nationalId: string;
+  bitmojiId: string;
   lastVisit: string;
   visitCount: number;
-  debt: number;
   status: PatientStatus;
   createdAt: string;
+  products: WarehouseItem[];
+  services: Service[];
 }
 
 export interface PatientFormData {
-  name: string;
+  firstName: string;
+  lastName: string;
   phone: string;
-  nationalCode: string;
-  birthDate: string;
-  address: string;
-  notes: string;
+  nationalId: string;
+  bitmojiId: string;
 }
