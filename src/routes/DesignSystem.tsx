@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BiHome, BiUser, BiSearch, BiPlus, BiTrash, BiEdit, BiChevronDown } from 'react-icons/bi'
+import { BiUser, BiSearch, BiPlus, BiTrash, BiEdit, BiChevronDown } from 'react-icons/bi'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
@@ -20,9 +20,8 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { Toggle } from '../components/ui/Toggle'
 import { Dropdown } from '../components/ui/Dropdown'
 import type { DropdownItem } from '../components/ui/Dropdown'
-import { Breadcrumb } from '../components/ui/Breadcrumb'
-import type { BreadcrumbItem } from '../components/ui/Breadcrumb'
 import { Progress } from '../components/ui/Progress'
+import { useToast } from '../components/ui'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -45,6 +44,7 @@ function SubSection({ title, children }: { title: string; children: React.ReactN
 }
 
 export default function DesignSystem() {
+  const toast = useToast()
   const [modalOpen, setModalOpen] = useState(false)
   const [toggleChecked, setToggleChecked] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -97,32 +97,12 @@ export default function DesignSystem() {
     { label: 'مشاهده پروفایل', icon: <BiUser />, onClick: () => {} },
   ]
 
-  const breadcrumbItems: BreadcrumbItem[] = [
-    { label: 'خانه', href: '/' },
-    { label: 'سیستم طراحی' },
-  ]
-
-  const breadcrumbItemsLong: BreadcrumbItem[] = [
-    { label: 'خانه', href: '/', icon: <BiHome /> },
-    { label: 'کامپوننت‌ها', href: '#' },
-    { label: 'فرم‌ها' },
-  ]
-
   return (
     <div className="flex flex-col gap-6 pb-8">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-surface-900">سیستم طراحی</h1>
         <p className="text-sm text-surface-500">نمایش و تست تمامی کامپوننت‌های سیستم طراحی</p>
       </div>
-
-      <Section title="Breadcrumb">
-        <SubSection title="ساده">
-          <Breadcrumb items={breadcrumbItems} />
-        </SubSection>
-        <SubSection title="با آیکون">
-          <Breadcrumb items={breadcrumbItemsLong} />
-        </SubSection>
-      </Section>
 
       <Section title="Alert">
         <SubSection title="Variants">
@@ -156,8 +136,8 @@ export default function DesignSystem() {
         <SubSection title="States">
           <Button loading>در حال بارگذاری</Button>
           <Button disabled>غیرفعال</Button>
-          <Button icon={<BiPlus />}>با آیکون</Button>
-          <Button iconRight={<BiSearch />}>آیکون راست</Button>
+          <Button startIcon={<BiPlus />}>با آیکون</Button>
+          <Button endIcon={<BiSearch />}>آیکون پایان</Button>
         </SubSection>
       </Section>
 
@@ -171,8 +151,8 @@ export default function DesignSystem() {
         </SubSection>
         <SubSection title="With Icons">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-            <Input leftIcon={<BiSearch />} placeholder="جستجو..." />
-            <Input label="کد تخفیف" leftIcon={<BiPlus />} rightIcon={<Badge size="sm">اعمال</Badge>} />
+            <Input startIcon={<BiSearch />} placeholder="جستجو..." />
+            <Input label="کد تخفیف" startIcon={<BiPlus />} endIcon={<Badge size="sm">اعمال</Badge>} />
           </div>
         </SubSection>
         <SubSection title="Select">
@@ -310,12 +290,12 @@ export default function DesignSystem() {
 
       <Section title="Dropdown">
         <Dropdown
-          trigger={<Button variant="outline" iconRight={<BiChevronDown />}>بیشتر</Button>}
+          trigger={<Button variant="outline" endIcon={<BiChevronDown />}>بیشتر</Button>}
           items={dropdownItems}
         />
         <Dropdown
           align="end"
-          trigger={<Button variant="secondary" iconRight={<BiChevronDown />}>گزینه‌ها</Button>}
+          trigger={<Button variant="secondary" endIcon={<BiChevronDown />}>گزینه‌ها</Button>}
           items={dropdownItems}
         />
       </Section>
@@ -358,15 +338,24 @@ export default function DesignSystem() {
         <EmptyState
           title="موردی یافت نشد"
           description="هیچ داده‌ای برای نمایش وجود ندارد. با کلیک بر روی دکمه زیر، مورد جدیدی اضافه کنید."
-          action={<Button size="sm" icon={<BiPlus />}>افزودن</Button>}
+          action={<Button size="sm" startIcon={<BiPlus />}>افزودن</Button>}
         />
+      </Section>
+
+      <Section title="Toast">
+        <SubSection title="اعلان‌ها">
+          <Button variant="primary" onClick={() => toast.success('عملیات موفق', 'داده‌ها با موفقیت ذخیره شدند.')}>موفق</Button>
+          <Button variant="danger" onClick={() => toast.error('خطا', 'مشکلی در پردازش رخ داد.')}>خطا</Button>
+          <Button variant="secondary" onClick={() => toast.warning('هشدار', 'به زودی محدودیت اعمال می‌شود.')}>هشدار</Button>
+          <Button variant="ghost" onClick={() => toast.info('اطلاعیه', 'نسخه جدید منتشر شد.')}>اطلاع</Button>
+        </SubSection>
       </Section>
 
       <Section title="Live Demo — فرم ثبت نام">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-4">
             <Input label="نام و نام خانوادگی" placeholder="مثال: علی رضایی" />
-            <Input label="ایمیل" type="email" placeholder="example@email.com" leftIcon={<BiUser />} />
+            <Input label="ایمیل" type="email" placeholder="example@email.com" startIcon={<BiUser />} />
             <Select
               label="نقش"
               options={[
@@ -378,7 +367,7 @@ export default function DesignSystem() {
             />
             <div className="flex items-center gap-4">
               <Toggle label="دسترسی مدیریت" />
-              <Button icon={<BiPlus />}>ثبت کاربر</Button>
+              <Button startIcon={<BiPlus />}>ثبت کاربر</Button>
             </div>
           </div>
           <div className="flex flex-col gap-4">

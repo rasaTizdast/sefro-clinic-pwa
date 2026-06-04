@@ -22,9 +22,9 @@ const items: SidebarItem[] = [
 
 function App() {
   return (
-    <div className="flex min-h-screen gap-3 p-3 pb-24 md:h-screen md:pb-3">
+    <div className="flex h-screen gap-3 overflow-hidden p-3 pb-24 md:pb-3">
       <Sidebar items={items} />
-      <main className="flex-1 p-4">
+      <main className="flex-1 overflow-y-auto p-4">
         <Outlet />
       </main>
     </div>

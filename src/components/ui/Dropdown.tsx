@@ -39,14 +39,20 @@ export function Dropdown({ trigger, items, align = 'start', className = '' }: Dr
       if (event.key === 'Escape') setOpen(false)
     }
 
+    const handleScroll = () => {
+      setOpen(false)
+    }
+
     if (open) {
       document.addEventListener('mousedown', handleClickOutside)
       document.addEventListener('keydown', handleEscape)
+      window.addEventListener('scroll', handleScroll, true)
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleEscape)
+      window.removeEventListener('scroll', handleScroll, true)
     }
   }, [open])
 

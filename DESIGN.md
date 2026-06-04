@@ -154,7 +154,7 @@ The layout utilizes a **fluid grid** system with an 8px base unit. This ensures 
 - **Desktop (> 1024px):** 12-column grid, fixed right-hand sidebar. Content follows a max-width of 1440px to prevent excessive line lengths.
 
 **Layout Model:**
-The sidebar is anchored to the **right**. Breadcrumbs and navigation paths flow from right to left. Tables and forms expand to fill the primary content area, utilizing flexbox for proportional spacing.
+The sidebar is anchored to the **right**. Tables and forms expand to fill the primary content area, utilizing flexbox for proportional spacing.
 
 ## Elevation & Depth
 
@@ -186,7 +186,6 @@ This subtle rounding prevents the interface from feeling "sharp" or intimidating
 
 ### Header
 - **Global Search:** Right-aligned icon, Persian placeholder text ("جستجو...").
-- **Breadcrumbs:** Separated by a left-facing chevron (‹) reflecting the RTL flow.
 
 ### Tables
 - **Density:** High. Row height 48px.

@@ -12,17 +12,21 @@ interface AlertProps {
 }
 
 const variantStyles: Record<AlertVariant, string> = {
-  success: 'bg-success-50 border-success-300 text-success-800',
-  warning: 'bg-warning-50 border-warning-300 text-warning-800',
-  error: 'bg-danger-50 border-danger-300 text-danger-800',
-  info: 'bg-info-50 border-info-300 text-info-800',
+  success:
+    'bg-success-50/80 border-success-200 text-success-800',
+  warning:
+    'bg-warning-50/80 border-warning-200 text-warning-800',
+  error:
+    'bg-danger-50/80 border-danger-200 text-danger-800',
+  info:
+    'bg-info-50/80 border-info-200 text-info-800',
 }
 
 const iconColors: Record<AlertVariant, string> = {
-  success: 'text-success-500',
-  warning: 'text-warning-500',
-  error: 'text-danger-500',
-  info: 'text-info-500',
+  success: 'text-success-600',
+  warning: 'text-warning-600',
+  error: 'text-danger-600',
+  info: 'text-info-600',
 }
 
 const icons: Record<AlertVariant, ReactNode> = {
@@ -58,7 +62,7 @@ export function Alert({
 }: AlertProps) {
   return (
     <div
-      className={`flex items-start gap-3 rounded-lg border p-4 text-sm ${variantStyles[variant]} ${className}`}
+      className={`flex items-start gap-3 rounded-xl border p-4 text-sm ${variantStyles[variant]} ${className}`}
       role="alert"
     >
       <span className={`shrink-0 mt-0.5 ${iconColors[variant]}`}>
@@ -74,7 +78,7 @@ export function Alert({
         <button
           onClick={onDismiss}
           className="shrink-0 p-0.5 rounded opacity-70 hover:opacity-100 transition-opacity cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
-          aria-label="Dismiss"
+          aria-label="بستن"
         >
           <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

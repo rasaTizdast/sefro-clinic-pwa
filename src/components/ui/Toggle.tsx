@@ -20,8 +20,8 @@ export function Toggle({ label, disabled, className = '', id, ...props }: Toggle
           className="peer sr-only"
           {...props}
         />
-        <div className="w-10 h-6 rounded-full bg-surface-300 peer-checked:bg-primary-600 transition-colors duration-200 ease-in-out" />
-        <div className="absolute top-0.5 start-0.5 size-5 rounded-full bg-white shadow-sm transition-all duration-200 ease-in-out peer-checked:translate-x-4 rtl:peer-checked:-translate-x-4" />
+        <div className="w-10 h-6 rounded-full bg-surface-300 transition-colors duration-200 ease-in-out peer-checked:bg-primary-600" />
+        <div className="absolute top-0.5 start-0.5 size-5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out peer-checked:translate-x-[calc(100%+0.125rem)]" />
       </div>
       {label && (
         <span className="text-sm font-medium text-surface-700 select-none">{label}</span>

@@ -8,6 +8,7 @@ interface BadgeProps {
   variant?: BadgeVariant
   size?: BadgeSize
   dot?: boolean
+  pill?: boolean
   className?: string
 }
 
@@ -37,11 +38,12 @@ export function Badge({
   variant = 'default',
   size = 'md',
   dot = false,
+  pill = false,
   className = '',
 }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center font-medium rounded-full whitespace-nowrap ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+      className={`inline-flex items-center font-medium whitespace-nowrap ${pill ? 'rounded-full px-3 py-1' : 'rounded-md'} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
     >
       {dot && (
         <span

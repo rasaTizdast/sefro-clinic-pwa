@@ -16,7 +16,7 @@ interface CardProps {
 const variantStyles: Record<CardVariant, string> = {
   default: 'bg-white',
   outlined: 'bg-white border-2 border-surface-200',
-  elevated: 'bg-white shadow-lg',
+  elevated: 'bg-white shadow-md hover:shadow-lg transition-shadow duration-200',
 }
 
 const paddingStyles: Record<CardPadding, string> = {

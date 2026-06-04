@@ -25,10 +25,10 @@ export function Tabs({ tabs, activeTab, onChange, className = '' }: TabsProps) {
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(tab.id)}
-            className={`inline-flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-150 ease-in-out border-b-2 cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/40 focus-visible:ring-inset ${
+            className={`relative inline-flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors duration-150 ease-in-out cursor-pointer whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/40 focus-visible:ring-inset ${
               isActive
-                ? 'border-primary-600 text-primary-700'
-                : 'border-transparent text-surface-500 hover:text-surface-700 hover:border-surface-300'
+                ? 'text-primary-700'
+                : 'text-surface-500 hover:text-surface-700'
             }`}
           >
             {tab.icon && <span className="shrink-0 size-4">{tab.icon}</span>}
@@ -43,6 +43,9 @@ export function Tabs({ tabs, activeTab, onChange, className = '' }: TabsProps) {
               >
                 {tab.badge}
               </span>
+            )}
+            {isActive && (
+              <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary-600 rounded-full" />
             )}
           </button>
         )

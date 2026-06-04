@@ -69,8 +69,8 @@ export function Table<T>({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-4 py-3 text-xs font-semibold text-surface-600 uppercase tracking-wider whitespace-nowrap text-${col.align || 'start'}`}
-                  style={{ width: col.width }}
+                  className={`px-4 py-3 text-xs font-semibold text-surface-600 uppercase tracking-wider whitespace-nowrap`}
+                  style={{ width: col.width, textAlign: col.align || 'start' }}
                 >
                   {col.header}
                 </th>
@@ -126,7 +126,7 @@ export function Table<T>({
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`px-4 py-3 text-xs font-semibold text-surface-600 uppercase tracking-wider whitespace-nowrap select-none ${
+                className={`px-4 py-3 text-xs font-semibold text-surface-600 uppercase tracking-wider whitespace-nowrap select-none sticky top-0 bg-surface-50 ${
                   col.sortable ? 'cursor-pointer hover:text-surface-800' : ''
                 }`}
                 style={{ width: col.width, textAlign: col.align || 'start' }}

@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 type ProgressVariant = 'default' | 'success' | 'warning' | 'danger' | 'info'
 type ProgressSize = 'sm' | 'md'
 
@@ -33,6 +35,12 @@ export function Progress({
 }: ProgressProps) {
   const clampedValue = Math.min(Math.max(value, 0), max)
   const percentage = max > 0 ? (clampedValue / max) * 100 : 0
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setVisible(true))
+    return () => cancelAnimationFrame(frame)
+  }, [])
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
@@ -42,14 +50,18 @@ export function Progress({
         aria-valuenow={clampedValue}
         aria-valuemin={0}
         aria-valuemax={max}
+        aria-label={`${Math.round(percentage)}%`}
       >
         <div
-          className={`h-full rounded-full transition-all duration-300 ease-in-out ${variantStyles[variant]}`}
-          style={{ width: `${percentage}%` }}
+          className={`h-full rounded-full transition-transform duration-500 ease-out ${variantStyles[variant]}`}
+          style={{
+            transform: `scaleX(${visible ? percentage / 100 : 0})`,
+            transformOrigin: 'right',
+          }}
         />
       </div>
       {showLabel && (
-        <span className="text-sm font-medium text-surface-600 shrink-0">
+        <span className="text-sm font-medium text-surface-600 shrink-0 tabular-nums">
           {Math.round(percentage)}%
         </span>
       )}
