@@ -1,19 +1,21 @@
 import { useState } from "react";
 import { BiPlus } from "react-icons/bi";
 import { CiEdit, CiTrash } from "react-icons/ci";
-import { Card } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
+
+import { SearchButton } from "../components/SearchButton";
 import { Badge } from "../components/ui/Badge";
-import { Modal } from "../components/ui/Modal";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { Dropdown, type DropdownItem } from "../components/ui/Dropdown";
 import { Input } from "../components/ui/Input";
+import { Modal } from "../components/ui/Modal";
+import { Pagination } from "../components/ui/Pagination";
 import { Select } from "../components/ui/Select";
+import { type Column, Table } from "../components/ui/Table";
+import { TabPanel, Tabs } from "../components/ui/Tabs";
 import { Textarea } from "../components/ui/Textarea";
 import { Toggle } from "../components/ui/Toggle";
-import { Table, type Column } from "../components/ui/Table";
-import { Tabs, TabPanel } from "../components/ui/Tabs";
-import { Pagination } from "../components/ui/Pagination";
-import { Dropdown, type DropdownItem } from "../components/ui/Dropdown";
-import type { Service, ServiceFormData, ServiceCategory } from "../types/service";
+import type { Service, ServiceCategory, ServiceFormData } from "../types/service";
 
 const CATEGORIES_BEAUTY: ServiceCategory = "زیبایی";
 const CATEGORIES_THERAPEUTIC: ServiceCategory = "درمانی";
@@ -334,14 +336,16 @@ function Services() {
         <div className="flex flex-col gap-1">
           <h1 className="text-surface-900 text-2xl font-bold">خدمات کلینیک</h1>
         </div>
-        <Button
-          variant="primary"
-          startIcon={<BiPlus className="size-5" />}
-          className="mt-3 sm:mt-0"
-          onClick={openAddModal}
-        >
-          خدمت جدید
-        </Button>
+        <div className="mt-3 flex items-center gap-3 sm:mt-0">
+          <Button
+            variant="primary"
+            startIcon={<BiPlus className="size-5" />}
+            onClick={openAddModal}
+          >
+            خدمت جدید
+          </Button>
+          <SearchButton />
+        </div>
       </div>
 
       <Card variant="outlined" padding="none">

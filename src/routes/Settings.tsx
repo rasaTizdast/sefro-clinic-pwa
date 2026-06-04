@@ -1,31 +1,33 @@
 import { useState } from "react";
 import {
-  BiUser,
+  BiBell,
   BiBuildings,
   BiGroup,
-  BiBell,
+  BiLock,
   BiPencil,
-  BiTrash,
+  BiPhone,
   BiPlus,
   BiSave,
-  BiLock,
-  BiPhone,
+  BiTrash,
+  BiUser,
 } from "react-icons/bi";
 import { IoMailOutline } from "react-icons/io5";
-import { Card, CardTitle } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import { Select } from "../components/ui/Select";
-import { Textarea } from "../components/ui/Textarea";
-import { Tabs, TabPanel } from "../components/ui/Tabs";
-import type { Tab } from "../components/ui/Tabs";
-import { Toggle } from "../components/ui/Toggle";
+
+import { SearchButton } from "../components/SearchButton";
+import { Alert } from "../components/ui/Alert";
 import { Avatar } from "../components/ui/Avatar";
 import { Badge } from "../components/ui/Badge";
-import { Table } from "../components/ui/Table";
-import type { Column } from "../components/ui/Table";
+import { Button } from "../components/ui/Button";
+import { Card, CardTitle } from "../components/ui/Card";
+import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
-import { Alert } from "../components/ui/Alert";
+import { Select } from "../components/ui/Select";
+import type { Column } from "../components/ui/Table";
+import { Table } from "../components/ui/Table";
+import type { Tab } from "../components/ui/Tabs";
+import { TabPanel, Tabs } from "../components/ui/Tabs";
+import { Textarea } from "../components/ui/Textarea";
+import { Toggle } from "../components/ui/Toggle";
 import type { ClinicUser, DayHours, UserRole } from "../types/settings";
 
 const roleBadgeVariant: Record<UserRole, "success" | "info" | "warning"> = {
@@ -187,9 +189,12 @@ function Settings() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-surface-900 text-2xl font-bold">تنظیمات</h1>
-        <p className="text-surface-500 mt-1 text-sm">مدیریت تنظیمات سیستم</p>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-surface-900 text-2xl font-bold">تنظیمات</h1>
+          <p className="text-surface-500 mt-1 text-sm">مدیریت تنظیمات سیستم</p>
+        </div>
+        <SearchButton />
       </div>
 
       <Card variant="outlined" padding="none">

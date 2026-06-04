@@ -1,13 +1,19 @@
-import { Outlet } from "react-router";
-import Sidebar from "./components/Sidebar";
-import type { SidebarItem } from "./types/sidebar";
-import { PiChartPieSliceDuotone } from "react-icons/pi";
 import { BiBell, BiHome } from "react-icons/bi";
 import { CiMoneyBill, CiSettings } from "react-icons/ci";
-import { FcServices } from "react-icons/fc";
-import { MdPalette } from "react-icons/md";
 import { FaWarehouse } from "react-icons/fa";
+import { FcServices } from "react-icons/fc";
 import { IoAnalytics } from "react-icons/io5";
+import { MdPalette } from "react-icons/md";
+import { PiChartPieSliceDuotone } from "react-icons/pi";
+import { Outlet } from "react-router";
+
+import { CommandPalette } from "./components/CommandPalette";
+import { QuickActionProvider } from "./components/QuickActionProvider";
+import Sidebar from "./components/Sidebar";
+import { LoadingBar } from "./components/ui/LoadingBar";
+import { CommandPaletteContext } from "./contexts/commandPalette";
+import { useCommandPalette } from "./hooks/useCommandPalette";
+import type { SidebarItem } from "./types/sidebar";
 
 const items: SidebarItem[] = [
   { label: "داشبورد", icon: <BiHome />, path: "/", group: "primary" },
@@ -21,14 +27,28 @@ const items: SidebarItem[] = [
   { label: "سیستم طراحی", icon: <MdPalette />, path: "/design-system", group: "secondary" },
 ];
 
+function AppContent() {
+  const { open, setOpen } = useCommandPalette();
+
+  return (
+    <CommandPaletteContext.Provider value={{ open, setOpen }}>
+      <div className="flex h-screen gap-3 overflow-hidden p-2 pb-24 md:p-3 md:pb-3">
+        <LoadingBar />
+        <Sidebar items={items} />
+        <main className="flex-1 overflow-y-auto p-1 md:p-3">
+          <Outlet />
+        </main>
+        <CommandPalette open={open} onClose={() => setOpen(false)} />
+      </div>
+    </CommandPaletteContext.Provider>
+  );
+}
+
 function App() {
   return (
-    <div className="flex h-screen gap-3 overflow-hidden p-3 pb-24 md:pb-3">
-      <Sidebar items={items} />
-      <main className="flex-1 overflow-y-auto p-4">
-        <Outlet />
-      </main>
-    </div>
+    <QuickActionProvider>
+      <AppContent />
+    </QuickActionProvider>
   );
 }
 

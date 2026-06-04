@@ -1,107 +1,122 @@
-import { useState } from 'react'
-import { BiUser, BiSearch, BiPlus, BiTrash, BiEdit, BiChevronDown } from 'react-icons/bi'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
-import { Select } from '../components/ui/Select'
-import { Textarea } from '../components/ui/Textarea'
-import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
-import { Modal } from '../components/ui/Modal'
-import { Table } from '../components/ui/Table'
-import type { Column } from '../components/ui/Table'
-import { Tabs, TabPanel } from '../components/ui/Tabs'
-import type { Tab } from '../components/ui/Tabs'
-import { Alert } from '../components/ui/Alert'
-import { Avatar } from '../components/ui/Avatar'
-import { Pagination } from '../components/ui/Pagination'
-import { Spinner } from '../components/ui/Spinner'
-import { Skeleton, SkeletonText, SkeletonTable } from '../components/ui/Skeleton'
-import { EmptyState } from '../components/ui/EmptyState'
-import { Toggle } from '../components/ui/Toggle'
-import { Dropdown } from '../components/ui/Dropdown'
-import type { DropdownItem } from '../components/ui/Dropdown'
-import { Progress } from '../components/ui/Progress'
-import { useToast } from '../components/ui'
+import { useState } from "react";
+import { BiChevronDown, BiEdit, BiPlus, BiSearch, BiTrash, BiUser } from "react-icons/bi";
+
+import { SearchButton } from "../components/SearchButton";
+import { useToast } from "../components/ui";
+import { Alert } from "../components/ui/Alert";
+import { Avatar } from "../components/ui/Avatar";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
+import { Card, CardDescription, CardHeader, CardTitle } from "../components/ui/Card";
+import type { DropdownItem } from "../components/ui/Dropdown";
+import { Dropdown } from "../components/ui/Dropdown";
+import { EmptyState } from "../components/ui/EmptyState";
+import { Input } from "../components/ui/Input";
+import { Modal } from "../components/ui/Modal";
+import { Pagination } from "../components/ui/Pagination";
+import { Progress } from "../components/ui/Progress";
+import { Select } from "../components/ui/Select";
+import { Skeleton, SkeletonTable, SkeletonText } from "../components/ui/Skeleton";
+import { Spinner } from "../components/ui/Spinner";
+import type { Column } from "../components/ui/Table";
+import { Table } from "../components/ui/Table";
+import type { Tab } from "../components/ui/Tabs";
+import { TabPanel, Tabs } from "../components/ui/Tabs";
+import { Textarea } from "../components/ui/Textarea";
+import { Toggle } from "../components/ui/Toggle";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-surface-200 bg-white overflow-hidden">
-      <div className="border-b border-surface-100 bg-surface-50 px-6 py-3">
-        <h2 className="text-base font-semibold text-surface-800">{title}</h2>
+    <section className="border-surface-200 overflow-hidden rounded-xl border bg-white">
+      <div className="border-surface-100 bg-surface-50 border-b px-6 py-3">
+        <h2 className="text-surface-800 text-base font-semibold">{title}</h2>
       </div>
-      <div className="p-6 space-y-4">{children}</div>
+      <div className="space-y-4 p-6">{children}</div>
     </section>
-  )
+  );
 }
 
 function SubSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-3">{title}</h3>
+      <h3 className="text-surface-500 mb-3 text-xs font-semibold tracking-wider uppercase">
+        {title}
+      </h3>
       <div className="flex flex-wrap items-center gap-3">{children}</div>
     </div>
-  )
+  );
 }
 
 export default function DesignSystem() {
-  const toast = useToast()
-  const [modalOpen, setModalOpen] = useState(false)
-  const [toggleChecked, setToggleChecked] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [alertVisible, setAlertVisible] = useState(true)
-  const [tableSortKey, setTableSortKey] = useState<string | undefined>('name')
-  const [tableSortDir, setTableSortDir] = useState<'asc' | 'desc'>('asc')
-  const [tabValue, setTabValue] = useState('tab1')
-  const [inputValue, setInputValue] = useState('')
+  const toast = useToast();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [toggleChecked, setToggleChecked] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [alertVisible, setAlertVisible] = useState(true);
+  const [tableSortKey, setTableSortKey] = useState<string | undefined>("name");
+  const [tableSortDir, setTableSortDir] = useState<"asc" | "desc">("asc");
+  const [tabValue, setTabValue] = useState("tab1");
+  const [inputValue, setInputValue] = useState("");
 
   const tabs: Tab[] = [
-    { id: 'tab1', label: 'پیش‌نمایش' },
-    { id: 'tab2', label: 'کد', badge: 3 },
-    { id: 'tab3', label: 'تنظیمات', icon: <BiChevronDown /> },
-  ]
+    { id: "tab1", label: "پیش‌نمایش" },
+    { id: "tab2", label: "کد", badge: 3 },
+    { id: "tab3", label: "تنظیمات", icon: <BiChevronDown /> },
+  ];
 
   const tableColumns: Column<{ id: number; name: string; role: string; status: string }>[] = [
-    { key: 'name', header: 'نام', sortable: true },
-    { key: 'role', header: 'نقش' },
+    { key: "name", header: "نام", sortable: true },
+    { key: "role", header: "نقش" },
     {
-      key: 'status',
-      header: 'وضعیت',
+      key: "status",
+      header: "وضعیت",
       render: (item) => (
-        <Badge variant={item.status === 'فعال' ? 'success' : 'warning'} size="sm">
+        <Badge variant={item.status === "فعال" ? "success" : "warning"} size="sm">
           {item.status}
         </Badge>
       ),
     },
-    { key: 'actions', header: 'عملیات', render: () => <Button size="sm" variant="ghost">ویرایش</Button> },
-  ]
+    {
+      key: "actions",
+      header: "عملیات",
+      render: () => (
+        <Button size="sm" variant="ghost">
+          ویرایش
+        </Button>
+      ),
+    },
+  ];
 
   const tableData = [
-    { id: 1, name: 'علی محمدی', role: 'مدیر', status: 'فعال' },
-    { id: 2, name: 'سارا احمدی', role: 'کارشناس', status: 'فعال' },
-    { id: 3, name: 'رضا کریمی', role: 'کاربر', status: 'غیرفعال' },
-  ]
+    { id: 1, name: "علی محمدی", role: "مدیر", status: "فعال" },
+    { id: 2, name: "سارا احمدی", role: "کارشناس", status: "فعال" },
+    { id: 3, name: "رضا کریمی", role: "کاربر", status: "غیرفعال" },
+  ];
 
   const handleSort = (key: string) => {
     if (tableSortKey === key) {
-      setTableSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+      setTableSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
-      setTableSortKey(key)
-      setTableSortDir('asc')
+      setTableSortKey(key);
+      setTableSortDir("asc");
     }
-  }
+  };
 
   const dropdownItems: DropdownItem[] = [
-    { label: 'ویرایش', icon: <BiEdit />, onClick: () => {} },
-    { label: 'حذف', icon: <BiTrash />, danger: true, onClick: () => {} },
-    { label: '', divider: true },
-    { label: 'مشاهده پروفایل', icon: <BiUser />, onClick: () => {} },
-  ]
+    { label: "ویرایش", icon: <BiEdit />, onClick: () => {} },
+    { label: "حذف", icon: <BiTrash />, danger: true, onClick: () => {} },
+    { label: "", divider: true },
+    { label: "مشاهده پروفایل", icon: <BiUser />, onClick: () => {} },
+  ];
 
   return (
     <div className="flex flex-col gap-6 pb-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-surface-900">سیستم طراحی</h1>
-        <p className="text-sm text-surface-500">نمایش و تست تمامی کامپوننت‌های سیستم طراحی</p>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-surface-900 text-2xl font-bold">سیستم طراحی</h1>
+          <p className="text-surface-500 text-sm">نمایش و تست تمامی کامپوننت‌های سیستم طراحی</p>
+        </div>
+        <SearchButton />
       </div>
 
       <Section title="Alert">
@@ -113,7 +128,12 @@ export default function DesignSystem() {
         </SubSection>
         <SubSection title="با عنوان و دکمه بستن">
           {alertVisible && (
-            <Alert variant="warning" title="توجه" dismissible onDismiss={() => setAlertVisible(false)}>
+            <Alert
+              variant="warning"
+              title="توجه"
+              dismissible
+              onDismiss={() => setAlertVisible(false)}
+            >
               این هشدار قابل بستن است
             </Alert>
           )}
@@ -143,29 +163,46 @@ export default function DesignSystem() {
 
       <Section title="Inputs">
         <SubSection title="Default & States">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-            <Input label="نام کاربری" placeholder="نام کاربری" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+          <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-3">
+            <Input
+              label="نام کاربری"
+              placeholder="نام کاربری"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+            />
             <Input label="خطا" error="این فیلد الزامی است" placeholder="مقدار" />
             <Input label="غیرفعال" disabled placeholder="غیرفعال" />
           </div>
         </SubSection>
         <SubSection title="With Icons">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+          <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
             <Input startIcon={<BiSearch />} placeholder="جستجو..." />
-            <Input label="کد تخفیف" startIcon={<BiPlus />} endIcon={<Badge size="sm">اعمال</Badge>} />
+            <Input
+              label="کد تخفیف"
+              startIcon={<BiPlus />}
+              endIcon={<Badge size="sm">اعمال</Badge>}
+            />
           </div>
         </SubSection>
         <SubSection title="Select">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-            <Select label="انتخاب نقش" options={[
-              { value: 'admin', label: 'مدیر' },
-              { value: 'user', label: 'کاربر' },
-              { value: 'viewer', label: 'بیننده' },
-            ]} placeholder="یک گزینه انتخاب کنید" />
-            <Select label="با خطا" options={[
-              { value: '1', label: 'گزینه ۱' },
-              { value: '2', label: 'گزینه ۲' },
-            ]} error="اجباری است" />
+          <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
+            <Select
+              label="انتخاب نقش"
+              options={[
+                { value: "admin", label: "مدیر" },
+                { value: "user", label: "کاربر" },
+                { value: "viewer", label: "بیننده" },
+              ]}
+              placeholder="یک گزینه انتخاب کنید"
+            />
+            <Select
+              label="با خطا"
+              options={[
+                { value: "1", label: "گزینه ۱" },
+                { value: "2", label: "گزینه ۲" },
+              ]}
+              error="اجباری است"
+            />
           </div>
         </SubSection>
         <SubSection title="Textarea">
@@ -175,21 +212,33 @@ export default function DesignSystem() {
       </Section>
 
       <Section title="Card">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+        <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-3">
           <Card title="پیش‌فرض">
-            <p className="text-sm text-surface-600">کادر ساده با پس‌زمینه سفید</p>
+            <p className="text-surface-600 text-sm">کادر ساده با پس‌زمینه سفید</p>
           </Card>
           <Card variant="outlined" title="حاشیه‌دار">
-            <p className="text-sm text-surface-600">کادر با حاشیه</p>
+            <p className="text-surface-600 text-sm">کادر با حاشیه</p>
           </Card>
           <Card variant="elevated" title="سایه‌دار">
-            <p className="text-sm text-surface-600">کادر با سایه</p>
+            <p className="text-surface-600 text-sm">کادر با سایه</p>
           </Card>
         </div>
         <SubSection title="Card with Header/Footer">
           <Card
-            header={<CardHeader><CardTitle>عنوان کارت</CardTitle><Badge>جدید</Badge></CardHeader>}
-            footer={<div className="flex justify-end gap-2"><Button size="sm" variant="ghost">لغو</Button><Button size="sm">تأیید</Button></div>}
+            header={
+              <CardHeader>
+                <CardTitle>عنوان کارت</CardTitle>
+                <Badge>جدید</Badge>
+              </CardHeader>
+            }
+            footer={
+              <div className="flex justify-end gap-2">
+                <Button size="sm" variant="ghost">
+                  لغو
+                </Button>
+                <Button size="sm">تأیید</Button>
+              </div>
+            }
           >
             <CardDescription>توضیحات کارت در این بخش نمایش داده می‌شود</CardDescription>
           </Card>
@@ -207,8 +256,12 @@ export default function DesignSystem() {
         <SubSection title="Sizes & Dot">
           <Badge size="sm">کوچک</Badge>
           <Badge size="md">متوسط</Badge>
-          <Badge dot variant="success">آنلاین</Badge>
-          <Badge dot variant="danger">آفلاین</Badge>
+          <Badge dot variant="success">
+            آنلاین
+          </Badge>
+          <Badge dot variant="danger">
+            آفلاین
+          </Badge>
         </SubSection>
       </Section>
 
@@ -232,13 +285,13 @@ export default function DesignSystem() {
 
       <Section title="Tabs">
         <Tabs tabs={tabs} activeTab={tabValue} onChange={setTabValue} />
-        <TabPanel id="tab1" activeTab={tabValue} className="p-4 text-sm text-surface-600">
+        <TabPanel id="tab1" activeTab={tabValue} className="text-surface-600 p-4 text-sm">
           محتوای تب پیش‌نمایش
         </TabPanel>
-        <TabPanel id="tab2" activeTab={tabValue} className="p-4 text-sm text-surface-600">
+        <TabPanel id="tab2" activeTab={tabValue} className="text-surface-600 p-4 text-sm">
           محتوای تب کد
         </TabPanel>
-        <TabPanel id="tab3" activeTab={tabValue} className="p-4 text-sm text-surface-600">
+        <TabPanel id="tab3" activeTab={tabValue} className="text-surface-600 p-4 text-sm">
           محتوای تب تنظیمات
         </TabPanel>
       </Section>
@@ -270,12 +323,18 @@ export default function DesignSystem() {
           title="تأیید حذف"
           footer={
             <>
-              <Button variant="ghost" onClick={() => setModalOpen(false)}>لغو</Button>
-              <Button variant="danger" onClick={() => setModalOpen(false)}>حذف</Button>
+              <Button variant="ghost" onClick={() => setModalOpen(false)}>
+                لغو
+              </Button>
+              <Button variant="danger" onClick={() => setModalOpen(false)}>
+                حذف
+              </Button>
             </>
           }
         >
-          <p className="text-sm text-surface-600">آیا از حذف این آیتم اطمینان دارید؟ این عملیات قابل بازگشت نیست.</p>
+          <p className="text-surface-600 text-sm">
+            آیا از حذف این آیتم اطمینان دارید؟ این عملیات قابل بازگشت نیست.
+          </p>
         </Modal>
       </Section>
 
@@ -284,18 +343,30 @@ export default function DesignSystem() {
       </Section>
 
       <Section title="Toggle">
-        <Toggle label="فعال کردن اعلان‌ها" checked={toggleChecked} onChange={(e) => setToggleChecked(e.target.checked)} />
+        <Toggle
+          label="فعال کردن اعلان‌ها"
+          checked={toggleChecked}
+          onChange={(e) => setToggleChecked(e.target.checked)}
+        />
         <Toggle label="غیرفعال" disabled />
       </Section>
 
       <Section title="Dropdown">
         <Dropdown
-          trigger={<Button variant="outline" endIcon={<BiChevronDown />}>بیشتر</Button>}
+          trigger={
+            <Button variant="outline" endIcon={<BiChevronDown />}>
+              بیشتر
+            </Button>
+          }
           items={dropdownItems}
         />
         <Dropdown
           align="end"
-          trigger={<Button variant="secondary" endIcon={<BiChevronDown />}>گزینه‌ها</Button>}
+          trigger={
+            <Button variant="secondary" endIcon={<BiChevronDown />}>
+              گزینه‌ها
+            </Button>
+          }
           items={dropdownItems}
         />
       </Section>
@@ -338,30 +409,53 @@ export default function DesignSystem() {
         <EmptyState
           title="موردی یافت نشد"
           description="هیچ داده‌ای برای نمایش وجود ندارد. با کلیک بر روی دکمه زیر، مورد جدیدی اضافه کنید."
-          action={<Button size="sm" startIcon={<BiPlus />}>افزودن</Button>}
+          action={
+            <Button size="sm" startIcon={<BiPlus />}>
+              افزودن
+            </Button>
+          }
         />
       </Section>
 
       <Section title="Toast">
         <SubSection title="اعلان‌ها">
-          <Button variant="primary" onClick={() => toast.success('عملیات موفق', 'داده‌ها با موفقیت ذخیره شدند.')}>موفق</Button>
-          <Button variant="danger" onClick={() => toast.error('خطا', 'مشکلی در پردازش رخ داد.')}>خطا</Button>
-          <Button variant="secondary" onClick={() => toast.warning('هشدار', 'به زودی محدودیت اعمال می‌شود.')}>هشدار</Button>
-          <Button variant="ghost" onClick={() => toast.info('اطلاعیه', 'نسخه جدید منتشر شد.')}>اطلاع</Button>
+          <Button
+            variant="primary"
+            onClick={() => toast.success("عملیات موفق", "داده‌ها با موفقیت ذخیره شدند.")}
+          >
+            موفق
+          </Button>
+          <Button variant="danger" onClick={() => toast.error("خطا", "مشکلی در پردازش رخ داد.")}>
+            خطا
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => toast.warning("هشدار", "به زودی محدودیت اعمال می‌شود.")}
+          >
+            هشدار
+          </Button>
+          <Button variant="ghost" onClick={() => toast.info("اطلاعیه", "نسخه جدید منتشر شد.")}>
+            اطلاع
+          </Button>
         </SubSection>
       </Section>
 
       <Section title="Live Demo — فرم ثبت نام">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="flex flex-col gap-4">
             <Input label="نام و نام خانوادگی" placeholder="مثال: علی رضایی" />
-            <Input label="ایمیل" type="email" placeholder="example@email.com" startIcon={<BiUser />} />
+            <Input
+              label="ایمیل"
+              type="email"
+              placeholder="example@email.com"
+              startIcon={<BiUser />}
+            />
             <Select
               label="نقش"
               options={[
-                { value: 'admin', label: 'مدیر سیستم' },
-                { value: 'doctor', label: 'پزشک' },
-                { value: 'staff', label: 'کارمند' },
+                { value: "admin", label: "مدیر سیستم" },
+                { value: "doctor", label: "پزشک" },
+                { value: "staff", label: "کارمند" },
               ]}
               placeholder="انتخاب نقش"
             />
@@ -374,8 +468,8 @@ export default function DesignSystem() {
             <div className="flex items-center gap-3">
               <Avatar size="lg" name="علی رضایی" status="online" />
               <div>
-                <p className="text-sm font-medium text-surface-900">علی رضایی</p>
-                <p className="text-xs text-surface-500">مدیر سیستم</p>
+                <p className="text-surface-900 text-sm font-medium">علی رضایی</p>
+                <p className="text-surface-500 text-xs">مدیر سیستم</p>
               </div>
             </div>
             <Alert variant="success">کاربر با موفقیت ایجاد شد</Alert>
@@ -384,5 +478,5 @@ export default function DesignSystem() {
         </div>
       </Section>
     </div>
-  )
+  );
 }

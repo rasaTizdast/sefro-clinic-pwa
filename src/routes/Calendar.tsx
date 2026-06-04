@@ -1,26 +1,28 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
+  BiCalendar,
   BiChevronLeft,
   BiChevronRight,
+  BiNote,
   BiPlus,
-  BiCalendar,
   BiTime,
   BiUser,
-  BiNote,
 } from "react-icons/bi";
-import { Card } from "../components/ui/Card";
+
+import { SearchButton } from "../components/SearchButton";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
-import { Modal } from "../components/ui/Modal";
+import { Card } from "../components/ui/Card";
+import { EmptyState } from "../components/ui/EmptyState";
 import { Input } from "../components/ui/Input";
+import { Modal } from "../components/ui/Modal";
 import { Select } from "../components/ui/Select";
 import { Textarea } from "../components/ui/Textarea";
-import { EmptyState } from "../components/ui/EmptyState";
 import type {
   Appointment,
+  AppointmentStatus,
   DayCell,
   NewAppointmentFormData,
-  AppointmentStatus,
 } from "../types/appointment";
 const PERSIAN_MONTHS = [
   "فروردین",
@@ -309,14 +311,16 @@ function Calendar() {
         <div>
           <h1 className="text-surface-900 text-2xl font-bold">تقویم نوبت‌ها</h1>
         </div>
-        <Button
-          variant="primary"
-          startIcon={<BiPlus className="size-5" />}
-          className="mt-3 sm:mt-0"
-          onClick={handleOpenModal}
-        >
-          نوبت جدید
-        </Button>
+        <div className="mt-3 flex items-center gap-3 sm:mt-0">
+          <Button
+            variant="primary"
+            startIcon={<BiPlus className="size-5" />}
+            onClick={handleOpenModal}
+          >
+            نوبت جدید
+          </Button>
+          <SearchButton />
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">

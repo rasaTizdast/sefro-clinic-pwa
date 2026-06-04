@@ -1,31 +1,33 @@
 import { useState } from "react";
-import { BiDownload, BiUser, BiDollar, BiHeart } from "react-icons/bi";
+import { BiDollar, BiDownload, BiHeart, BiUser } from "react-icons/bi";
 import { IoDocumentTextOutline } from "react-icons/io5";
 import { PiClockCounterClockwise } from "react-icons/pi";
 import {
-  LineChart,
-  Line,
-  BarChart,
+  Area,
+  AreaChart,
   Bar,
-  PieChart,
-  Pie,
+  BarChart,
+  CartesianGrid,
   Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  AreaChart,
-  Area,
 } from "recharts";
-import { Card, CardTitle } from "../components/ui/Card";
+
+import { SearchButton } from "../components/SearchButton";
 import { Button } from "../components/ui/Button";
+import { Card, CardTitle } from "../components/ui/Card";
 import { Select } from "../components/ui/Select";
 import type {
+  AppointmentStat,
   KpiStat,
   MonthlyRevenue,
-  AppointmentStat,
   PatientVisit,
   ServiceCategoryStat,
 } from "../types/analytics";
@@ -135,6 +137,7 @@ function Analytics() {
           <Button variant="primary" startIcon={<IoDocumentTextOutline className="size-5" />}>
             خروجی PDF
           </Button>
+          <SearchButton />
         </div>
       </div>
 

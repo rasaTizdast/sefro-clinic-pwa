@@ -1,27 +1,31 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
+  BiCalendar,
+  BiMinus,
   BiPlus,
   BiSearch,
-  BiCalendar,
-  BiUserPlus,
-  BiTrendingUp,
   BiTrendingDown,
-  BiMinus,
+  BiTrendingUp,
 } from "react-icons/bi";
 import { IoDocumentTextOutline } from "react-icons/io5";
-import { MdPeople, MdEventAvailable, MdPayments, MdPersonAdd } from "react-icons/md";
-import { Card, CardTitle } from "../components/ui/Card";
+import { MdEventAvailable, MdPayments, MdPeople, MdPersonAdd } from "react-icons/md";
+
+import PatientFormModal from "../components/patients/PatientFormModal";
+import { SearchButton } from "../components/SearchButton";
+import { useToast } from "../components/ui";
+import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
-import { Table, type Column } from "../components/ui/Table";
-import { Progress } from "../components/ui/Progress";
+import { Card, CardTitle } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
+import { Progress } from "../components/ui/Progress";
 import { Skeleton, SkeletonTable } from "../components/ui/Skeleton";
-import { Alert } from "../components/ui/Alert";
-import type { DashboardStat } from "../types/dashboard";
+import { type Column, Table } from "../components/ui/Table";
+import { toPersianDigits } from "../lib/digits";
 import type { Appointment } from "../types/appointment";
-import type { Patient } from "../types/patient";
 import type { PageState, Trend } from "../types/common";
+import type { DashboardStat } from "../types/dashboard";
+import type { Patient } from "../types/patient";
 
 const appointmentStatusMap: Record<
   Appointment["status"],
@@ -42,16 +46,12 @@ const patientStatusMap: Record<
   new: { label: "جدید", variant: "info" },
 };
 
-const quickActions = [
-  { label: "مراجعه جدید", icon: <BiUserPlus className="size-5" />, variant: "primary" as const },
-  { label: "نوبت جدید", icon: <BiCalendar className="size-5" />, variant: "secondary" as const },
-  { label: "جستجوی بیمار", icon: <BiSearch className="size-5" />, variant: "outline" as const },
-  {
-    label: "گزارش سریع",
-    icon: <IoDocumentTextOutline className="size-5" />,
-    variant: "ghost" as const,
-  },
-];
+type QuickAction = {
+  label: string;
+  icon: React.ReactNode;
+  variant: "primary" | "secondary" | "outline" | "ghost";
+  onClick?: () => void;
+};
 
 const appointmentColumns: Column<Appointment>[] = [
   { key: "time", header: "ساعت", width: "80px" },
@@ -72,9 +72,19 @@ const appointmentColumns: Column<Appointment>[] = [
   },
 ];
 
-const patientColumns: Column<Pick<Patient, "id" | "name" | "phone" | "lastVisit" | "status">>[] = [
-  { key: "name", header: "نام بیمار" },
-  { key: "phone", header: "تلفن" },
+const patientColumns: Column<
+  Pick<Patient, "id" | "firstName" | "lastName" | "phone" | "lastVisit" | "status">
+>[] = [
+  {
+    key: "name",
+    header: "نام بیمار",
+    render: (item) => `${item.firstName} ${item.lastName}`,
+  },
+  {
+    key: "phone",
+    header: "تلفن",
+    render: (item) => toPersianDigits(item.phone),
+  },
   { key: "lastVisit", header: "آخرین مراجعه", align: "center" },
   {
     key: "status",
@@ -153,13 +163,58 @@ const mockAppointments: Appointment[] = [
   },
 ];
 
-const mockPatients: Pick<Patient, "id" | "name" | "phone" | "lastVisit" | "status">[] = [
-  { id: 1, name: "علی رضایی", phone: "۰۹۱۲۳۴۵۶۷۸۹", lastVisit: "۱۴۰۵/۰۳/۰۳", status: "active" },
-  { id: 2, name: "سارا احمدی", phone: "۰۹۱۹۸۷۶۵۴۳۲", lastVisit: "۱۴۰۵/۰۳/۰۳", status: "new" },
-  { id: 3, name: "رضا کریمی", phone: "۰۹۳۳۵۵۷۷۸۸", lastVisit: "۱۴۰۵/۰۲/۲۸", status: "active" },
-  { id: 4, name: "مریم نوروزی", phone: "۰۹۱۲۲۲۳۳۴۴", lastVisit: "۱۴۰۵/۰۲/۱۵", status: "inactive" },
-  { id: 5, name: "امیر عباسی", phone: "۰۹۰۱۸۸۷۷۶۶", lastVisit: "۱۴۰۵/۰۳/۰۱", status: "active" },
-  { id: 6, name: "زهرا محمدی", phone: "۰۹۳۰۴۴۵۵۶۶", lastVisit: "۱۴۰۵/۰۲/۲۵", status: "new" },
+const mockPatients: Pick<
+  Patient,
+  "id" | "firstName" | "lastName" | "phone" | "lastVisit" | "status"
+>[] = [
+  {
+    id: 1,
+    firstName: "علی",
+    lastName: "رضایی",
+    phone: "09123456789",
+    lastVisit: "۱۴۰۵/۰۳/۰۳",
+    status: "active",
+  },
+  {
+    id: 2,
+    firstName: "سارا",
+    lastName: "احمدی",
+    phone: "09198765432",
+    lastVisit: "۱۴۰۵/۰۳/۰۳",
+    status: "new",
+  },
+  {
+    id: 3,
+    firstName: "رضا",
+    lastName: "کریمی",
+    phone: "0933557788",
+    lastVisit: "۱۴۰۵/۰۲/۲۸",
+    status: "active",
+  },
+  {
+    id: 4,
+    firstName: "مریم",
+    lastName: "نوروزی",
+    phone: "0912223344",
+    lastVisit: "۱۴۰۵/۰۲/۱۵",
+    status: "inactive",
+  },
+  {
+    id: 5,
+    firstName: "امیر",
+    lastName: "عباسی",
+    phone: "0901887766",
+    lastVisit: "۱۴۰۵/۰۳/۰۱",
+    status: "active",
+  },
+  {
+    id: 6,
+    firstName: "زهرا",
+    lastName: "محمدی",
+    phone: "0930445566",
+    lastVisit: "۱۴۰۵/۰۲/۲۵",
+    status: "new",
+  },
 ];
 
 const stats: DashboardStat[] = [
@@ -223,10 +278,40 @@ function getPersianDate(): string {
 }
 
 function Dashboard() {
+  const toast = useToast();
   const [pageState] = useState<PageState>("ready");
   const [today] = useState(getPersianDate);
+  const [patientModalOpen, setPatientModalOpen] = useState(false);
+  const [recentPatients] = useState(mockPatients);
   const completedCount = mockAppointments.filter((a) => a.status === "completed").length;
   const capacityPercent = Math.round((completedCount / mockAppointments.length) * 100);
+
+  const handleAddPatient = useCallback(
+    (patient: Patient) => {
+      setPatientModalOpen(false);
+      toast.success(
+        "بیمار جدید ثبت شد",
+        `${patient.firstName} ${patient.lastName} با موفقیت اضافه شد.`
+      );
+    },
+    [toast]
+  );
+
+  const quickActions: QuickAction[] = [
+    { label: "نوبت جدید", icon: <BiCalendar className="size-5" />, variant: "primary" as const },
+    {
+      label: "بیمار جدید",
+      icon: <BiPlus className="size-5" />,
+      variant: "secondary" as const,
+      onClick: () => setPatientModalOpen(true),
+    },
+    { label: "جستجوی بیمار", icon: <BiSearch className="size-5" />, variant: "outline" as const },
+    {
+      label: "گزارش سریع",
+      icon: <IoDocumentTextOutline className="size-5" />,
+      variant: "ghost" as const,
+    },
+  ];
 
   if (pageState === "loading") {
     return (
@@ -301,13 +386,12 @@ function Dashboard() {
           <h1 className="text-surface-900 text-2xl font-bold">داشبورد</h1>
           <p className="text-surface-500 mt-1 text-sm">امروز: {today}</p>
         </div>
-        <Button
-          variant="primary"
-          startIcon={<BiPlus className="size-5" />}
-          className="mt-3 sm:mt-0"
-        >
-          نوبت جدید
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="primary" startIcon={<BiPlus className="size-5" />}>
+            نوبت جدید
+          </Button>
+          <SearchButton />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -342,7 +426,13 @@ function Dashboard() {
         <CardTitle>اقدامات سریع</CardTitle>
         <div className="mt-4 flex flex-wrap gap-3">
           {quickActions.map((action) => (
-            <Button key={action.label} variant={action.variant} startIcon={action.icon} size="md">
+            <Button
+              key={action.label}
+              variant={action.variant}
+              startIcon={action.icon}
+              size="md"
+              onClick={action.onClick}
+            >
               {action.label}
             </Button>
           ))}
@@ -392,13 +482,13 @@ function Dashboard() {
             <div className="border-surface-200 flex items-center justify-between border-b px-5 py-4">
               <CardTitle>مراجعین اخیر</CardTitle>
               <Badge variant="default" size="sm">
-                {mockPatients.length} بیمار
+                {recentPatients.length} بیمار
               </Badge>
             </div>
-            {mockPatients.length > 0 ? (
+            {recentPatients.length > 0 ? (
               <Table
                 columns={patientColumns}
-                data={mockPatients}
+                data={recentPatients}
                 rowKey={(item) => item.id}
                 className="rounded-none border-0"
               />
@@ -414,7 +504,7 @@ function Dashboard() {
         </div>
       </div>
 
-      {mockAppointments.length === 0 && mockPatients.length === 0 && (
+      {mockAppointments.length === 0 && recentPatients.length === 0 && (
         <EmptyState
           title="داده‌ای وجود ندارد"
           description="با استفاده از دکمه بالای صفحه، اولین نوبت امروز را ثبت کنید."
@@ -424,6 +514,10 @@ function Dashboard() {
             </Button>
           }
         />
+      )}
+
+      {patientModalOpen && (
+        <PatientFormModal onClose={() => setPatientModalOpen(false)} onSuccess={handleAddPatient} />
       )}
     </div>
   );

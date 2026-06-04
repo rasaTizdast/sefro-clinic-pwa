@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { BiPlus, BiDownload } from "react-icons/bi";
+import { BiDownload, BiPlus } from "react-icons/bi";
 import { CiMoneyBill, CiReceipt } from "react-icons/ci";
-import { IoCashOutline, IoCardOutline } from "react-icons/io5";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Card, CardTitle } from "../components/ui/Card";
+import { IoCardOutline, IoCashOutline } from "react-icons/io5";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
+import { SearchButton } from "../components/SearchButton";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
-import { Table, type Column } from "../components/ui/Table";
+import { Card, CardTitle } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
-import { Select } from "../components/ui/Select";
 import { Pagination } from "../components/ui/Pagination";
-import type { DailyRevenue, Transaction, AccountingStat } from "../types/accounting";
+import { Select } from "../components/ui/Select";
+import { type Column, Table } from "../components/ui/Table";
+import type { AccountingStat, DailyRevenue, Transaction } from "../types/accounting";
 
 const transactionStatusMap: Record<
   Transaction["status"],
@@ -261,6 +263,7 @@ function Accounting() {
           <Button variant="primary" startIcon={<BiPlus className="size-5" />}>
             ثبت تراکنش
           </Button>
+          <SearchButton />
         </div>
       </div>
 

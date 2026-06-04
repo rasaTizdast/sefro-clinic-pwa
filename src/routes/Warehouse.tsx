@@ -1,16 +1,18 @@
-import { useState, useMemo } from "react";
-import { BiPlus, BiSearch, BiEdit, BiTrash } from "react-icons/bi";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import { Select } from "../components/ui/Select";
-import { Textarea } from "../components/ui/Textarea";
-import { Card } from "../components/ui/Card";
-import { Badge } from "../components/ui/Badge";
-import { Table, type Column } from "../components/ui/Table";
-import { Tabs } from "../components/ui/Tabs";
-import { Modal } from "../components/ui/Modal";
+import { useMemo, useState } from "react";
+import { BiEdit, BiPlus, BiSearch, BiTrash } from "react-icons/bi";
+
+import { SearchButton } from "../components/SearchButton";
 import { Alert } from "../components/ui/Alert";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { Input } from "../components/ui/Input";
+import { Modal } from "../components/ui/Modal";
 import { Pagination } from "../components/ui/Pagination";
+import { Select } from "../components/ui/Select";
+import { type Column, Table } from "../components/ui/Table";
+import { Tabs } from "../components/ui/Tabs";
+import { Textarea } from "../components/ui/Textarea";
 import type { WarehouseItem } from "../types/warehouse";
 
 const categoryTabs = [
@@ -380,14 +382,16 @@ function Warehouse() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-surface-900 text-2xl font-bold">مدیریت انبار</h1>
-        <Button
-          variant="primary"
-          startIcon={<BiPlus className="size-5" />}
-          onClick={openNewModal}
-          className="mt-3 sm:mt-0"
-        >
-          محصول جدید
-        </Button>
+        <div className="mt-3 flex items-center gap-3 sm:mt-0">
+          <Button
+            variant="primary"
+            startIcon={<BiPlus className="size-5" />}
+            onClick={openNewModal}
+          >
+            محصول جدید
+          </Button>
+          <SearchButton />
+        </div>
       </div>
 
       {lowStockCount > 0 && (

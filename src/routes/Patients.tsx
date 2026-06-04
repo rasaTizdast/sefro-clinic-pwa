@@ -1,22 +1,26 @@
-import { useState, useEffect, useMemo } from "react";
-import { BiPlus, BiSearch, BiDownload, BiEdit, BiTrash } from "react-icons/bi";
-import { PiDotsThreeVertical } from "react-icons/pi";
+import { useEffect, useMemo, useState } from "react";
+import { BiDownload, BiEdit, BiPlus, BiSearch, BiTrash } from "react-icons/bi";
+import { MdPersonAdd } from "react-icons/md";
 import { MdOutlinePeople } from "react-icons/md";
-import { Card } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import { Textarea } from "../components/ui/Textarea";
-import { Badge } from "../components/ui/Badge";
-import { Table, type Column } from "../components/ui/Table";
-import { Tabs } from "../components/ui/Tabs";
-import type { Tab } from "../components/ui/Tabs";
-import { Modal } from "../components/ui/Modal";
-import { Pagination } from "../components/ui/Pagination";
-import { EmptyState } from "../components/ui/EmptyState";
+import { PiDotsThreeVertical } from "react-icons/pi";
+
+import PatientFormModal from "../components/patients/PatientFormModal";
+import { SearchButton } from "../components/SearchButton";
 import { Alert } from "../components/ui/Alert";
-import { Dropdown } from "../components/ui/Dropdown";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
 import type { DropdownItem } from "../components/ui/Dropdown";
-import type { Patient, PatientFormData, PatientStatus } from "../types/patient";
+import { Dropdown } from "../components/ui/Dropdown";
+import { EmptyState } from "../components/ui/EmptyState";
+import { Input } from "../components/ui/Input";
+import { Pagination } from "../components/ui/Pagination";
+import { type Column, Table } from "../components/ui/Table";
+import type { Tab } from "../components/ui/Tabs";
+import { Tabs } from "../components/ui/Tabs";
+import { useQuickActions } from "../hooks/useQuickActions";
+import { normalizeSearch, toPersianDigits } from "../lib/digits";
+import type { Patient, PatientStatus } from "../types/patient";
 
 type StatusVariant = "success" | "warning" | "info";
 
@@ -33,191 +37,178 @@ const filterTabs: Tab[] = [
   { id: "new", label: "جدید" },
 ];
 
-const initialForm: PatientFormData = {
-  name: "",
-  phone: "",
-  nationalCode: "",
-  birthDate: "",
-  address: "",
-  notes: "",
-};
-
 const PAGE_SIZE = 10;
 
 const mockPatients: Patient[] = [
   {
     id: 1,
-    name: "علی رضایی",
-    phone: "۰۹۱۲۳۴۵۶۷۸۹",
-    nationalCode: "۰۰۱۲۳۴۵۶۷۸",
-    birthDate: "۱۳۶۵/۰۴/۱۵",
-    address: "تهران، خیابان ولیعصر، کوچه گلستان ۱۲",
-    notes: "فشار خون بالا",
+    firstName: "علی",
+    lastName: "رضایی",
+    phone: "09123456789",
+    nationalId: "0012345678",
+    bitmojiId: "",
     lastVisit: "۱۴۰۵/۰۳/۰۳",
     visitCount: 24,
-    debt: 0,
     status: "active",
     createdAt: "۱۴۰۴/۱۰/۰۱",
+    products: [],
+    services: [],
   },
   {
     id: 2,
-    name: "سارا احمدی",
-    phone: "۰۹۱۹۸۷۶۵۴۳۲",
-    nationalCode: "۰۰۲۹۸۷۶۵۴۳",
-    birthDate: "۱۳۷۰/۰۸/۲۰",
-    address: "اصفهان، خیابان چهارباغ، کوچه سعدی",
-    notes: "",
+    firstName: "سارا",
+    lastName: "احمدی",
+    phone: "09198765432",
+    nationalId: "0029876543",
+    bitmojiId: "",
     lastVisit: "۱۴۰۵/۰۳/۰۳",
     visitCount: 8,
-    debt: 150000,
     status: "new",
     createdAt: "۱۴۰۵/۰۲/۲۸",
+    products: [],
+    services: [],
   },
   {
     id: 3,
-    name: "رضا کریمی",
-    phone: "۰۹۳۳۵۵۷۷۸۸",
-    nationalCode: "۰۰۳۳۵۵۷۷۸۸",
-    birthDate: "۱۳۵۸/۱۱/۰۵",
-    address: "شیراز، خیابان زند، کوچه باغ",
-    notes: "دیابت نوع ۲",
+    firstName: "رضا",
+    lastName: "کریمی",
+    phone: "0933557788",
+    nationalId: "0033557788",
+    bitmojiId: "",
     lastVisit: "۱۴۰۵/۰۲/۲۸",
     visitCount: 56,
-    debt: 320000,
     status: "active",
     createdAt: "۱۴۰۳/۰۶/۱۵",
+    products: [],
+    services: [],
   },
   {
     id: 4,
-    name: "مریم نوروزی",
-    phone: "۰۹۱۲۲۲۳۳۴۴",
-    nationalCode: "۰۰۴۲۲۲۳۳۴۴",
-    birthDate: "۱۳۷۵/۰۲/۱۰",
-    address: "تهران، خیابان انقلاب، کوچه پروین",
-    notes: "",
+    firstName: "مریم",
+    lastName: "نوروزی",
+    phone: "0912223344",
+    nationalId: "0042223344",
+    bitmojiId: "",
     lastVisit: "۱۴۰۵/۰۲/۱۵",
     visitCount: 3,
-    debt: 0,
     status: "inactive",
     createdAt: "۱۴۰۵/۰۱/۱۰",
+    products: [],
+    services: [],
   },
   {
     id: 5,
-    name: "امیر عباسی",
-    phone: "۰۹۰۱۸۸۷۷۶۶",
-    nationalCode: "۰۰۵۱۸۸۷۷۶۶",
-    birthDate: "۱۳۶۰/۰۶/۲۵",
-    address: "مشهد، خیابان امام رضا، کوچه طلا",
-    notes: "آسم",
+    firstName: "امیر",
+    lastName: "عباسی",
+    phone: "0901887766",
+    nationalId: "0051887766",
+    bitmojiId: "",
     lastVisit: "۱۴۰۵/۰۳/۰۱",
     visitCount: 18,
-    debt: 75000,
     status: "active",
     createdAt: "۱۴۰۴/۰۲/۰۵",
+    products: [],
+    services: [],
   },
   {
     id: 6,
-    name: "نگین صادقی",
-    phone: "۰۹۳۶۶۴۴۳۲۱",
-    nationalCode: "۰۰۶۶۶۴۴۳۲۱",
-    birthDate: "۱۳۷۸/۰۹/۱۵",
-    address: "تهران، خیابان شریعتی، کوچه مهر",
-    notes: "بارداری",
+    firstName: "نگین",
+    lastName: "صادقی",
+    phone: "0936644321",
+    nationalId: "0066644321",
+    bitmojiId: "",
     lastVisit: "۱۴۰۵/۰۲/۲۰",
     visitCount: 12,
-    debt: 0,
     status: "new",
     createdAt: "۱۴۰۵/۰۲/۱۰",
+    products: [],
+    services: [],
   },
   {
     id: 7,
-    name: "محمد حسینی",
-    phone: "۰۹۱۴۴۵۵۶۶۷",
-    nationalCode: "۰۰۷۴۴۵۵۶۶۷",
-    birthDate: "۱۳۴۸/۰۳/۲۰",
-    address: "تبریز، خیابان امام، کوچه مصلی",
-    notes: "فشار خون بالا - دیابت",
+    firstName: "محمد",
+    lastName: "حسینی",
+    phone: "0914455667",
+    nationalId: "0074455667",
+    bitmojiId: "",
     lastVisit: "۱۴۰۵/۰۱/۱۵",
     visitCount: 42,
-    debt: 500000,
     status: "active",
     createdAt: "۱۴۰۲/۰۸/۲۰",
+    products: [],
+    services: [],
   },
   {
     id: 8,
-    name: "زهرا محمدی",
-    phone: "۰۹۱۲۷۷۸۸۹۹",
-    nationalCode: "۰۰۸۲۷۷۸۸۹۹",
-    birthDate: "۱۳۸۰/۱۲/۰۱",
-    address: "کرج، خیابان طالقانی، کوچه گلزار",
-    notes: "",
+    firstName: "زهرا",
+    lastName: "محمدی",
+    phone: "0912778899",
+    nationalId: "0082778899",
+    bitmojiId: "",
     lastVisit: "۱۴۰۴/۱۲/۲۰",
     visitCount: 1,
-    debt: 0,
     status: "inactive",
     createdAt: "۱۴۰۴/۱۲/۱۰",
+    products: [],
+    services: [],
   },
   {
     id: 9,
-    name: "حسین رستمی",
-    phone: "۰۹۳۰۱۱۲۲۳۳",
-    nationalCode: "۰۰۹۰۱۱۲۲۳۳",
-    birthDate: "۱۳۵۵/۰۷/۱۲",
-    address: "قم، خیابان مدرس، کوچه نور",
-    notes: "آرتروز",
+    firstName: "حسین",
+    lastName: "رستمی",
+    phone: "0930112233",
+    nationalId: "0090112233",
+    bitmojiId: "",
     lastVisit: "۱۴۰۵/۰۲/۰۵",
     visitCount: 31,
-    debt: 180000,
     status: "active",
     createdAt: "۱۴۰۳/۱۲/۰۱",
+    products: [],
+    services: [],
   },
   {
     id: 10,
-    name: "فاطمه موسوی",
-    phone: "۰۹۱۸۸۹۹۰۰۱۱",
-    nationalCode: "۰۱۰۸۸۹۹۰۰۱۱",
-    birthDate: "۱۳۷۲/۰۵/۳۰",
-    address: "رشت، خیابان گلسار، کوچه زیتون",
-    notes: "میگرن",
+    firstName: "فاطمه",
+    lastName: "موسوی",
+    phone: "09188990011",
+    nationalId: "01088990011",
+    bitmojiId: "",
     lastVisit: "۱۴۰۴/۱۱/۲۸",
     visitCount: 15,
-    debt: 95000,
     status: "active",
     createdAt: "۱۴۰۴/۰۵/۱۵",
+    products: [],
+    services: [],
   },
   {
     id: 11,
-    name: "احمد کرمی",
-    phone: "۰۹۰۳۳۴۴۵۵۶",
-    nationalCode: "۰۱۱۳۳۴۴۵۵۶",
-    birthDate: "۱۳۶۸/۰۱/۱۴",
-    address: "اهواز، خیابان کیانپارس، کوچه سپاه",
-    notes: "",
+    firstName: "احمد",
+    lastName: "کرمی",
+    phone: "0903344556",
+    nationalId: "0113344556",
+    bitmojiId: "",
     lastVisit: "۱۴۰۴/۱۰/۰۸",
     visitCount: 6,
-    debt: 0,
     status: "inactive",
     createdAt: "۱۴۰۴/۰۹/۲۰",
+    products: [],
+    services: [],
   },
   {
     id: 12,
-    name: "لیلا حیدری",
-    phone: "۰۹۳۵۵۶۶۷۷۸",
-    nationalCode: "۰۱۲۵۵۶۶۷۷۸",
-    birthDate: "۱۳۸۲/۰۴/۲۵",
-    address: "تهران، خیابان پاسداران، کوچه نسترن",
-    notes: "آلرژی فصلی",
+    firstName: "لیلا",
+    lastName: "حیدری",
+    phone: "0935566778",
+    nationalId: "0125566778",
+    bitmojiId: "",
     lastVisit: "۱۴۰۵/۰۳/۰۲",
     visitCount: 4,
-    debt: 0,
     status: "new",
     createdAt: "۱۴۰۵/۰۲/۲۵",
+    products: [],
+    services: [],
   },
 ];
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("fa-IR").format(amount) + " تومان";
-}
 
 function Patients() {
   const [loading, setLoading] = useState(true);
@@ -226,16 +217,26 @@ function Patients() {
   const [activeTab, setActiveTab] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState<PatientFormData>(initialForm);
-  const [saving, setSaving] = useState(false);
+  const [patients, setPatients] = useState<Patient[]>(mockPatients);
+  const { registerAction } = useQuickActions();
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 800);
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const unregister = registerAction({
+      id: "newPatient",
+      label: "بیمار جدید",
+      icon: <MdPersonAdd />,
+      perform: () => setModalOpen(true),
+    });
+    return unregister;
+  }, [registerAction]);
+
   const filteredPatients = useMemo(() => {
-    let result = [...mockPatients];
+    let result = [...patients];
 
     if (activeTab === "active") {
       result = result.filter((p) => p.status === "active");
@@ -246,48 +247,39 @@ function Patients() {
     }
 
     if (search.trim()) {
-      const q = search.trim();
+      const q = normalizeSearch(search);
       result = result.filter(
-        (p) => p.name.includes(q) || p.phone.includes(q) || p.nationalCode.includes(q)
+        (p) =>
+          normalizeSearch(p.firstName).includes(q) ||
+          normalizeSearch(p.lastName).includes(q) ||
+          normalizeSearch(p.phone).includes(q) ||
+          normalizeSearch(p.nationalId).includes(q)
       );
     }
 
     return result;
-  }, [activeTab, search]);
+  }, [activeTab, search, patients]);
 
   const totalPages = Math.max(1, Math.ceil(filteredPatients.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const pageData = filteredPatients.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const tabCounts = useMemo(() => {
-    const all = mockPatients.length;
-    const active = mockPatients.filter((p) => p.status === "active").length;
-    const inactive = mockPatients.filter((p) => p.status === "inactive").length;
-    const newP = mockPatients.filter((p) => p.status === "new").length;
+    const all = patients.length;
+    const active = patients.filter((p) => p.status === "active").length;
+    const inactive = patients.filter((p) => p.status === "inactive").length;
+    const newP = patients.filter((p) => p.status === "new").length;
     return { all, active, inactive, new: newP };
-  }, []);
+  }, [patients]);
 
   const tabsWithBadges: Tab[] = filterTabs.map((tab) => ({
     ...tab,
     badge: tabCounts[tab.id as keyof typeof tabCounts],
   }));
 
-  const handleFormChange = (field: keyof PatientFormData, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSave = () => {
-    setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      setModalOpen(false);
-      setForm(initialForm);
-    }, 1000);
-  };
-
-  const handleCloseModal = () => {
+  const handleAddPatient = (patient: Patient) => {
+    setPatients((prev) => [patient, ...prev]);
     setModalOpen(false);
-    setForm(initialForm);
   };
 
   const handleRetry = () => {
@@ -312,26 +304,43 @@ function Patients() {
   ];
 
   const columns: Column<Patient>[] = [
-    { key: "name", header: "نام بیمار" },
-    { key: "phone", header: "تلفن", width: "130px" },
+    {
+      key: "name",
+      header: "نام بیمار",
+      render: (item) => `${item.firstName} ${item.lastName}`,
+    },
+    {
+      key: "phone",
+      header: "تلفن",
+      width: "130px",
+      render: (item) => toPersianDigits(item.phone),
+    },
+    {
+      key: "nationalId",
+      header: "کد ملی",
+      render: (item) => toPersianDigits(item.nationalId),
+    },
     { key: "lastVisit", header: "آخرین مراجعه", align: "center", width: "130px" },
     {
       key: "visitCount",
       header: "تعداد مراجعات",
       align: "center",
-      width: "120px",
+      width: "90px",
       render: (item) => new Intl.NumberFormat("fa-IR").format(item.visitCount),
     },
     {
-      key: "debt",
-      header: "بدهی",
-      align: "end",
-      width: "130px",
-      render: (item) => (
-        <span className={item.debt > 0 ? "text-danger-600 font-medium" : "text-surface-400"}>
-          {item.debt > 0 ? formatCurrency(item.debt) : "—"}
-        </span>
-      ),
+      key: "products",
+      header: "محصولات",
+      align: "center",
+      width: "80px",
+      render: (item) => item.products.length,
+    },
+    {
+      key: "services",
+      header: "خدمات",
+      align: "center",
+      width: "80px",
+      render: (item) => item.services.length,
     },
     {
       key: "status",
@@ -359,6 +368,7 @@ function Patients() {
             <Button
               variant="ghost"
               size="sm"
+              className="border-surface-200 hover:border-surface-300 hover:bg-surface-50 border"
               startIcon={<PiDotsThreeVertical className="size-4" />}
             />
           }
@@ -388,18 +398,18 @@ function Patients() {
           <h1 className="text-surface-900 text-2xl font-bold">لیست بیماران</h1>
           <p className="text-surface-500 mt-1 text-sm">مدیریت بیماران کلینیک</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="md" startIcon={<BiDownload className="size-4" />}>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" startIcon={<BiDownload className="size-4" />}>
             خروجی
           </Button>
           <Button
             variant="primary"
-            size="md"
             startIcon={<BiPlus className="size-5" />}
             onClick={() => setModalOpen(true)}
           >
             بیمار جدید
           </Button>
+          <SearchButton />
         </div>
       </div>
 
@@ -459,65 +469,9 @@ function Patients() {
         </div>
       </Card>
 
-      <Modal
-        open={modalOpen}
-        onClose={handleCloseModal}
-        title="بیمار جدید"
-        size="lg"
-        footer={
-          <>
-            <Button variant="outline" onClick={handleCloseModal}>
-              انصراف
-            </Button>
-            <Button variant="primary" loading={saving} onClick={handleSave}>
-              ذخیره
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <Input
-            label="نام و نام خانوادگی"
-            placeholder="مثال: علی رضایی"
-            value={form.name}
-            onChange={(e) => handleFormChange("name", e.target.value)}
-          />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="شماره تلفن"
-              placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-              value={form.phone}
-              onChange={(e) => handleFormChange("phone", e.target.value)}
-            />
-            <Input
-              label="کد ملی"
-              placeholder="۰۰۱۲۳۴۵۶۷۸"
-              value={form.nationalCode}
-              onChange={(e) => handleFormChange("nationalCode", e.target.value)}
-            />
-          </div>
-          <Input
-            label="تاریخ تولد"
-            placeholder="۱۳۶۵/۰۴/۱۵"
-            value={form.birthDate}
-            onChange={(e) => handleFormChange("birthDate", e.target.value)}
-          />
-          <Textarea
-            label="آدرس"
-            placeholder="آدرس کامل بیمار"
-            rows={3}
-            value={form.address}
-            onChange={(e) => handleFormChange("address", e.target.value)}
-          />
-          <Textarea
-            label="توضیحات"
-            placeholder="توضیحات پزشکی (اختیاری)"
-            rows={3}
-            value={form.notes}
-            onChange={(e) => handleFormChange("notes", e.target.value)}
-          />
-        </div>
-      </Modal>
+      {modalOpen && (
+        <PatientFormModal onClose={() => setModalOpen(false)} onSuccess={handleAddPatient} />
+      )}
     </div>
   );
 }
