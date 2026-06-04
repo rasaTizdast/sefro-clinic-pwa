@@ -1,38 +1,19 @@
-import {
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-} from 'react';
-import { Link, useLocation } from 'react-router';
-import { Avatar } from './ui/Avatar';
-
-type SidebarItemGroup = 'primary' | 'secondary';
-
-export interface SidebarItem {
-  label: string;
-  icon: ReactNode;
-  path: string;
-  group?: SidebarItemGroup;
-}
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { Link, useLocation } from "react-router";
+import { Avatar } from "./ui/Avatar";
+import type { SidebarItem, SidebarSection, SidebarItemGroup } from "../types/sidebar";
 
 interface SidebarProps {
   items: SidebarItem[];
   className?: string;
 }
 
-interface SidebarSection {
-  group: SidebarItemGroup;
-  label: string;
-  items: SidebarItem[];
-}
-
 const groupLabels: Record<SidebarItemGroup, string> = {
-  primary: 'صفحه‌های اصلی',
-  secondary: 'مدیریت',
+  primary: "صفحه‌های اصلی",
+  secondary: "مدیریت",
 };
 
-const ChevronIcon = ({ direction }: { direction: 'left' | 'right' }) => (
+const ChevronIcon = ({ direction }: { direction: "left" | "right" }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 20 20"
@@ -40,7 +21,7 @@ const ChevronIcon = ({ direction }: { direction: 'left' | 'right' }) => (
     className="size-5 transition-transform rtl:rotate-180"
     aria-hidden="true"
   >
-    {direction === 'left' ? (
+    {direction === "left" ? (
       <path
         fillRule="evenodd"
         d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
@@ -120,28 +101,24 @@ const DesktopNavItem = ({
 }) => (
   <Link
     to={item.path}
-    className={`group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary-600/80 focus-visible:ring-offset-2 ${
+    className={`group focus-visible:ring-primary-600/80 relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
       isActive
-        ? 'bg-primary-600/15 text-primary-700 shadow-sm'
-        : 'text-surface-500 hover:bg-surface-100 hover:text-surface-800'
-    } ${isCollapsed ? 'justify-center' : ''}`}
-    aria-current={isActive ? 'page' : undefined}
+        ? "bg-primary-600/15 text-primary-700 shadow-sm"
+        : "text-surface-500 hover:bg-surface-100 hover:text-surface-800"
+    } ${isCollapsed ? "justify-center" : ""}`}
+    aria-current={isActive ? "page" : undefined}
     aria-label={isCollapsed ? item.label : undefined}
   >
-    <span className="grid size-6 shrink-0 place-items-center text-xl">
-      {item.icon}
-    </span>
+    <span className="grid size-6 shrink-0 place-items-center text-xl">{item.icon}</span>
 
-    {!isCollapsed && (
-      <span className="min-w-0 flex-1 truncate font-medium">{item.label}</span>
-    )}
+    {!isCollapsed && <span className="min-w-0 flex-1 truncate font-medium">{item.label}</span>}
 
     {isActive && isCollapsed && (
-      <span className="absolute inset-s-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-e-full bg-primary-600" />
+      <span className="bg-primary-600 absolute inset-s-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-e-full" />
     )}
 
     {isCollapsed && (
-      <span className="pointer-events-none absolute inset-s-[calc(100%+0.75rem)] top-1/2 z-30 -translate-y-1/2 whitespace-nowrap rounded-lg bg-surface-900 px-3 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+      <span className="bg-surface-900 pointer-events-none absolute inset-s-[calc(100%+0.75rem)] top-1/2 z-30 -translate-y-1/2 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
         {item.label}
       </span>
     )}
@@ -160,16 +137,12 @@ const SheetNavItem = ({
   <Link
     to={item.path}
     onClick={onNavigate}
-    className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-600/40 ${
-      isActive
-        ? 'bg-primary-600/10 text-primary-700'
-        : 'text-surface-600 hover:bg-surface-100'
+    className={`focus-visible:ring-primary-600/40 flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 ${
+      isActive ? "bg-primary-600/10 text-primary-700" : "text-surface-600 hover:bg-surface-100"
     }`}
-    aria-current={isActive ? 'page' : undefined}
+    aria-current={isActive ? "page" : undefined}
   >
-    <span className="grid size-7 shrink-0 place-items-center text-xl">
-      {item.icon}
-    </span>
+    <span className="grid size-7 shrink-0 place-items-center text-xl">{item.icon}</span>
     <span>{item.label}</span>
   </Link>
 );
@@ -186,48 +159,39 @@ const DesktopSidebar = ({
 
   return (
     <aside
-      className={`sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col overflow-visible rounded-2xl border border-primary-200 bg-primary-50/80 p-4 shadow-sm backdrop-blur transition-all duration-300 md:flex ${
-        isCollapsed ? 'w-20' : 'w-64'
-      } ${className || ''}`}
+      className={`border-primary-200 bg-primary-50/80 sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col overflow-visible rounded-2xl border p-4 shadow-sm backdrop-blur transition-all duration-300 md:flex ${
+        isCollapsed ? "w-20" : "w-64"
+      } ${className || ""}`}
     >
       <div className="mb-6 flex items-center justify-between gap-3">
         {!isCollapsed && (
           <div className="flex items-center gap-2.5">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-600 text-sm font-bold text-white shadow-sm">
+            <span className="bg-primary-600 grid size-9 shrink-0 place-items-center rounded-xl text-sm font-bold text-white shadow-sm">
               S
             </span>
-            <p className="truncate text-sm font-semibold text-surface-800">
-              کلینیک سفرو
-            </p>
+            <p className="text-surface-800 truncate text-sm font-semibold">کلینیک سفرو</p>
           </div>
         )}
         <button
           type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="grid size-9 shrink-0 place-items-center rounded-xl text-surface-500 outline-none transition-colors hover:bg-surface-100 hover:text-surface-800 focus-visible:ring-2 focus-visible:ring-primary-600/40 focus-visible:ring-offset-2 cursor-pointer"
-          aria-label={isCollapsed ? 'باز کردن منو' : 'بستن منو'}
+          className="text-surface-500 hover:bg-surface-100 hover:text-surface-800 focus-visible:ring-primary-600/40 grid size-9 shrink-0 cursor-pointer place-items-center rounded-xl transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          aria-label={isCollapsed ? "باز کردن منو" : "بستن منو"}
         >
-          {isCollapsed ? (
-            <ChevronIcon direction="right" />
-          ) : (
-            <ChevronIcon direction="left" />
-          )}
+          {isCollapsed ? <ChevronIcon direction="right" /> : <ChevronIcon direction="left" />}
         </button>
       </div>
 
-      <nav
-        className="flex flex-1 flex-col gap-4 overflow-visible"
-        aria-label="منوی اصلی"
-      >
+      <nav className="flex flex-1 flex-col gap-4 overflow-visible" aria-label="منوی اصلی">
         {sections.map((section, index) => (
           <div
             key={section.group}
             className={`flex flex-col gap-1.5 ${
-              index > 0 ? 'border-t border-surface-200/60 pt-4' : ''
+              index > 0 ? "border-surface-200/60 border-t pt-4" : ""
             }`}
           >
             {!isCollapsed && (
-              <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-surface-400">
+              <p className="text-surface-400 px-3 text-[11px] font-semibold tracking-wide uppercase">
                 {section.label}
               </p>
             )}
@@ -243,19 +207,17 @@ const DesktopSidebar = ({
         ))}
       </nav>
 
-      <div className="mt-4 border-t border-surface-200/60 pt-4">
+      <div className="border-surface-200/60 mt-4 border-t pt-4">
         <div
           className={`flex items-center gap-3 rounded-xl px-3 py-2 ${
-            isCollapsed ? 'justify-center px-0' : ''
+            isCollapsed ? "justify-center px-0" : ""
           }`}
         >
-          <Avatar size={isCollapsed ? 'sm' : 'md'} name="کاربر" />
+          <Avatar size={isCollapsed ? "sm" : "md"} name="کاربر" />
           {!isCollapsed && (
             <div className="min-w-0 text-sm">
-              <p className="truncate font-medium text-surface-800">کاربر</p>
-              <p className="truncate text-xs text-surface-500">
-                admin@sefroclinic.ir
-              </p>
+              <p className="text-surface-800 truncate font-medium">کاربر</p>
+              <p className="text-surface-500 truncate text-xs">admin@sefroclinic.ir</p>
             </div>
           )}
         </div>
@@ -264,21 +226,15 @@ const DesktopSidebar = ({
   );
 };
 
-const MobileBottomItem = ({
-  item,
-  isActive,
-}: {
-  item: SidebarItem;
-  isActive: boolean;
-}) => (
+const MobileBottomItem = ({ item, isActive }: { item: SidebarItem; isActive: boolean }) => (
   <Link
     to={item.path}
-    className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-600/40 ${
+    className={`focus-visible:ring-primary-600/40 flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 ${
       isActive
-        ? 'bg-primary-600/10 text-primary-700'
-        : 'text-surface-400 hover:bg-surface-100 hover:text-surface-700'
+        ? "bg-primary-600/10 text-primary-700"
+        : "text-surface-400 hover:bg-surface-100 hover:text-surface-700"
     }`}
-    aria-current={isActive ? 'page' : undefined}
+    aria-current={isActive ? "page" : undefined}
     aria-label={item.label}
   >
     <span className="grid size-6 place-items-center text-xl">{item.icon}</span>
@@ -310,51 +266,48 @@ const MobileMoreSheet = ({
   return (
     <dialog
       ref={dialogRef}
-      className="m-0 h-dvh max-h-none w-dvw max-w-none border-0 bg-transparent p-0 backdrop:bg-surface-900/35 md:hidden"
+      className="backdrop:bg-surface-900/35 m-0 h-dvh max-h-none w-dvw max-w-none border-0 bg-transparent p-0 md:hidden"
       aria-labelledby="mobile-sidebar-title"
       onClose={onClose}
     >
       <div className="fixed inset-0 z-50">
         <button
           type="button"
-          className="absolute inset-0 h-full w-full cursor-default bg-surface-900/35"
+          className="bg-surface-900/35 absolute inset-0 h-full w-full cursor-default"
           onClick={onClose}
           aria-label="بستن منوی ناوبری"
         />
 
         <div
           id="mobile-sidebar-more"
-          className={`absolute inset-x-0 bottom-0 rounded-t-3xl bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 shadow-2xl ${
-            isDragging ? '' : 'transition-transform duration-200 ease-out'
+          className={`absolute inset-x-0 bottom-0 rounded-t-3xl bg-white px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl ${
+            isDragging ? "" : "transition-transform duration-200 ease-out"
           }`}
           style={{ transform: `translateY(${dragOffset}px)` }}
         >
           <button
             type="button"
-            className="mx-auto mb-3 flex h-7 w-24 touch-none items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary-600/40 cursor-pointer"
+            className="focus-visible:ring-primary-600/40 mx-auto mb-3 flex h-7 w-24 cursor-pointer touch-none items-center justify-center rounded-full outline-none focus-visible:ring-2"
             onPointerDown={onDragStart}
             onPointerMove={onDragMove}
             onPointerUp={onDragEnd}
             onPointerCancel={onDragEnd}
             aria-label="بکشید تا بسته شود"
           >
-            <span className="h-1.5 w-12 rounded-full bg-surface-200" />
+            <span className="bg-surface-200 h-1.5 w-12 rounded-full" />
           </button>
 
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2
-                id="mobile-sidebar-title"
-                className="text-base font-semibold text-surface-900"
-              >
+              <h2 id="mobile-sidebar-title" className="text-surface-900 text-base font-semibold">
                 همه بخش‌ها
               </h2>
-              <p className="text-xs text-surface-500">دسترسی سریع به تمام بخش‌های کلینیک</p>
+              <p className="text-surface-500 text-xs">دسترسی سریع به تمام بخش‌های کلینیک</p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="grid size-10 place-items-center rounded-xl text-surface-500 outline-none transition-colors hover:bg-surface-100 focus-visible:ring-2 focus-visible:ring-primary-600/40 cursor-pointer"
+              className="text-surface-500 hover:bg-surface-100 focus-visible:ring-primary-600/40 grid size-10 cursor-pointer place-items-center rounded-xl transition-colors outline-none focus-visible:ring-2"
               aria-label="بستن منو"
             >
               <CloseIcon />
@@ -366,10 +319,10 @@ const MobileMoreSheet = ({
               <div
                 key={section.group}
                 className={`flex flex-col gap-1.5 ${
-                  index > 0 ? 'border-t border-surface-100 pt-4' : ''
+                  index > 0 ? "border-surface-100 border-t pt-4" : ""
                 }`}
               >
-                <p className="px-3 text-[11px] font-semibold uppercase tracking-wide text-surface-400">
+                <p className="text-surface-400 px-3 text-[11px] font-semibold tracking-wide uppercase">
                   {section.label}
                 </p>
                 {section.items.map((item) => (
@@ -397,15 +350,11 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
   const moreDialogRef = useRef<HTMLDialogElement>(null);
   const dragStartYRef = useRef<number | null>(null);
   const dragOffsetRef = useRef(0);
-  const primaryItems =
-    sections.find((section) => section.group === 'primary')?.items ?? [];
+  const primaryItems = sections.find((section) => section.group === "primary")?.items ?? [];
   const bottomItems = primaryItems.slice(0, 4);
   const bottomItemPaths = new Set(bottomItems.map((item) => item.path));
   const isMoreActive = sections.some((section) =>
-    section.items.some(
-      (item) =>
-        !bottomItemPaths.has(item.path) && location.pathname === item.path,
-    ),
+    section.items.some((item) => !bottomItemPaths.has(item.path) && location.pathname === item.path)
   );
 
   const openMoreMenu = () => {
@@ -431,9 +380,7 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
     }
   };
 
-  const handleSheetDragStart = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-  ) => {
+  const handleSheetDragStart = (event: ReactPointerEvent<HTMLButtonElement>) => {
     dragStartYRef.current = event.clientY;
     dragOffsetRef.current = 0;
     setSheetDragOffset(0);
@@ -441,9 +388,7 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const handleSheetDragMove = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-  ) => {
+  const handleSheetDragMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (dragStartYRef.current == null) return;
 
     const nextOffset = Math.max(0, event.clientY - dragStartYRef.current);
@@ -451,9 +396,7 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
     setSheetDragOffset(nextOffset);
   };
 
-  const handleSheetDragEnd = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-  ) => {
+  const handleSheetDragEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (dragStartYRef.current == null) return;
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -476,7 +419,7 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
   return (
     <>
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-surface-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
+        className="border-surface-200 fixed inset-x-0 bottom-0 z-40 border-t bg-white/95 px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden"
         aria-label="ناوبری موبایل"
       >
         <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
@@ -491,10 +434,10 @@ const MobileNavigation = ({ sections }: { sections: SidebarSection[] }) => {
           <button
             type="button"
             onClick={openMoreMenu}
-            className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-600/40 cursor-pointer ${
+            className={`focus-visible:ring-primary-600/40 flex min-h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 ${
               isMoreActive || isMoreOpen
-                ? 'bg-primary-600/10 text-primary-700'
-                : 'text-surface-400 hover:bg-surface-100 hover:text-surface-700'
+                ? "bg-primary-600/10 text-primary-700"
+                : "text-surface-400 hover:bg-surface-100 hover:text-surface-700"
             }`}
             aria-label="نمایش بقیه بخش‌ها"
             aria-expanded={isMoreOpen}
