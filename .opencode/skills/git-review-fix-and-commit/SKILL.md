@@ -51,8 +51,13 @@ For each logical group:
    - coding standards
    - existing architecture
 
-4. Identify improvements.
-5. Apply safe fixes automatically when confidence is high.
+4. Check for deprecated Tailwind CSS v3 class names used in v4 codebase:
+   - `bg-gradient-{dir}` → `bg-linear-{dir}`
+   - `shadow-[rgba(...)]` → prefer modern shadow syntax
+   - Any other v3→v4 class renames flagged by the framework
+
+5. Identify improvements.
+6. Apply safe fixes automatically when confidence is high.
 
 ---
 
