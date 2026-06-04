@@ -1,50 +1,36 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
-import { useToast } from '../components/toast/toastContext';
+import { useActionState } from 'react';
+import { useToast } from '../components/ui';
 
-export type AuthRequestStatus = 'idle' | 'warning' | 'loading' | 'success' | 'error';
-
-export interface LoginPayload {
-  identifier: string;
-  password: string;
+export interface LoginState {
+  status: 'idle' | 'success' | 'error';
+  errors: Partial<Record<'identifier' | 'password', string>>;
+  message: string | null;
   rememberMe: boolean;
 }
 
-interface LoginFormValues {
-  identifier: string;
-  password: string;
-  rememberMe: boolean;
-}
-
-type LoginFormErrors = Partial<Record<keyof LoginFormValues, string>>;
-
-const initialValues: LoginFormValues = {
-  identifier: '',
-  password: '',
-  rememberMe: true,
-};
+const PERSIAN_ARABIC_DIGITS = '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩';
 
 const normalizeIdentifier = (value: string) =>
-  value.trim().replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+  value.trim().replace(/[۰-۹٠-٩]/g, (digit) =>
+    String(PERSIAN_ARABIC_DIGITS.indexOf(digit) % 10),
+  );
 
-const getLoginPayload = (values: LoginFormValues): LoginPayload => ({
-  identifier: normalizeIdentifier(values.identifier),
-  password: values.password,
-  rememberMe: values.rememberMe,
-});
+const validate = (
+  identifier: string,
+  password: string,
+): LoginState['errors'] => {
+  const errors: LoginState['errors'] = {};
+  const username = normalizeIdentifier(identifier);
 
-const validateLoginForm = (values: LoginFormValues) => {
-  const errors: LoginFormErrors = {};
-  const identifier = normalizeIdentifier(values.identifier);
-
-  if (!identifier) {
+  if (!username) {
     errors.identifier = 'شماره موبایل یا نام کاربری را وارد کنید.';
-  } else if (identifier.length < 3) {
+  } else if (username.length < 3) {
     errors.identifier = 'شناسه ورود باید حداقل ۳ کاراکتر باشد.';
   }
 
-  if (!values.password) {
+  if (!password) {
     errors.password = 'رمز عبور را وارد کنید.';
-  } else if (values.password.length < 6) {
+  } else if (password.length < 6) {
     errors.password = 'رمز عبور باید حداقل ۶ کاراکتر باشد.';
   }
 
@@ -53,82 +39,42 @@ const validateLoginForm = (values: LoginFormValues) => {
 
 export const useLoginForm = () => {
   const toast = useToast();
-  const [values, setValues] = useState<LoginFormValues>(initialValues);
-  const [errors, setErrors] = useState<LoginFormErrors>({});
-  const [status, setStatus] = useState<AuthRequestStatus>('idle');
-  const [lastPayload, setLastPayload] = useState<LoginPayload | null>(null);
 
-  const payload = useMemo(() => getLoginPayload(values), [values]);
-  const hasErrors = Object.keys(errors).length > 0;
+  const [state, formAction, isPending] = useActionState(
+    async (
+      _prevState: LoginState,
+      formData: FormData,
+    ): Promise<LoginState> => {
+      const identifier = (formData.get('identifier') as string) ?? '';
+      const password = (formData.get('password') as string) ?? '';
+      const rememberMe = formData.get('rememberMe') === 'on';
 
-  const updateField = (
-    event: ChangeEvent<HTMLInputElement>,
-  ) => {
-    const { name, value, checked, type } = event.target;
+      const errors = validate(identifier, password);
 
-    setValues((currentValues) => ({
-      ...currentValues,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+      if (Object.keys(errors).length > 0) {
+        toast.warning(
+          'اطلاعات ورود کامل نیست',
+          'لطفا موارد مشخص شده را بررسی کنید.',
+        );
+        return {
+          status: 'error',
+          errors,
+          message: 'لطفا خطاهای زیر را برطرف کنید.',
+          rememberMe,
+        };
+      }
 
-    setErrors((currentErrors) => {
-      if (!currentErrors[name as keyof LoginFormValues]) return currentErrors;
+      toast.success('ورود موفق', 'به پنل مدیریت خوش آمدید.');
 
-      const nextErrors = { ...currentErrors };
-      delete nextErrors[name as keyof LoginFormValues];
-      return nextErrors;
-    });
+      return {
+        status: 'success',
+        errors: {},
+        message: `خوش آمدید، ${normalizeIdentifier(identifier)}`,
+        rememberMe,
+      };
+    },
+    { status: 'idle', errors: {}, message: null, rememberMe: true } as LoginState,
+  );
 
-    if (status !== 'idle') {
-      setStatus('idle');
-    }
-  };
-
-  const submitLogin = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const nextErrors = validateLoginForm(values);
-    setErrors(nextErrors);
-
-    if (Object.keys(nextErrors).length > 0) {
-      setStatus('warning');
-      toast.warning(
-        'اطلاعات ورود کامل نیست',
-        'لطفا موارد مشخص شده را بررسی و دوباره تلاش کنید.',
-      );
-      return null;
-    }
-
-    const nextPayload = getLoginPayload(values);
-    setLastPayload(nextPayload);
-    setStatus('success');
-    toast.success(
-      'اطلاعات آماده ارسال است',
-      'منطق اتصال به API بعدا به این فرم اضافه می‌شود.',
-    );
-
-    return nextPayload;
-  };
-
-  const setRequestError = (message = 'در حال حاضر امکان ورود وجود ندارد.') => {
-    setStatus('error');
-    toast.error('خطا در ورود', message);
-  };
-
-  const setRequestLoading = () => {
-    setStatus('loading');
-  };
-
-  return {
-    values,
-    errors,
-    status,
-    payload,
-    lastPayload,
-    hasErrors,
-    updateField,
-    submitLogin,
-    setRequestError,
-    setRequestLoading,
-  };
+  return { state, formAction, isPending };
 };
