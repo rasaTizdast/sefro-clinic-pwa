@@ -11,7 +11,6 @@ import { Textarea } from '../components/ui/Textarea'
 import { Toggle } from '../components/ui/Toggle'
 import { Table, type Column } from '../components/ui/Table'
 import { Tabs, TabPanel } from '../components/ui/Tabs'
-import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { Pagination } from '../components/ui/Pagination'
 import { Dropdown, type DropdownItem } from '../components/ui/Dropdown'
 
@@ -240,17 +239,11 @@ function Services() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
-          <Breadcrumb
-            items={[
-              { label: 'تنظیمات', href: '#' },
-              { label: 'خدمات کلینیک' },
-            ]}
-          />
-          <h1 className="text-2xl font-bold text-surface-900 mt-1">خدمات کلینیک</h1>
+          <h1 className="text-2xl font-bold text-surface-900">خدمات کلینیک</h1>
         </div>
         <Button
           variant="primary"
-          icon={<BiPlus className="size-5" />}
+          startIcon={<BiPlus className="size-5" />}
           className="mt-3 sm:mt-0"
           onClick={openAddModal}
         >

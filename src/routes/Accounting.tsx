@@ -17,7 +17,6 @@ import { Button } from '../components/ui/Button'
 import { Table, type Column } from '../components/ui/Table'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
-import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { Pagination } from '../components/ui/Pagination'
 
 interface DailyRevenue {
@@ -179,19 +178,13 @@ function Accounting() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
-          <Breadcrumb
-            items={[
-              { label: 'داشبورد', href: '/' },
-              { label: 'حسابداری' },
-            ]}
-          />
-          <h1 className="text-2xl font-bold text-surface-900 mt-1">حسابداری</h1>
+          <h1 className="text-2xl font-bold text-surface-900">حسابداری</h1>
         </div>
         <div className="flex items-center gap-3 mt-3 sm:mt-0">
-          <Button variant="outline" icon={<BiDownload className="size-5" />}>
+          <Button variant="outline" startIcon={<BiDownload className="size-5" />}>
             گزارش اکسل
           </Button>
-          <Button variant="primary" icon={<BiPlus className="size-5" />}>
+          <Button variant="primary" startIcon={<BiPlus className="size-5" />}>
             ثبت تراکنش
           </Button>
         </div>

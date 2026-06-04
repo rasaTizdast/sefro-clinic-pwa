@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react'
-import { BiPackage, BiPlus, BiSearch, BiEdit, BiTrash } from 'react-icons/bi'
-import { Breadcrumb, type BreadcrumbItem } from '../components/ui/Breadcrumb'
+import { BiPlus, BiSearch, BiEdit, BiTrash } from 'react-icons/bi'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
@@ -24,11 +23,6 @@ interface WarehouseItem {
   expiryDate: string
   description: string
 }
-
-const breadcrumbItems: BreadcrumbItem[] = [
-  { label: 'داشبورد', href: '/', icon: <BiPackage className="size-4" /> },
-  { label: 'مدیریت انبار' },
-]
 
 const categoryTabs = [
   { id: 'all', label: 'همه' },
@@ -245,13 +239,11 @@ function Warehouse() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={breadcrumbItems} />
-
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-surface-900">مدیریت انبار</h1>
         <Button
           variant="primary"
-          icon={<BiPlus className="size-5" />}
+          startIcon={<BiPlus className="size-5" />}
           onClick={openNewModal}
           className="mt-3 sm:mt-0"
         >
@@ -270,7 +262,7 @@ function Warehouse() {
         <div className="w-full sm:w-64 shrink-0">
           <Input
             placeholder="جستجوی محصول..."
-            leftIcon={<BiSearch className="size-4" />}
+            startIcon={<BiSearch className="size-4" />}
             value={searchQuery}
             onChange={handleSearchChange}
           />

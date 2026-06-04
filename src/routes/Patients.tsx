@@ -14,8 +14,6 @@ import { Modal } from '../components/ui/Modal'
 import { Pagination } from '../components/ui/Pagination'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Alert } from '../components/ui/Alert'
-import { Breadcrumb } from '../components/ui/Breadcrumb'
-import type { BreadcrumbItem } from '../components/ui/Breadcrumb'
 import { Dropdown } from '../components/ui/Dropdown'
 import type { DropdownItem } from '../components/ui/Dropdown'
 
@@ -54,11 +52,6 @@ const filterTabs: Tab[] = [
   { id: 'active', label: 'فعال' },
   { id: 'inactive', label: 'غیرفعال' },
   { id: 'new', label: 'جدید' },
-]
-
-const breadcrumbItems: BreadcrumbItem[] = [
-  { label: 'داشبورد', href: '/' },
-  { label: 'بیماران' },
 ]
 
 const initialForm: PatientForm = {
@@ -227,7 +220,7 @@ function Patients() {
         <Dropdown
           align="end"
           trigger={
-            <Button variant="ghost" size="sm" icon={<PiDotsThreeVertical className="size-4" />} />
+            <Button variant="ghost" size="sm" startIcon={<PiDotsThreeVertical className="size-4" />} />
           }
           items={getActionItems()}
         />
@@ -238,7 +231,6 @@ function Patients() {
   if (error) {
     return (
       <div className="flex flex-col gap-6">
-        <Breadcrumb items={breadcrumbItems} />
         <Alert variant="error" title="خطا در بارگذاری" dismissible onDismiss={() => setError(null)}>
           <p>{error}</p>
           <Button variant="outline" size="sm" className="mt-3" onClick={handleRetry}>
@@ -251,21 +243,19 @@ function Patients() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={breadcrumbItems} />
-
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-surface-900">لیست بیماران</h1>
           <p className="text-sm text-surface-500 mt-1">مدیریت بیماران کلینیک</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="md" icon={<BiDownload className="size-4" />}>
+          <Button variant="outline" size="md" startIcon={<BiDownload className="size-4" />}>
             خروجی
           </Button>
           <Button
             variant="primary"
             size="md"
-            icon={<BiPlus className="size-5" />}
+            startIcon={<BiPlus className="size-5" />}
             onClick={() => setModalOpen(true)}
           >
             بیمار جدید
@@ -277,7 +267,7 @@ function Patients() {
         <div className="p-4 pb-3">
           <Input
             placeholder="جستجوی نام، تلفن یا کد ملی..."
-            leftIcon={<BiSearch className="size-4" />}
+            startIcon={<BiSearch className="size-4" />}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value)
@@ -310,7 +300,7 @@ function Patients() {
               action={
                 <Button
                   variant="primary"
-                  icon={<BiPlus className="size-5" />}
+                  startIcon={<BiPlus className="size-5" />}
                   onClick={() => setModalOpen(true)}
                 >
                   ثبت بیمار جدید

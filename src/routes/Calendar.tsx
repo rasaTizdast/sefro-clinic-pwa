@@ -16,8 +16,6 @@ import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Textarea } from '../components/ui/Textarea'
 import { EmptyState } from '../components/ui/EmptyState'
-import { Breadcrumb } from '../components/ui/Breadcrumb'
-
 const PERSIAN_MONTHS = [
   'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
   'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند',
@@ -292,17 +290,11 @@ function Calendar() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Breadcrumb
-            items={[
-              { label: 'داشبورد', href: '/' },
-              { label: 'تقویم نوبت‌ها' },
-            ]}
-          />
-          <h1 className="text-2xl font-bold text-surface-900 mt-2">تقویم نوبت‌ها</h1>
+          <h1 className="text-2xl font-bold text-surface-900">تقویم نوبت‌ها</h1>
         </div>
         <Button
           variant="primary"
-          icon={<BiPlus className="size-5" />}
+          startIcon={<BiPlus className="size-5" />}
           className="mt-3 sm:mt-0"
           onClick={handleOpenModal}
         >
@@ -416,7 +408,7 @@ function Calendar() {
                   <Button
                     variant="primary"
                     size="sm"
-                    icon={<BiPlus className="size-4" />}
+                    startIcon={<BiPlus className="size-4" />}
                     onClick={handleOpenModal}
                   >
                     ثبت نوبت

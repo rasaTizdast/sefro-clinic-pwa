@@ -21,7 +21,6 @@ import {
 } from 'recharts'
 import { Card, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import { Breadcrumb } from '../components/ui/Breadcrumb'
 import { Select } from '../components/ui/Select'
 
 interface KpiStat {
@@ -52,11 +51,6 @@ interface ServiceCategory {
   name: string
   value: number
 }
-
-const breadcrumbItems = [
-  { label: 'داشبورد', href: '/' },
-  { label: 'گزارش‌ها و آمار' },
-]
 
 const dateRangeOptions = [
   { value: 'today', label: 'امروز' },
@@ -130,14 +124,13 @@ function Analytics() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Breadcrumb items={breadcrumbItems} />
-          <h1 className="text-2xl font-bold text-surface-900 mt-2">گزارش‌ها و آمار</h1>
+          <h1 className="text-2xl font-bold text-surface-900">گزارش‌ها و آمار</h1>
         </div>
         <div className="flex items-center gap-3 mt-3 sm:mt-0">
-          <Button variant="outline" icon={<BiDownload className="size-5" />}>
+          <Button variant="outline" startIcon={<BiDownload className="size-5" />}>
             خروجی Excel
           </Button>
-          <Button variant="primary" icon={<IoDocumentTextOutline className="size-5" />}>
+          <Button variant="primary" startIcon={<IoDocumentTextOutline className="size-5" />}>
             خروجی PDF
           </Button>
         </div>
