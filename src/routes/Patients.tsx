@@ -10,11 +10,10 @@ import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import type { DropdownItem } from "../components/ui/Dropdown";
-import { Dropdown } from "../components/ui/Dropdown";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Input } from "../components/ui/Input";
 import { Pagination } from "../components/ui/Pagination";
+import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
 import type { Tab } from "../components/ui/Tabs";
 import { Tabs } from "../components/ui/Tabs";
@@ -288,7 +287,7 @@ function Patients() {
     setTimeout(() => setLoading(false), 800);
   };
 
-  const getActionItems = (): DropdownItem[] => [
+  const getActionItems = () => [
     {
       label: "ویرایش",
       icon: <BiEdit className="size-4" />,
@@ -362,7 +361,7 @@ function Patients() {
       align: "center",
       width: "80px",
       render: () => (
-        <Dropdown
+        <Select
           align="end"
           trigger={
             <Button

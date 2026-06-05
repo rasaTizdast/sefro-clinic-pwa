@@ -8,8 +8,6 @@ import { Avatar } from "../components/ui/Avatar";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, CardDescription, CardHeader, CardTitle } from "../components/ui/Card";
-import type { DropdownItem } from "../components/ui/Dropdown";
-import { Dropdown } from "../components/ui/Dropdown";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
@@ -102,10 +100,10 @@ export default function DesignSystem() {
     }
   };
 
-  const dropdownItems: DropdownItem[] = [
+  const dropdownItems = [
     { label: "ویرایش", icon: <BiEdit />, onClick: () => {} },
     { label: "حذف", icon: <BiTrash />, danger: true, onClick: () => {} },
-    { label: "", divider: true },
+    { divider: true },
     { label: "مشاهده پروفایل", icon: <BiUser />, onClick: () => {} },
   ];
 
@@ -351,8 +349,8 @@ export default function DesignSystem() {
         <Toggle label="غیرفعال" disabled />
       </Section>
 
-      <Section title="Dropdown">
-        <Dropdown
+      <Section title="Select / Dropdown">
+        <Select
           trigger={
             <Button variant="outline" endIcon={<BiChevronDown />}>
               بیشتر
@@ -360,7 +358,7 @@ export default function DesignSystem() {
           }
           items={dropdownItems}
         />
-        <Dropdown
+        <Select
           align="end"
           trigger={
             <Button variant="secondary" endIcon={<BiChevronDown />}>

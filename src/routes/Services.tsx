@@ -6,7 +6,6 @@ import { SearchButton } from "../components/SearchButton";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import { Dropdown, type DropdownItem } from "../components/ui/Dropdown";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { Pagination } from "../components/ui/Pagination";
@@ -245,7 +244,7 @@ function Services() {
     setCurrentPage(1);
   }
 
-  function buildActions(service: Service): DropdownItem[] {
+  function buildActions(service: Service) {
     return [
       {
         label: "ویرایش",
@@ -305,7 +304,8 @@ function Services() {
       align: "center",
       width: "80px",
       render: (item) => (
-        <Dropdown
+        <Select
+          align="end"
           trigger={
             <Button variant="ghost" size="sm">
               <svg
@@ -324,7 +324,6 @@ function Services() {
             </Button>
           }
           items={buildActions(item)}
-          align="end"
         />
       ),
     },
