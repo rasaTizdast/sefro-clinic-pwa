@@ -1,6 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useRef } from "react";
 
-type ModalSize = "sm" | "md" | "lg" | "xl";
+type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl";
 
 interface ModalProps {
   open: boolean;
@@ -16,6 +16,7 @@ const sizeStyles: Record<ModalSize, string> = {
   md: "max-w-md",
   lg: "max-w-lg",
   xl: "max-w-xl",
+  "2xl": "max-w-2xl",
 };
 
 export function Modal({ open, onClose, title, children, footer, size = "md" }: ModalProps) {
@@ -75,7 +76,7 @@ export function Modal({ open, onClose, title, children, footer, size = "md" }: M
     <dialog
       ref={dialogRef}
       onClick={handleBackdrop}
-      className={`w-full backdrop:bg-black/50 ${sizeStyles[size]} m-auto max-h-[85vh] rounded-xl bg-white shadow-xl open:flex open:flex-col`}
+      className={`w-full backdrop:bg-black/50 ${sizeStyles[size]} m-auto max-h-[90vh] rounded-xl bg-white shadow-xl open:flex open:flex-col`}
     >
       {title && (
         <div className="border-surface-200 flex shrink-0 items-center justify-between gap-4 border-b px-6 py-4">
