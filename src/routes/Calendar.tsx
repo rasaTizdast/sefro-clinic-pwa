@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BiCalendar,
+  BiCheck,
   BiChevronLeft,
   BiChevronRight,
   BiNote,
   BiPlus,
+  BiSearch,
   BiTime,
-  BiUser,
 } from "react-icons/bi";
 
 import { SearchButton } from "../components/SearchButton";
@@ -16,14 +18,17 @@ import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
-import { Select } from "../components/ui/Select";
 import { Textarea } from "../components/ui/Textarea";
 import type {
   Appointment,
   AppointmentStatus,
   DayCell,
-  NewAppointmentFormData,
+  WizardFormData,
+  WizardStep,
 } from "../types/appointment";
+import type { Patient } from "../types/patient";
+import type { Service } from "../types/service";
+
 const PERSIAN_MONTHS = [
   "فروردین",
   "اردیبهشت",
@@ -48,10 +53,20 @@ function toPersianDigits(num: number): string {
   return num.toString().replace(/\d/g, (d) => persianDigits[parseInt(d)]);
 }
 
+function toPersian(str: string): string {
+  return str.replace(/\d/g, (d) => persianDigits[parseInt(d)]);
+}
+
 function parseFaNumber(str: string): number {
   const cleaned = str.replace(/[^\d۰-۹]/g, "");
   const latin = cleaned.replace(/[۰-۹]/g, (d) => latinDigits[persianDigits.indexOf(d)]);
   return parseInt(latin, 10);
+}
+
+function parseTimeToMinutes(time: string): number {
+  const latin = time.replace(/[۰-۹]/g, (d) => latinDigits[persianDigits.indexOf(d)]);
+  const [h, m] = latin.split(":").map(Number);
+  return h * 60 + m;
 }
 
 const persianDateFormatter = new Intl.DateTimeFormat("fa-IR", {
@@ -110,42 +125,290 @@ const statusConfig: Record<AppointmentStatus, { label: string; variant: StatusVa
   completed: { label: "انجام شده", variant: "info" },
 };
 
-const patientOptions = [
-  { value: "1", label: "علی رضایی" },
-  { value: "2", label: "سارا احمدی" },
-  { value: "3", label: "رضا کریمی" },
-  { value: "4", label: "مریم نوروزی" },
-  { value: "5", label: "امیر عباسی" },
-  { value: "6", label: "نگین صادقی" },
+const mockPatients: Patient[] = [
+  {
+    id: 1,
+    firstName: "علی",
+    lastName: "رضایی",
+    phone: "09123456789",
+    nationalId: "0012345678",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۵/۰۳/۰۳",
+    visitCount: 24,
+    status: "active",
+    createdAt: "۱۴۰۴/۱۰/۰۱",
+    products: [],
+    services: [],
+  },
+  {
+    id: 2,
+    firstName: "سارا",
+    lastName: "احمدی",
+    phone: "09198765432",
+    nationalId: "0029876543",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۵/۰۳/۰۳",
+    visitCount: 8,
+    status: "new",
+    createdAt: "۱۴۰۵/۰۲/۲۸",
+    products: [],
+    services: [],
+  },
+  {
+    id: 3,
+    firstName: "رضا",
+    lastName: "کریمی",
+    phone: "0933557788",
+    nationalId: "0033557788",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۵/۰۲/۲۸",
+    visitCount: 56,
+    status: "active",
+    createdAt: "۱۴۰۳/۰۶/۱۵",
+    products: [],
+    services: [],
+  },
+  {
+    id: 4,
+    firstName: "مریم",
+    lastName: "نوروزی",
+    phone: "0912223344",
+    nationalId: "0042223344",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۵/۰۲/۱۵",
+    visitCount: 3,
+    status: "inactive",
+    createdAt: "۱۴۰۵/۰۱/۱۰",
+    products: [],
+    services: [],
+  },
+  {
+    id: 5,
+    firstName: "امیر",
+    lastName: "عباسی",
+    phone: "0901887766",
+    nationalId: "0051887766",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۵/۰۳/۰۱",
+    visitCount: 18,
+    status: "active",
+    createdAt: "۱۴۰۴/۰۲/۰۵",
+    products: [],
+    services: [],
+  },
+  {
+    id: 6,
+    firstName: "نگین",
+    lastName: "صادقی",
+    phone: "0936644321",
+    nationalId: "0066644321",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۵/۰۲/۲۰",
+    visitCount: 12,
+    status: "new",
+    createdAt: "۱۴۰۵/۰۲/۱۰",
+    products: [],
+    services: [],
+  },
+  {
+    id: 7,
+    firstName: "محمد",
+    lastName: "حسینی",
+    phone: "0914455667",
+    nationalId: "0074455667",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۵/۰۱/۱۵",
+    visitCount: 42,
+    status: "active",
+    createdAt: "۱۴۰۲/۰۸/۲۰",
+    products: [],
+    services: [],
+  },
+  {
+    id: 8,
+    firstName: "زهرا",
+    lastName: "محمدی",
+    phone: "0912778899",
+    nationalId: "0082778899",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۴/۱۲/۲۰",
+    visitCount: 1,
+    status: "inactive",
+    createdAt: "۱۴۰۴/۱۲/۱۰",
+    products: [],
+    services: [],
+  },
+  {
+    id: 9,
+    firstName: "حسین",
+    lastName: "رستمی",
+    phone: "0930112233",
+    nationalId: "0090112233",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۵/۰۲/۰۵",
+    visitCount: 31,
+    status: "active",
+    createdAt: "۱۴۰۳/۱۲/۰۱",
+    products: [],
+    services: [],
+  },
+  {
+    id: 10,
+    firstName: "فاطمه",
+    lastName: "موسوی",
+    phone: "09188990011",
+    nationalId: "01088990011",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۴/۱۱/۲۸",
+    visitCount: 15,
+    status: "active",
+    createdAt: "۱۴۰۴/۰۵/۱۵",
+    products: [],
+    services: [],
+  },
+  {
+    id: 11,
+    firstName: "احمد",
+    lastName: "کرمی",
+    phone: "0903344556",
+    nationalId: "0113344556",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۴/۱۰/۰۸",
+    visitCount: 6,
+    status: "inactive",
+    createdAt: "۱۴۰۴/۰۹/۲۰",
+    products: [],
+    services: [],
+  },
+  {
+    id: 12,
+    firstName: "لیلا",
+    lastName: "حیدری",
+    phone: "0935566778",
+    nationalId: "0125566778",
+    bitmojiId: "",
+    lastVisit: "۱۴۰۵/۰۳/۰۲",
+    visitCount: 4,
+    status: "new",
+    createdAt: "۱۴۰۵/۰۲/۲۵",
+    products: [],
+    services: [],
+  },
 ];
 
-const doctorOptions = [
-  { value: "1", label: "دکتر محمدی" },
-  { value: "2", label: "دکتر حسینی" },
-  { value: "3", label: "دکتر احمدی" },
+const mockServices: Service[] = [
+  {
+    id: 1,
+    title: "فیشال صورت",
+    category: "زیبایی",
+    duration: 45,
+    price: 350000,
+    description: "پاکسازی عمقی و مرطوب‌سازی پوست صورت",
+    isActive: true,
+  },
+  {
+    id: 2,
+    title: "میکرونیدلینگ",
+    category: "زیبایی",
+    duration: 60,
+    price: 500000,
+    description: "تحریک کلاژن‌سازی با سوزن‌های ریز",
+    isActive: true,
+  },
+  {
+    id: 3,
+    title: "لیزر موهای زائد",
+    category: "زیبایی",
+    duration: 30,
+    price: 450000,
+    description: "حذف دائمی موهای زائد با لیزر",
+    isActive: true,
+  },
+  {
+    id: 4,
+    title: "درمان آکنه",
+    category: "زیبایی",
+    duration: 30,
+    price: 250000,
+    description: "درجۀ یک آکنه و جوش صورت",
+    isActive: false,
+  },
+  {
+    id: 5,
+    title: "مشاوره تغذیه",
+    category: "مشاوره",
+    duration: 30,
+    price: 180000,
+    description: "مشاوره تغذیه و رژیم درمانی",
+    isActive: true,
+  },
+  {
+    id: 6,
+    title: "مشاوره روانشناسی",
+    category: "مشاوره",
+    duration: 45,
+    price: 250000,
+    description: "مشاوره فردی و مدیریت استرس",
+    isActive: true,
+  },
+  {
+    id: 7,
+    title: "فیزیوتراپی",
+    category: "درمانی",
+    duration: 45,
+    price: 300000,
+    description: "فیزیوتراپی تخصصی برای انواع دردهای عضلانی",
+    isActive: true,
+  },
+  {
+    id: 8,
+    title: "آزمایش خون",
+    category: "آزمایشگاهی",
+    duration: 15,
+    price: 120000,
+    description: "انواع آزمایش‌های خون و بیوشیمی",
+    isActive: true,
+  },
+  {
+    id: 9,
+    title: "تزریق بوتاکس",
+    category: "زیبایی",
+    duration: 30,
+    price: 800000,
+    description: "تزریق بوتاکس برای کاهش چین و چروک",
+    isActive: true,
+  },
+  {
+    id: 10,
+    title: "درمان زگیل",
+    category: "درمانی",
+    duration: 20,
+    price: 200000,
+    description: "درمان و برداشتن زگیل با لیزر یا کرایو",
+    isActive: true,
+  },
+  {
+    id: 11,
+    title: "پاکسازی پوست",
+    category: "زیبایی",
+    duration: 60,
+    price: 350000,
+    description: "پاکسازی تخصصی پوست با بخور و ماسک",
+    isActive: false,
+  },
+  {
+    id: 12,
+    title: "مشاوره پوست و مو",
+    category: "مشاوره",
+    duration: 30,
+    price: 200000,
+    description: "مشاوره تخصصی مشکلات پوست و مو",
+    isActive: true,
+  },
 ];
 
-const serviceOptions = [
-  { value: "1", label: "ویزیت عمومی" },
-  { value: "2", label: "قلب" },
-  { value: "3", label: "داخلی" },
-  { value: "4", label: "اطفال" },
-  { value: "5", label: "ارتودنسی" },
-];
-
-const patientNames = [
-  "علی رضایی",
-  "سارا احمدی",
-  "رضا کریمی",
-  "مریم نوروزی",
-  "امیر عباسی",
-  "نگین صادقی",
-  "محمد محمدیان",
-  "زهرا حسینی",
-  "حسین مرادی",
-];
-const doctorNames = ["دکتر محمدی", "دکتر حسینی", "دکتر احمدی"];
-const serviceNames = ["ویزیت عمومی", "قلب", "داخلی", "اطفال", "ارتودنسی"];
+const patientNames = mockPatients.map((p) => `${p.firstName} ${p.lastName}`);
+const serviceNames = mockServices.filter((s) => s.isActive).map((s) => s.title);
 const statuses: Appointment["status"][] = ["confirmed", "waiting", "cancelled", "completed"];
 const times = [
   "۰۸:۰۰",
@@ -163,11 +426,29 @@ const times = [
   "۱۶:۰۰",
 ];
 
+const START_HOUR = 8;
+const END_HOUR = 16;
+const INTERVAL = 30;
+
+function generateAllTimeSlots(): string[] {
+  const slots: string[] = [];
+  for (let hour = START_HOUR; hour < END_HOUR; hour++) {
+    for (let min = 0; min < 60; min += INTERVAL) {
+      const h = hour.toString().padStart(2, "0");
+      const m = min.toString().padStart(2, "0");
+      slots.push(toPersian(`${h}:${m}`));
+    }
+  }
+  return slots;
+}
+
+const ALL_TIME_SLOTS = generateAllTimeSlots();
+
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function generateMockAppointments(jy: number, jm: number): Appointment[] {
+function generateMockAppointments(jy: number, jm: number, startId = 1): Appointment[] {
   const results: Appointment[] = [];
   const daysInMonth = getPersianMonthDays(jm, jy);
   const usedDays = new Set<number>();
@@ -180,10 +461,9 @@ function generateMockAppointments(jy: number, jm: number): Appointment[] {
     usedDays.add(day);
 
     results.push({
-      id: i + 1,
+      id: startId + i,
       time: pick(times),
       patient: pick(patientNames),
-      doctor: pick(doctorNames),
       service: pick(serviceNames),
       date: `${jy}/${jm}/${day}`,
       status: pick(statuses),
@@ -201,22 +481,43 @@ function Calendar() {
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
-  const [form, setForm] = useState<NewAppointmentFormData>({
-    patient: "",
-    doctor: "",
-    service: "",
+  const [wizardStep, setWizardStep] = useState<WizardStep>("patient");
+  const [form, setForm] = useState<WizardFormData>({
+    patientId: null,
+    serviceId: null,
     date: "",
     time: "",
     notes: "",
   });
+  const [patientSearch, setPatientSearch] = useState("");
+  const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
+  const seededRef = useRef(new Set<string>());
 
   const persian = getPersianDate(viewDate);
-  const appointments = useMemo(
-    () => generateMockAppointments(persian.year, persian.month),
-    [persian.year, persian.month]
-  );
+
+  useEffect(() => {
+    const key = `${persian.year}-${persian.month}`;
+    if (seededRef.current.has(key)) return;
+    seededRef.current.add(key);
+    setAllAppointments((prev) => [
+      ...prev,
+      ...generateMockAppointments(persian.year, persian.month, prev.length + 1),
+    ]);
+  }, [persian.year, persian.month]);
 
   const todayStr = `${todayInfo.year}/${todayInfo.month}/${todayInfo.day}`;
+
+  const filteredPatients = useMemo(
+    () =>
+      patientSearch
+        ? mockPatients.filter((p) =>
+            `${p.firstName} ${p.lastName}${p.phone}`
+              .toLowerCase()
+              .includes(patientSearch.toLowerCase())
+          )
+        : mockPatients,
+    [patientSearch]
+  );
 
   const grid = useMemo(() => {
     const first = getFirstOfPersianMonth(viewDate);
@@ -235,7 +536,7 @@ function Calendar() {
       const dateStr = `${persian.year}/${persian.month}/${day}`;
       const isToday = dateStr === todayStr;
       const isSelected = dateStr === selectedDate;
-      const dayApps = appointments.filter((a) => a.date === dateStr);
+      const dayApps = allAppointments.filter((a) => a.date === dateStr);
 
       week.push({ day, isToday, isSelected, date: dateStr, appointments: dayApps });
 
@@ -253,9 +554,53 @@ function Calendar() {
     }
 
     return weeks;
-  }, [viewDate, persian.month, persian.year, todayStr, selectedDate, appointments]);
+  }, [viewDate, persian.month, persian.year, todayStr, selectedDate, allAppointments]);
 
-  const selectedDayAppointments = appointments.filter((a) => a.date === selectedDate);
+  const selectedDayAppointments = allAppointments.filter((a) => a.date === selectedDate);
+
+  const selectedPatient = form.patientId
+    ? (mockPatients.find((p) => p.id === form.patientId) ?? null)
+    : null;
+  const selectedService = form.serviceId
+    ? (mockServices.find((s) => s.id === form.serviceId) ?? null)
+    : null;
+
+  const availableSlots = useMemo(() => {
+    if (!selectedService || !form.date) return [];
+    const dayApps = allAppointments.filter((a) => a.date === form.date);
+    return ALL_TIME_SLOTS.filter((slot) => {
+      const slotStart = parseTimeToMinutes(slot);
+      const slotEnd = slotStart + selectedService.duration;
+      if (slotEnd > END_HOUR * 60) return false;
+      return !dayApps.some((apt) => {
+        const aptStart = parseTimeToMinutes(apt.time);
+        const aptEnd = aptStart + 30;
+        return slotStart < aptEnd && slotEnd > aptStart;
+      });
+    });
+  }, [selectedService, form.date, allAppointments]);
+
+  const stepDaysAvailability = useMemo(() => {
+    const days: Record<string, boolean> = {};
+    const daysInMonth = getPersianMonthDays(persian.month, persian.year);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${persian.year}/${persian.month}/${day}`;
+      const dayApps = allAppointments.filter((a) => a.date === dateStr);
+      const hasAvailability = ALL_TIME_SLOTS.some((slot) => {
+        if (!selectedService) return false;
+        const slotStart = parseTimeToMinutes(slot);
+        const slotEnd = slotStart + selectedService.duration;
+        if (slotEnd > END_HOUR * 60) return false;
+        return !dayApps.some((apt) => {
+          const aptStart = parseTimeToMinutes(apt.time);
+          const aptEnd = aptStart + 30;
+          return slotStart < aptEnd && slotEnd > aptStart;
+        });
+      });
+      days[dateStr] = hasAvailability;
+    }
+    return days;
+  }, [persian.year, persian.month, allAppointments, selectedService]);
 
   function handlePrevMonth() {
     setViewDate((prev) => navigateMonth(prev, -1));
@@ -265,39 +610,104 @@ function Calendar() {
     setViewDate((prev) => navigateMonth(prev, 1));
   }
 
+  function handleGoToToday() {
+    const now = new Date();
+    setViewDate(getFirstOfPersianMonth(now));
+    setSelectedDate(`${todayInfo.year}/${todayInfo.month}/${todayInfo.day}`);
+  }
+
   function handleSelectDate(dateStr: string) {
     setSelectedDate(dateStr);
     setSelectedAppointment(null);
   }
 
   function handleOpenModal() {
-    setForm({
-      patient: "",
-      doctor: "",
-      service: "",
-      date:
-        toPersianDigits(persian.year) +
-        "/" +
-        toPersianDigits(persian.month) +
-        "/" +
-        toPersianDigits(getPersianDate(new Date()).day),
-      time: "",
-      notes: "",
-    });
+    setWizardStep("patient");
+    setForm({ patientId: null, serviceId: null, date: "", time: "", notes: "" });
     setModalOpen(true);
   }
 
   function handleCloseModal() {
     setModalOpen(false);
+    setWizardStep("patient");
   }
 
-  function handleFormChange(field: keyof NewAppointmentFormData, value: string) {
+  function handleFormChange(field: keyof WizardFormData, value: string | number | null) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  function handleWizardNext() {
+    if (wizardStep === "patient" && form.patientId) {
+      setWizardStep("service");
+    } else if (wizardStep === "service" && form.serviceId) {
+      setWizardStep("time");
+    }
+  }
+
+  function handleWizardBack() {
+    if (wizardStep === "service") {
+      setWizardStep("patient");
+    } else if (wizardStep === "time") {
+      setWizardStep("service");
+    }
+  }
+
   function handleSubmitForm() {
+    if (!selectedPatient || !selectedService || !form.date || !form.time) return;
+    const newAppt: Appointment = {
+      id: Date.now(),
+      time: form.time,
+      patient: `${selectedPatient.firstName} ${selectedPatient.lastName}`,
+      service: selectedService.title,
+      date: form.date,
+      status: "confirmed",
+    };
+    setAllAppointments((prev) => [...prev, newAppt]);
     handleCloseModal();
   }
+
+  function getStepDaysInMonth(): number {
+    return getPersianMonthDays(persian.month, persian.year);
+  }
+
+  function getStepGrid() {
+    const first = getFirstOfPersianMonth(viewDate);
+    const jsDay = first.getDay();
+    const startWeekday = (jsDay + 1) % 7;
+    const daysInMonth = getStepDaysInMonth();
+
+    const weeks: { day: number; date: string; available: boolean }[][] = [];
+    let week: { day: number; date: string; available: boolean }[] = [];
+
+    for (let i = 0; i < startWeekday; i++) {
+      week.push({ day: 0, date: "", available: false });
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${persian.year}/${persian.month}/${day}`;
+      week.push({
+        day,
+        date: dateStr,
+        available: selectedService ? (stepDaysAvailability[dateStr] ?? true) : true,
+      });
+
+      if (week.length === 7) {
+        weeks.push(week);
+        week = [];
+      }
+    }
+
+    if (week.length > 0) {
+      while (week.length < 7) {
+        week.push({ day: 0, date: "", available: false });
+      }
+      weeks.push(week);
+    }
+
+    return weeks;
+  }
+
+  const stepGrid = getStepGrid();
 
   const selectedDateDisplay = (() => {
     const parts = selectedDate.split("/");
@@ -305,8 +715,307 @@ function Calendar() {
     return `${toPersianDigits(parseInt(parts[2]))} ${PERSIAN_MONTHS[parseInt(parts[1]) - 1]} ${toPersianDigits(parseInt(parts[0]))}`;
   })();
 
+  const STEP_LABELS: { key: WizardStep; label: string }[] = [
+    { key: "patient", label: "بیمار" },
+    { key: "service", label: "خدمت" },
+    { key: "time", label: "زمان" },
+  ];
+
+  const stepIndex = STEP_LABELS.findIndex((s) => s.key === wizardStep);
+
+  function renderStepIndicator() {
+    return (
+      <div className="mb-6 flex items-center justify-center gap-0">
+        {STEP_LABELS.map((s, i) => {
+          const isActive = i === stepIndex;
+          const isDone = i < stepIndex;
+          return (
+            <div key={s.key} className="flex items-center">
+              <div className="flex flex-col items-center gap-1">
+                <span
+                  className={`flex size-8 items-center justify-center rounded-full text-sm font-semibold transition-colors ${
+                    isDone
+                      ? "bg-success-500 text-white"
+                      : isActive
+                        ? "bg-primary-600 text-white"
+                        : "border-surface-300 text-surface-400 border"
+                  }`}
+                >
+                  {isDone ? <BiCheck className="size-4" /> : toPersianDigits(i + 1)}
+                </span>
+                <span
+                  className={`text-[11px] ${
+                    isActive ? "text-primary-700 font-medium" : "text-surface-400"
+                  }`}
+                >
+                  {s.label}
+                </span>
+              </div>
+              {i < STEP_LABELS.length - 1 && (
+                <div
+                  className={`mobile:mx-2 mobile:w-10 mx-1 mt-0 h-0.5 w-6 ${i < stepIndex ? "bg-success-500" : "bg-surface-200"}`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderPatientStep() {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="relative">
+          <Input
+            label="جستجوی بیمار"
+            placeholder="نام یا تلفن بیمار را وارد کنید..."
+            value={patientSearch}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              setPatientSearch(e.target.value);
+              if (form.patientId && e.target.value) {
+                handleFormChange("patientId", null);
+              }
+            }}
+            startIcon={<BiSearch className="size-4" />}
+          />
+        </div>
+        <div className="border-surface-200 mobile:max-h-64 flex max-h-48 flex-col gap-1 overflow-y-auto rounded-lg border p-1.5">
+          {filteredPatients.length === 0 ? (
+            <p className="text-surface-400 py-6 text-center text-sm">بیماری یافت نشد</p>
+          ) : (
+            filteredPatients.map((p) => {
+              const isSelected = form.patientId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    handleFormChange("patientId", p.id);
+                    setPatientSearch("");
+                  }}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-right transition-colors ${
+                    isSelected
+                      ? "border-primary-400 bg-primary-50 border"
+                      : "hover:bg-surface-50 border border-transparent"
+                  }`}
+                >
+                  <div className="bg-primary-100 text-primary-700 flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-bold">
+                    {p.firstName[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <p
+                      className={`truncate text-sm font-medium ${
+                        isSelected ? "text-primary-700" : "text-surface-900"
+                      }`}
+                    >
+                      {p.firstName} {p.lastName}
+                    </p>
+                    <p className="text-surface-500 truncate text-xs" dir="ltr">
+                      {toPersian(p.phone)}
+                    </p>
+                  </div>
+                  {isSelected && <BiCheck className="text-primary-600 me-auto size-5 shrink-0" />}
+                </button>
+              );
+            })
+          )}
+        </div>
+        {selectedPatient && (
+          <Card variant="outlined" padding="sm">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary-100 text-primary-700 flex size-9 items-center justify-center rounded-full text-sm font-bold">
+                {selectedPatient.firstName[0]}
+              </div>
+              <div>
+                <p className="text-surface-900 text-sm font-medium">
+                  {selectedPatient.firstName} {selectedPatient.lastName}
+                </p>
+                <p className="text-surface-500 mt-0.5 text-xs" dir="ltr">
+                  {toPersian(selectedPatient.phone)}
+                </p>
+              </div>
+            </div>
+            <div className="text-surface-500 border-surface-100 mt-2 grid grid-cols-2 gap-2 border-t pt-2 text-xs">
+              <span>آخرین مراجعه: {selectedPatient.lastVisit}</span>
+              <span>تعداد مراجعات: {toPersianDigits(selectedPatient.visitCount)}</span>
+            </div>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  function renderServiceStep() {
+    if (!selectedPatient) return null;
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-surface-600 text-xs font-medium">
+          انتخاب خدمت برای {selectedPatient.firstName} {selectedPatient.lastName}
+        </p>
+        <div className="mobile:grid-cols-2 grid grid-cols-1 gap-3">
+          {mockServices
+            .filter((s) => s.isActive)
+            .map((svc) => {
+              const isSelected = form.serviceId === svc.id;
+              return (
+                <button
+                  key={svc.id}
+                  onClick={() => handleFormChange("serviceId", svc.id)}
+                  className={`focus-visible:ring-primary-600/40 relative cursor-pointer rounded-lg border p-3 text-right transition-all outline-none focus-visible:ring-2 ${
+                    isSelected
+                      ? "border-primary-500 bg-primary-50 shadow-sm"
+                      : "border-surface-200 hover:border-surface-300 bg-white hover:shadow-sm"
+                  }`}
+                >
+                  {isSelected && (
+                    <span className="bg-primary-600 absolute end-2 top-2 flex size-5 items-center justify-center rounded-full text-white">
+                      <BiCheck className="size-3" />
+                    </span>
+                  )}
+                  <p className="text-surface-900 text-sm font-medium">{svc.title}</p>
+                  <p className="text-surface-500 mt-1 text-xs">
+                    {toPersianDigits(svc.duration)} دقیقه
+                  </p>
+                  <p className="text-primary-700 mt-1 text-xs font-medium">
+                    {toPersianDigits(svc.price)} تومان
+                  </p>
+                </button>
+              );
+            })}
+        </div>
+      </div>
+    );
+  }
+
+  function renderTimeStep() {
+    if (!selectedPatient || !selectedService) return null;
+    return (
+      <div className="flex flex-col gap-4">
+        <Card variant="outlined" padding="sm">
+          <div className="text-surface-700 flex items-center gap-2 text-sm">
+            <span className="font-medium">
+              {selectedPatient.firstName} {selectedPatient.lastName}
+            </span>
+            <BiChevronLeft className="text-surface-300 size-4" />
+            <span className="text-primary-700 font-medium">{selectedService.title}</span>
+            <span className="text-surface-400 me-auto text-xs">
+              {toPersianDigits(selectedService.duration)} دقیقه
+            </span>
+          </div>
+        </Card>
+
+        <div className="border-surface-200 flex items-center justify-between rounded-lg border px-3 py-2">
+          <button
+            onClick={handlePrevMonth}
+            className="text-surface-400 hover:text-surface-600 cursor-pointer rounded p-0.5 transition-colors"
+            aria-label="ماه قبل"
+          >
+            <BiChevronRight className="size-4" />
+          </button>
+          <span className="text-surface-800 text-sm font-medium select-none">
+            {PERSIAN_MONTHS[persian.month - 1]} {toPersianDigits(persian.year)}
+          </span>
+          <button
+            onClick={handleNextMonth}
+            className="text-surface-400 hover:text-surface-600 cursor-pointer rounded p-0.5 transition-colors"
+            aria-label="ماه بعد"
+          >
+            <BiChevronLeft className="size-4" />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-0.5">
+          <div className="mb-1 grid grid-cols-7">
+            {WEEKDAYS.map((wd) => (
+              <div
+                key={wd}
+                className="text-surface-400 py-1 text-center text-[10px] font-medium select-none"
+              >
+                {wd}
+              </div>
+            ))}
+          </div>
+          {stepGrid.map((week, wi) => (
+            <div key={wi} className="grid grid-cols-7 gap-0.5">
+              {week.map((cell, ci) => {
+                if (!cell.date) return <div key={ci} className="h-8" />;
+                const isSelected = form.date === cell.date;
+                const hasAvailability = selectedService ? cell.available : true;
+                return (
+                  <button
+                    key={ci}
+                    disabled={!hasAvailability}
+                    onClick={() => {
+                      handleFormChange("date", cell.date);
+                      handleFormChange("time", "");
+                    }}
+                    className={`focus-visible:ring-primary-500/40 h-8 cursor-pointer rounded text-center text-xs transition-colors outline-none focus-visible:ring-2 ${
+                      isSelected
+                        ? "bg-primary-600 font-bold text-white shadow-sm"
+                        : hasAvailability
+                          ? "text-surface-700 hover:bg-surface-100"
+                          : "text-surface-300 cursor-not-allowed"
+                    }`}
+                  >
+                    {toPersianDigits(cell.day)}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {form.date && (
+          <div>
+            <p className="text-surface-700 mb-2 text-xs font-medium">
+              ساعت‌های موجود برای{" "}
+              {(() => {
+                const parts = form.date.split("/");
+                return `${toPersianDigits(parseInt(parts[2]))} ${PERSIAN_MONTHS[parseInt(parts[1]) - 1]}`;
+              })()}
+              :
+            </p>
+            {availableSlots.length === 0 ? (
+              <p className="text-surface-400 py-3 text-center text-xs">
+                هیچ وقت خالی در این روز وجود ندارد
+              </p>
+            ) : (
+              <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto">
+                {availableSlots.map((slot) => {
+                  const isActive = form.time === slot;
+                  return (
+                    <button
+                      key={slot}
+                      onClick={() => handleFormChange("time", slot)}
+                      className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                        isActive
+                          ? "border-primary-500 bg-primary-50 text-primary-700 font-medium"
+                          : "border-surface-200 hover:border-surface-300 text-surface-600 hover:bg-surface-50"
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="mt-3">
+              <Textarea
+                label="توضیحات (اختیاری)"
+                placeholder="توضیحات اضافی..."
+                value={form.notes}
+                onChange={(e) => handleFormChange("notes", e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 sm:gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-surface-900 text-2xl font-bold">تقویم نوبت‌ها</h1>
@@ -323,35 +1032,43 @@ function Calendar() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2">
+      <div className="grid gap-6 xl:grid-cols-4">
+        <div className="xl:col-span-3">
           <Card variant="outlined" padding="none">
-            <div className="border-surface-200 flex items-center justify-between border-b px-5 py-4">
-              <button
-                onClick={handlePrevMonth}
-                className="text-surface-500 hover:text-surface-700 hover:bg-surface-100 cursor-pointer rounded-lg p-1.5 transition-colors"
-                aria-label="ماه قبل"
-              >
-                <BiChevronRight className="size-5" />
-              </button>
-              <span className="text-surface-900 text-base font-semibold select-none">
+            <div className="border-surface-200 flex items-center justify-between gap-2 border-b px-4 py-3">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handlePrevMonth}
+                  className="text-surface-500 hover:text-surface-700 hover:bg-surface-100 cursor-pointer rounded-lg p-1 transition-colors"
+                  aria-label="ماه قبل"
+                >
+                  <BiChevronRight className="size-5" />
+                </button>
+                <button
+                  onClick={handleNextMonth}
+                  className="text-surface-500 hover:text-surface-700 hover:bg-surface-100 cursor-pointer rounded-lg p-1 transition-colors"
+                  aria-label="ماه بعد"
+                >
+                  <BiChevronLeft className="size-5" />
+                </button>
+              </div>
+              <span className="text-surface-900 text-sm font-semibold select-none">
                 {PERSIAN_MONTHS[persian.month - 1]} {toPersianDigits(persian.year)}
               </span>
               <button
-                onClick={handleNextMonth}
-                className="text-surface-500 hover:text-surface-700 hover:bg-surface-100 cursor-pointer rounded-lg p-1.5 transition-colors"
-                aria-label="ماه بعد"
+                onClick={handleGoToToday}
+                className="text-primary-600 hover:bg-primary-50 cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium transition-colors"
               >
-                <BiChevronLeft className="size-5" />
+                امروز
               </button>
             </div>
 
-            <div className="p-4">
-              <div className="mb-2 grid grid-cols-7">
+            <div className="p-3">
+              <div className="mb-1 grid grid-cols-7">
                 {WEEKDAYS.map((wd) => (
                   <div
                     key={wd}
-                    className="text-surface-500 py-2 text-center text-xs font-medium select-none"
+                    className="text-surface-500 py-1 text-center text-[11px] font-medium select-none"
                   >
                     {wd}
                   </div>
@@ -363,12 +1080,12 @@ function Calendar() {
                   <div key={wi} className="grid grid-cols-7 gap-1">
                     {week.map((cell, ci) => {
                       if (!cell.date) {
-                        return <div key={ci} className="aspect-square" />;
+                        return <div key={ci} className="mobile:h-14 h-12" />;
                       }
 
                       const todayStyle =
                         cell.isToday && !cell.isSelected
-                          ? "bg-primary-600 text-white font-bold rounded-lg shadow-sm"
+                          ? "ring-2 ring-primary-400 ring-inset rounded-lg font-bold"
                           : "";
                       const selectedStyle = cell.isSelected
                         ? "bg-primary-600 text-white font-bold rounded-lg shadow-sm"
@@ -376,32 +1093,22 @@ function Calendar() {
                       const hoverStyle =
                         !cell.isToday && !cell.isSelected ? "hover:bg-surface-50 rounded-lg" : "";
 
+                      const badgeStyle = cell.isSelected
+                        ? "bg-white/20 text-white"
+                        : "bg-primary-100 text-primary-700";
+
                       return (
                         <button
                           key={ci}
                           onClick={() => handleSelectDate(cell.date)}
-                          className={`focus-visible:ring-primary-600/40 relative flex aspect-square cursor-pointer flex-col items-center justify-center text-sm transition-colors outline-none focus-visible:ring-2 ${todayStyle || selectedStyle || hoverStyle}`}
+                          className={`focus-visible:ring-primary-600/40 mobile:h-14 relative flex h-12 cursor-pointer flex-col items-center justify-center text-sm transition-colors outline-none focus-visible:ring-2 ${selectedStyle || todayStyle || hoverStyle}`}
                         >
                           <span className="leading-none">{toPersianDigits(cell.day)}</span>
                           {cell.appointments.length > 0 && (
-                            <span className="mt-1 flex items-center gap-0.5">
-                              {cell.appointments.slice(0, 3).map((_, idx) => (
-                                <span
-                                  key={idx}
-                                  className={`size-1 rounded-full ${
-                                    cell.isToday || cell.isSelected
-                                      ? "bg-white/70"
-                                      : "bg-primary-500"
-                                  }`}
-                                />
-                              ))}
-                              {cell.appointments.length > 3 && (
-                                <span
-                                  className={`text-[10px] ${cell.isToday || cell.isSelected ? "text-white/70" : "text-surface-400"}`}
-                                >
-                                  +{cell.appointments.length - 3}
-                                </span>
-                              )}
+                            <span
+                              className={`mt-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] leading-4 font-medium ${badgeStyle}`}
+                            >
+                              {toPersianDigits(cell.appointments.length)}
                             </span>
                           )}
                         </button>
@@ -415,10 +1122,10 @@ function Calendar() {
         </div>
 
         <div>
-          <Card variant="outlined" padding="lg">
-            <div className="mb-4 flex items-center gap-2">
-              <BiCalendar className="text-primary-600 size-5" />
-              <h3 className="text-surface-900 text-sm font-semibold">{selectedDateDisplay}</h3>
+          <Card variant="outlined" padding="md">
+            <div className="mb-3 flex items-center gap-2">
+              <BiCalendar className="text-primary-600 size-4" />
+              <h3 className="text-surface-900 text-xs font-semibold">{selectedDateDisplay}</h3>
             </div>
 
             {selectedDayAppointments.length === 0 ? (
@@ -437,39 +1144,35 @@ function Calendar() {
                 }
               />
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 {selectedDayAppointments.map((appt) => {
                   const status = statusConfig[appt.status];
-                  const isSelected = selectedAppointment?.id === appt.id;
+                  const isExpanded = selectedAppointment?.id === appt.id;
 
                   return (
                     <button
                       key={appt.id}
-                      onClick={() => setSelectedAppointment(isSelected ? null : appt)}
-                      className={`focus-visible:ring-primary-600/40 w-full cursor-pointer rounded-lg border p-3 text-right transition-all outline-none focus-visible:ring-2 ${
-                        isSelected
+                      onClick={() => setSelectedAppointment(isExpanded ? null : appt)}
+                      className={`focus-visible:ring-primary-600/40 w-full cursor-pointer rounded-lg border p-2.5 text-right transition-all outline-none focus-visible:ring-2 ${
+                        isExpanded
                           ? "border-primary-400 bg-primary-50/50 shadow-sm"
                           : "border-surface-200 hover:border-surface-300 bg-white hover:shadow-sm"
                       }`}
                     >
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <div className="text-surface-600 flex items-center gap-1.5 text-xs">
-                          <BiTime className="size-3.5" />
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <div className="text-surface-500 flex items-center gap-1 text-[11px]">
+                          <BiTime className="size-3" />
                           <span>{appt.time}</span>
                         </div>
                         <Badge variant={status.variant} size="sm">
                           {status.label}
                         </Badge>
                       </div>
-                      <p className="text-surface-900 text-sm font-medium">{appt.patient}</p>
-                      {isSelected && (
-                        <div className="border-surface-200 text-surface-600 mt-2 flex flex-col gap-1.5 border-t pt-2 text-xs">
+                      <p className="text-surface-900 text-xs font-medium">{appt.patient}</p>
+                      {isExpanded && (
+                        <div className="border-surface-200 text-surface-500 mt-1.5 flex flex-col gap-1 border-t pt-1.5 text-[11px]">
                           <div className="flex items-center gap-1.5">
-                            <BiUser className="text-surface-400 size-3.5" />
-                            <span>{appt.doctor}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <BiNote className="text-surface-400 size-3.5" />
+                            <BiNote className="text-surface-400 size-3" />
                             <span>{appt.service}</span>
                           </div>
                         </div>
@@ -487,62 +1190,52 @@ function Calendar() {
         open={modalOpen}
         onClose={handleCloseModal}
         title="نوبت جدید"
-        size="lg"
+        size="2xl"
         footer={
-          <>
-            <Button variant="ghost" onClick={handleCloseModal}>
-              انصراف
-            </Button>
-            <Button variant="primary" onClick={handleSubmitForm}>
-              ثبت نوبت
-            </Button>
-          </>
+          wizardStep === "time" ? (
+            <>
+              <Button variant="ghost" onClick={handleWizardBack}>
+                قبلی
+              </Button>
+              <Button variant="primary" onClick={handleSubmitForm} disabled={!form.time}>
+                ثبت نوبت
+              </Button>
+            </>
+          ) : wizardStep === "service" ? (
+            <>
+              <Button variant="ghost" onClick={handleWizardBack}>
+                قبلی
+              </Button>
+              <Button variant="primary" onClick={handleWizardNext} disabled={!form.serviceId}>
+                بعدی
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={handleCloseModal}>
+                انصراف
+              </Button>
+              <Button variant="primary" onClick={handleWizardNext} disabled={!form.patientId}>
+                بعدی
+              </Button>
+            </>
+          )
         }
       >
-        <div className="flex flex-col gap-4">
-          <Select
-            label="بیمار"
-            options={patientOptions}
-            placeholder="انتخاب بیمار"
-            value={form.patient}
-            onChange={(e) => handleFormChange("patient", e.target.value)}
-          />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Select
-              label="پزشک"
-              options={doctorOptions}
-              placeholder="انتخاب پزشک"
-              value={form.doctor}
-              onChange={(e) => handleFormChange("doctor", e.target.value)}
-            />
-            <Select
-              label="خدمت"
-              options={serviceOptions}
-              placeholder="انتخاب خدمت"
-              value={form.service}
-              onChange={(e) => handleFormChange("service", e.target.value)}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="تاریخ"
-              value={form.date}
-              onChange={(e) => handleFormChange("date", e.target.value)}
-            />
-            <Input
-              label="ساعت"
-              placeholder="مثال: ۰۹:۰۰"
-              value={form.time}
-              onChange={(e) => handleFormChange("time", e.target.value)}
-            />
-          </div>
-          <Textarea
-            label="توضیحات"
-            placeholder="توضیحات اضافی..."
-            value={form.notes}
-            onChange={(e) => handleFormChange("notes", e.target.value)}
-          />
-        </div>
+        {renderStepIndicator()}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={wizardStep}
+            initial={{ opacity: 0, x: 15 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -15 }}
+            transition={{ duration: 0.15 }}
+          >
+            {wizardStep === "patient" && renderPatientStep()}
+            {wizardStep === "service" && renderServiceStep()}
+            {wizardStep === "time" && renderTimeStep()}
+          </motion.div>
+        </AnimatePresence>
       </Modal>
     </div>
   );

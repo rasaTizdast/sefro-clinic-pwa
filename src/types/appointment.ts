@@ -4,19 +4,9 @@ export interface Appointment {
   id: number;
   time: string;
   patient: string;
-  doctor: string;
   service: string;
   date: string;
   status: AppointmentStatus;
-}
-
-export interface NewAppointmentFormData {
-  patient: string;
-  doctor: string;
-  service: string;
-  date: string;
-  time: string;
-  notes: string;
 }
 
 export interface DayCell {
@@ -25,4 +15,14 @@ export interface DayCell {
   isSelected: boolean;
   date: string;
   appointments: Appointment[];
+}
+
+export type WizardStep = "patient" | "service" | "time";
+
+export interface WizardFormData {
+  patientId: number | null;
+  serviceId: number | null;
+  date: string;
+  time: string;
+  notes: string;
 }

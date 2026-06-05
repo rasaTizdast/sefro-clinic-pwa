@@ -11,7 +11,8 @@ export type {
   Appointment,
   AppointmentStatus,
   DayCell,
-  NewAppointmentFormData,
+  WizardFormData,
+  WizardStep,
 } from "./appointment";
 export type { LoginState } from "./auth";
 export type { Maybe, PageState, Trend } from "./common";
