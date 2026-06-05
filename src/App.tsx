@@ -35,7 +35,7 @@ function AppContent() {
       <div className="flex h-screen gap-3 overflow-hidden p-2 pb-24 md:p-3 md:pb-3">
         <LoadingBar />
         <Sidebar items={items} />
-        <main className="flex-1 overflow-y-auto p-1 md:p-3">
+        <main className="scrollable-content flex-1 p-1 md:p-3">
           <Outlet />
         </main>
         <CommandPalette open={open} onClose={() => setOpen(false)} />

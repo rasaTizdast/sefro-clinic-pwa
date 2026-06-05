@@ -80,9 +80,9 @@
   --breakpoint-largeDesktop: 120rem;
 }
 
-body{
+body {
   background: #faf8ff;
-  font-family: 'Vazirmatn', sans-serif;
+  font-family: "Vazirmatn", sans-serif;
 }
 
 @keyframes toast-progress {
@@ -93,4 +93,48 @@ body{
   to {
     transform: scaleX(0);
   }
+}
+
+.recharts-wrapper:focus,
+.recharts-wrapper *:focus,
+.recharts-surface:focus,
+.recharts-responsive-container:focus {
+  outline: none;
+}
+
+.scrollable-content {
+  overflow-y: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary-300) transparent;
+}
+
+.scrollable-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollable-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollable-content::-webkit-scrollbar-thumb {
+  background: var(--color-primary-300);
+  border-radius: 3px;
+}
+
+.scrollable-content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-400);
+}
+
+/* Blue theme for react-calendar-datetime-picker popup */
+.calendar-blue-theme {
+  --calendar-primary: var(--color-primary-600);
+  --calendar-primary-hover: var(--color-primary-700);
+  --calendar-primary-light: var(--color-primary-100);
+  --calendar-selected-day: var(--color-primary-500);
+  --calendar-today: var(--color-primary-600);
+  --calendar-selected-range: var(--color-primary-100);
+  --calendar-selected-range-color: var(--color-primary-700);
+  --calendar-header-bg: var(--color-primary-600);
+  --calendar-border-focus: var(--color-primary-500);
 }
