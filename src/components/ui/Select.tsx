@@ -65,6 +65,7 @@ export function Select({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [internalValue, setInternalValue] = useState(defaultValue);
   const [searchQuery, setSearchQuery] = useState("");
+  const [effectiveAlign, setEffectiveAlign] = useState<"start" | "end">(align);
 
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -90,7 +91,8 @@ export function Select({
     setIsOpen(false);
     setActiveIndex(-1);
     setSearchQuery("");
-  }, []);
+    setEffectiveAlign(align);
+  }, [align]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -163,7 +165,50 @@ export function Select({
     });
   }
 
+  function estimateMenuWidth(): number {
+    if (isActionMenu && items) {
+      if (items.length === 0) return 160;
+      const avgCharWidth = 9;
+      const iconWidth = 16;
+      const gapWidth = 10;
+      const paddingWidth = 24;
+      const buffer = 20;
+      const maxTextWidth = items.reduce((max, item) => {
+        const labelLen = item.label?.length ?? 0;
+        const descLen = item.description?.length ?? 0;
+        const shortcutLen = item.shortcut?.length ?? 0;
+        return Math.max(max, (labelLen + descLen + shortcutLen) * avgCharWidth);
+      }, 0);
+      return maxTextWidth + iconWidth + gapWidth + paddingWidth + buffer;
+    }
+    if (options) {
+      const avgCharWidth = 9;
+      const paddingWidth = 24;
+      const checkWidth = 16;
+      const gapWidth = 8;
+      const buffer = 20;
+      const maxTextWidth = options.reduce(
+        (max, o) => Math.max(max, o.label.length * avgCharWidth),
+        0
+      );
+      return maxTextWidth + checkWidth + gapWidth + paddingWidth + buffer;
+    }
+    return 160;
+  }
+
   function openMenu() {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const menuWidth = estimateMenuWidth();
+      const spaceLeft = rect.left;
+      const spaceRight = window.innerWidth - rect.right;
+
+      if (align === "end") {
+        setEffectiveAlign(spaceRight >= menuWidth ? "end" : "start");
+      } else {
+        setEffectiveAlign(spaceLeft >= menuWidth ? "start" : "end");
+      }
+    }
     setIsOpen(true);
     if (enabledItems.length > 0) {
       setActiveIndex(enabledItems[0]);
@@ -335,9 +380,9 @@ export function Select({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
-              className={`border-surface-200 absolute top-full z-50 mt-1.5 max-h-[300px] w-full overflow-hidden overflow-y-auto rounded-xl border bg-white shadow-lg ring-1 ring-black/5 ${
-                align === "end" ? "end-0" : "start-0"
-              }`}
+              className={`border-surface-200 absolute top-full z-50 mt-1.5 max-h-[300px] overflow-hidden overflow-y-auto rounded-xl border bg-white shadow-lg ring-1 ring-black/5 ${
+                isActionMenu ? "min-w-max" : "w-full"
+              } ${effectiveAlign === "end" ? "end-0" : "start-0"}`}
             >
               {hasSearch && (
                 <div className="px-3 pb-1.5">

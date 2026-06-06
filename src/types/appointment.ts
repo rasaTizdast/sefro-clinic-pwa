@@ -5,6 +5,8 @@ export interface Appointment {
   time: string;
   patient: string;
   service: string;
+  serviceId: number;
+  duration: number;
   date: string;
   status: AppointmentStatus;
 }
