@@ -1,12 +1,17 @@
 # sefro-clinic-pwa
 
-Persian clinic management PWA (Vite 8 + React 19 + TypeScript ~6.0). Single package, no monorepo, no tests, no CI.
+Persian clinic management PWA (Vite 8 + React 19 + TypeScript ~6.0). Single package, no monorepo.
+
+This project follows **Trunk-Based Development (TBD)** — see below for rules.
 
 ## Commands
 
 | `pnpm dev` | Dev server |
 | `pnpm build` | `tsc -b && vite build` (flag `-b` required for project references) |
 | `pnpm lint` | ESLint (typescript-eslint, react-hooks, react-refresh) |
+| `pnpm typecheck` | `tsc -b` (standalone, no vite build) |
+| `pnpm test` | Vitest (watch mode) |
+| `pnpm test:unit` | Vitest (single run) |
 | `pnpm preview` | Vite preview |
 | `pnpm format` | No script — run `npx prettier --write .` manually; config exists |
 
@@ -38,6 +43,27 @@ Persian clinic management PWA (Vite 8 + React 19 + TypeScript ~6.0). Single pack
 ## Package manager
 
 pnpm (confirmed by `pnpm-lock.yaml`).
+
+## Trunk-Based Development Rules
+
+This project follows **Trunk-Based Development (TBD)**:
+
+1. **Short-lived branches** — branches live < 24 hours. If a branch is older, rebase or abandon it.
+2. **Small commits** — each commit is 50–200 lines max. If a change exceeds 400 lines, split it.
+3. **Atomic changes** — each commit leaves `main` in a releasable state. Never commit broken builds.
+4. **Feature flags** — incomplete features must be gated. Never merge dead/dormant code without a flag.
+5. **Fast CI** — every push to `main` triggers CI (`.github/workflows/ci.yml`):
+   - Lint → TypeCheck → Tests → Build
+   - Must complete in < 10 minutes
+6. **Merge frequently** — merge to `main` multiple times per day. Each commit is a release candidate.
+7. **Conventional commits** — use `feat:`, `fix:`, `refactor:`, `test:`, `ci:`, `chore:`, `docs:` scope prefixes.
+
+## CI/CD
+
+- **GitHub Actions** at `.github/workflows/ci.yml`
+- Triggered on push to `main` and on PRs to `main`
+- Jobs: `fast-checks` (lint + typecheck + test:unit + build)
+- Staging/production deploy: manual via `workflow_dispatch` or release publish
 
 ## OpenCode config
 
