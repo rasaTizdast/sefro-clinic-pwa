@@ -1,9 +1,12 @@
-export type ServiceCategory = "زیبایی" | "درمانی" | "مشاوره" | "آزمایشگاهی";
+export interface ServiceCategory {
+  id: number;
+  name: string;
+}
 
 export interface Service {
   id: number;
   title: string;
-  category: ServiceCategory;
+  category: string;
   duration: number;
   price: number;
   description: string;

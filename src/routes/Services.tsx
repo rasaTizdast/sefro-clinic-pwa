@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { BiPlus } from "react-icons/bi";
+import { useMemo, useState } from "react";
+import { BiCategory, BiPlus, BiSolidCategory } from "react-icons/bi";
 import { CiEdit, CiTrash } from "react-icons/ci";
 
 import { SearchButton } from "../components/SearchButton";
@@ -16,21 +16,12 @@ import { Textarea } from "../components/ui/Textarea";
 import { Toggle } from "../components/ui/Toggle";
 import type { Service, ServiceCategory, ServiceFormData } from "../types/service";
 
-const CATEGORIES_BEAUTY: ServiceCategory = "زیبایی";
-const CATEGORIES_THERAPEUTIC: ServiceCategory = "درمانی";
-const CATEGORIES_CONSULTATION: ServiceCategory = "مشاوره";
-const CATEGORIES_LAB: ServiceCategory = "آزمایشگاهی";
-
-const CATEGORIES: ServiceCategory[] = [
-  CATEGORIES_BEAUTY,
-  CATEGORIES_THERAPEUTIC,
-  CATEGORIES_CONSULTATION,
-  CATEGORIES_LAB,
+const DEFAULT_CATEGORIES: ServiceCategory[] = [
+  { id: 1, name: "زیبایی" },
+  { id: 2, name: "درمانی" },
+  { id: 3, name: "مشاوره" },
+  { id: 4, name: "آزمایشگاهی" },
 ];
-
-const CATEGORY_OPTIONS = CATEGORIES.map((c) => ({ value: c, label: c }));
-
-const categoryTabs = [{ id: "all", label: "همه" }, ...CATEGORIES.map((c) => ({ id: c, label: c }))];
 
 const initialForm: ServiceFormData = {
   title: "",
@@ -41,11 +32,13 @@ const initialForm: ServiceFormData = {
   isActive: true,
 };
 
+const initialCategoryForm = { name: "" };
+
 const mockServices: Service[] = [
   {
     id: 1,
     title: "فیشال صورت",
-    category: CATEGORIES_BEAUTY,
+    category: "زیبایی",
     duration: 45,
     price: 350000,
     description: "پاکسازی عمقی و مرطوب‌سازی پوست صورت",
@@ -54,7 +47,7 @@ const mockServices: Service[] = [
   {
     id: 2,
     title: "میکرونیدلینگ",
-    category: CATEGORIES_BEAUTY,
+    category: "زیبایی",
     duration: 60,
     price: 500000,
     description: "تحریک کلاژن‌سازی با سوزن‌های ریز",
@@ -63,7 +56,7 @@ const mockServices: Service[] = [
   {
     id: 3,
     title: "لیزر موهای زائد",
-    category: CATEGORIES_BEAUTY,
+    category: "زیبایی",
     duration: 30,
     price: 450000,
     description: "حذف دائمی موهای زائد با لیزر",
@@ -72,7 +65,7 @@ const mockServices: Service[] = [
   {
     id: 4,
     title: "درمان آکنه",
-    category: CATEGORIES_BEAUTY,
+    category: "زیبایی",
     duration: 30,
     price: 250000,
     description: "درجۀ یک آکنه و جوش صورت",
@@ -81,7 +74,7 @@ const mockServices: Service[] = [
   {
     id: 5,
     title: "مشاوره تغذیه",
-    category: CATEGORIES_CONSULTATION,
+    category: "مشاوره",
     duration: 30,
     price: 180000,
     description: "مشاوره تغذیه و رژیم درمانی",
@@ -90,7 +83,7 @@ const mockServices: Service[] = [
   {
     id: 6,
     title: "مشاوره روانشناسی",
-    category: CATEGORIES_CONSULTATION,
+    category: "مشاوره",
     duration: 45,
     price: 250000,
     description: "مشاوره فردی و مدیریت استرس",
@@ -99,7 +92,7 @@ const mockServices: Service[] = [
   {
     id: 7,
     title: "فیزیوتراپی",
-    category: CATEGORIES_THERAPEUTIC,
+    category: "درمانی",
     duration: 45,
     price: 300000,
     description: "فیزیوتراپی تخصصی برای انواع دردهای عضلانی",
@@ -108,7 +101,7 @@ const mockServices: Service[] = [
   {
     id: 8,
     title: "آزمایش خون",
-    category: CATEGORIES_LAB,
+    category: "آزمایشگاهی",
     duration: 15,
     price: 120000,
     description: "انواع آزمایش‌های خون و بیوشیمی",
@@ -117,7 +110,7 @@ const mockServices: Service[] = [
   {
     id: 9,
     title: "تزریق بوتاکس",
-    category: CATEGORIES_BEAUTY,
+    category: "زیبایی",
     duration: 30,
     price: 800000,
     description: "تزریق بوتاکس برای کاهش چین و چروک",
@@ -126,7 +119,7 @@ const mockServices: Service[] = [
   {
     id: 10,
     title: "درمان زگیل",
-    category: CATEGORIES_THERAPEUTIC,
+    category: "درمانی",
     duration: 20,
     price: 200000,
     description: "درمان و برداشتن زگیل با لیزر یا کرایو",
@@ -135,7 +128,7 @@ const mockServices: Service[] = [
   {
     id: 11,
     title: "پاکسازی پوست",
-    category: CATEGORIES_BEAUTY,
+    category: "زیبایی",
     duration: 60,
     price: 350000,
     description: "پاکسازی تخصصی پوست با بخور و ماسک",
@@ -144,7 +137,7 @@ const mockServices: Service[] = [
   {
     id: 12,
     title: "مشاوره پوست و مو",
-    category: CATEGORIES_CONSULTATION,
+    category: "مشاوره",
     duration: 30,
     price: 200000,
     description: "مشاوره تخصصی مشکلات پوست و مو",
@@ -165,11 +158,25 @@ function formatPrice(price: number): string {
 
 function Services() {
   const [services, setServices] = useState<Service[]>(mockServices);
+  const [categories, setCategories] = useState<ServiceCategory[]>(DEFAULT_CATEGORIES);
   const [activeTab, setActiveTab] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [form, setForm] = useState<ServiceFormData>(initialForm);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [categoryForm, setCategoryForm] = useState(initialCategoryForm);
+  const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null);
+
+  const categoryTabs = useMemo(
+    () => [{ id: "all", label: "همه" }, ...categories.map((c) => ({ id: c.name, label: c.name }))],
+    [categories]
+  );
+
+  const CATEGORY_OPTIONS = useMemo(
+    () => categories.map((c) => ({ value: c.name, label: c.name })),
+    [categories]
+  );
 
   const filteredServices =
     activeTab === "all" ? services : services.filter((s) => s.category === activeTab);
@@ -213,7 +220,7 @@ function Services() {
     const newService: Service = {
       id: editingService ? editingService.id : Date.now(),
       title: form.title,
-      category: form.category as ServiceCategory,
+      category: form.category,
       duration: Number(form.duration),
       price: Number(form.price),
       description: form.description,
@@ -258,6 +265,53 @@ function Services() {
         onClick: () => handleDelete(service),
       },
     ];
+  }
+
+  function openAddCategoryModal() {
+    setEditingCategory(null);
+    setCategoryForm(initialCategoryForm);
+    setCategoryModalOpen(true);
+  }
+
+  function openEditCategoryModal(cat: ServiceCategory) {
+    setEditingCategory(cat);
+    setCategoryForm({ name: cat.name });
+    setCategoryModalOpen(true);
+  }
+
+  function closeCategoryModal() {
+    setCategoryModalOpen(false);
+    setEditingCategory(null);
+  }
+
+  function handleSaveCategory() {
+    if (!categoryForm.name.trim()) return;
+    if (editingCategory) {
+      const oldName = editingCategory.name;
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === editingCategory.id ? { ...c, name: categoryForm.name.trim() } : c
+        )
+      );
+      setServices((prev) =>
+        prev.map((s) => (s.category === oldName ? { ...s, category: categoryForm.name.trim() } : s))
+      );
+      if (activeTab === oldName) setActiveTab(categoryForm.name.trim());
+    } else {
+      const newCat: ServiceCategory = {
+        id: Date.now(),
+        name: categoryForm.name.trim(),
+      };
+      setCategories((prev) => [...prev, newCat]);
+    }
+    closeCategoryModal();
+  }
+
+  function handleDeleteCategory(cat: ServiceCategory) {
+    const inUse = services.some((s) => s.category === cat.name);
+    if (inUse) return;
+    setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+    if (activeTab === cat.name) setActiveTab("all");
   }
 
   const columns: Column<Service>[] = [
@@ -336,6 +390,13 @@ function Services() {
           <h1 className="text-surface-900 text-2xl font-bold">خدمات کلینیک</h1>
         </div>
         <div className="mt-3 flex items-center gap-3 sm:mt-0">
+          <Button
+            variant="outline"
+            startIcon={<BiCategory className="size-5" />}
+            onClick={openAddCategoryModal}
+          >
+            دسته‌بندی‌ها
+          </Button>
           <Button
             variant="primary"
             startIcon={<BiPlus className="size-5" />}
@@ -428,6 +489,86 @@ function Services() {
             checked={form.isActive}
             onChange={(e) => handleFormChange("isActive", e.target.checked)}
           />
+        </div>
+      </Modal>
+
+      <Modal
+        open={categoryModalOpen}
+        onClose={closeCategoryModal}
+        title="مدیریت دسته‌بندی‌ها"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" onClick={closeCategoryModal}>
+              بستن
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Input
+                label="نام دسته‌بندی"
+                value={categoryForm.name}
+                onChange={(e) => setCategoryForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="مثال: زیبایی"
+              />
+            </div>
+            <Button
+              variant="primary"
+              onClick={handleSaveCategory}
+              disabled={!categoryForm.name.trim()}
+            >
+              {editingCategory ? "ویرایش" : "افزودن"}
+            </Button>
+          </div>
+          <div className="border-surface-200 flex flex-col gap-1 rounded-lg border p-2">
+            {categories.length === 0 ? (
+              <p className="text-surface-400 py-4 text-center text-sm">هیچ دسته‌بندی وجود ندارد</p>
+            ) : (
+              categories.map((cat) => {
+                const inUse = services.some((s) => s.category === cat.name);
+                return (
+                  <div
+                    key={cat.id}
+                    className="hover:bg-surface-50 flex items-center justify-between rounded-lg px-3 py-2.5 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <BiSolidCategory className="text-surface-400 size-4" />
+                      <span className="text-surface-700 text-sm">{cat.name}</span>
+                      {inUse && (
+                        <span className="text-surface-400 text-xs">
+                          ({services.filter((s) => s.category === cat.name).length} خدمت)
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEditCategoryModal(cat)}
+                        className="text-surface-400 hover:text-primary-600 cursor-pointer rounded p-1 transition-colors"
+                        title="ویرایش"
+                      >
+                        <CiEdit className="size-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCategory(cat)}
+                        disabled={inUse}
+                        className={`cursor-pointer rounded p-1 transition-colors ${
+                          inUse
+                            ? "text-surface-200 cursor-not-allowed"
+                            : "text-surface-400 hover:text-danger-600"
+                        }`}
+                        title={inUse ? "این دسته‌بندی در حال استفاده است" : "حذف"}
+                      >
+                        <CiTrash className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </Modal>
     </div>

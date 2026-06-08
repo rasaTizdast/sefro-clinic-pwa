@@ -408,64 +408,48 @@ const mockServices: Service[] = [
 ];
 
 const patientNames = mockPatients.map((p) => `${p.firstName} ${p.lastName}`);
-const serviceNames = mockServices.filter((s) => s.isActive).map((s) => s.title);
+const activeServices = mockServices.filter((s) => s.isActive);
 const statuses: Appointment["status"][] = ["confirmed", "waiting", "cancelled", "completed"];
-const times = [
-  "۰۸:۰۰",
-  "۰۸:۳۰",
-  "۰۹:۰۰",
-  "۰۹:۳۰",
-  "۱۰:۰۰",
-  "۱۰:۳۰",
-  "۱۱:۰۰",
-  "۱۱:۳۰",
-  "۱۲:۰۰",
-  "۱۴:۰۰",
-  "۱۴:۳۰",
-  "۱۵:۰۰",
-  "۱۶:۰۰",
-];
 
 const START_HOUR = 8;
 const END_HOUR = 16;
-const INTERVAL = 30;
+const TIME_BUFFER = 10;
 
-function generateAllTimeSlots(): string[] {
-  const slots: string[] = [];
-  for (let hour = START_HOUR; hour < END_HOUR; hour++) {
-    for (let min = 0; min < 60; min += INTERVAL) {
-      const h = hour.toString().padStart(2, "0");
-      const m = min.toString().padStart(2, "0");
-      slots.push(toPersian(`${h}:${m}`));
-    }
-  }
-  return slots;
+function minutesToTimeStr(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return toPersian(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`);
 }
-
-const ALL_TIME_SLOTS = generateAllTimeSlots();
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function pickRandomTimeInRange(): number {
+  const startMin = START_HOUR * 60;
+  const endMin = END_HOUR * 60;
+  return Math.floor(Math.random() * (endMin - startMin)) + startMin;
+}
+
 function generateMockAppointments(jy: number, jm: number, startId = 1): Appointment[] {
   const results: Appointment[] = [];
   const daysInMonth = getPersianMonthDays(jm, jy);
-  const usedDays = new Set<number>();
 
   for (let i = 0; i < 20; i++) {
-    let day: number;
-    do {
-      day = Math.floor(Math.random() * daysInMonth) + 1;
-    } while (usedDays.has(day) && usedDays.size < daysInMonth);
-    usedDays.add(day);
+    const day = Math.floor(Math.random() * daysInMonth) + 1;
+    const svc = pick(activeServices);
+    const timeMin = pickRandomTimeInRange();
+    const timeStr = minutesToTimeStr(timeMin);
+    const dateStr = `${jy}/${jm}/${day}`;
 
     results.push({
       id: startId + i,
-      time: pick(times),
+      time: timeStr,
       patient: pick(patientNames),
-      service: pick(serviceNames),
-      date: `${jy}/${jm}/${day}`,
+      service: svc.title,
+      serviceId: svc.id,
+      duration: svc.duration,
+      date: dateStr,
       status: pick(statuses),
     });
   }
@@ -565,39 +549,65 @@ function Calendar() {
     ? (mockServices.find((s) => s.id === form.serviceId) ?? null)
     : null;
 
-  const availableSlots = useMemo(() => {
+  function getFreeBlocks(
+    dayApps: Appointment[],
+    serviceDuration: number
+  ): { start: number; end: number }[] {
+    const occupiedRanges: { start: number; end: number }[] = dayApps.map((apt) => ({
+      start: parseTimeToMinutes(apt.time) - TIME_BUFFER,
+      end: parseTimeToMinutes(apt.time) + apt.duration + TIME_BUFFER,
+    }));
+
+    occupiedRanges.sort((a, b) => a.start - b.start);
+    const merged: { start: number; end: number }[] = [];
+    for (const range of occupiedRanges) {
+      const last = merged[merged.length - 1];
+      if (last && range.start <= last.end) {
+        last.end = Math.max(last.end, range.end);
+      } else {
+        merged.push({ ...range });
+      }
+    }
+
+    const dayEnd = END_HOUR * 60;
+    const freeBlocks: { start: number; end: number }[] = [];
+    let cursor = START_HOUR * 60;
+
+    for (const occ of merged) {
+      const gap = occ.start - cursor;
+      if (gap >= serviceDuration) {
+        freeBlocks.push({ start: cursor, end: occ.start });
+      }
+      cursor = Math.max(cursor, occ.end);
+    }
+
+    const remaining = dayEnd - cursor;
+    if (remaining >= serviceDuration) {
+      freeBlocks.push({ start: cursor, end: dayEnd });
+    }
+
+    return freeBlocks;
+  }
+
+  const availableBlocks = useMemo(() => {
     if (!selectedService || !form.date) return [];
     const dayApps = allAppointments.filter((a) => a.date === form.date);
-    return ALL_TIME_SLOTS.filter((slot) => {
-      const slotStart = parseTimeToMinutes(slot);
-      const slotEnd = slotStart + selectedService.duration;
-      if (slotEnd > END_HOUR * 60) return false;
-      return !dayApps.some((apt) => {
-        const aptStart = parseTimeToMinutes(apt.time);
-        const aptEnd = aptStart + 30;
-        return slotStart < aptEnd && slotEnd > aptStart;
-      });
-    });
+    return getFreeBlocks(dayApps, selectedService.duration);
   }, [selectedService, form.date, allAppointments]);
 
   const stepDaysAvailability = useMemo(() => {
     const days: Record<string, boolean> = {};
     const daysInMonth = getPersianMonthDays(persian.month, persian.year);
+    if (!selectedService) {
+      for (let day = 1; day <= daysInMonth; day++) {
+        days[`${persian.year}/${persian.month}/${day}`] = true;
+      }
+      return days;
+    }
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${persian.year}/${persian.month}/${day}`;
       const dayApps = allAppointments.filter((a) => a.date === dateStr);
-      const hasAvailability = ALL_TIME_SLOTS.some((slot) => {
-        if (!selectedService) return false;
-        const slotStart = parseTimeToMinutes(slot);
-        const slotEnd = slotStart + selectedService.duration;
-        if (slotEnd > END_HOUR * 60) return false;
-        return !dayApps.some((apt) => {
-          const aptStart = parseTimeToMinutes(apt.time);
-          const aptEnd = aptStart + 30;
-          return slotStart < aptEnd && slotEnd > aptStart;
-        });
-      });
-      days[dateStr] = hasAvailability;
+      days[dateStr] = getFreeBlocks(dayApps, selectedService.duration).length > 0;
     }
     return days;
   }, [persian.year, persian.month, allAppointments, selectedService]);
@@ -659,6 +669,8 @@ function Calendar() {
       time: form.time,
       patient: `${selectedPatient.firstName} ${selectedPatient.lastName}`,
       service: selectedService.title,
+      serviceId: selectedService.id,
+      duration: selectedService.duration,
       date: form.date,
       status: "confirmed",
     };
@@ -976,25 +988,28 @@ function Calendar() {
               })()}
               :
             </p>
-            {availableSlots.length === 0 ? (
+            {availableBlocks.length === 0 ? (
               <p className="text-surface-400 py-3 text-center text-xs">
                 هیچ وقت خالی در این روز وجود ندارد
               </p>
             ) : (
               <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto">
-                {availableSlots.map((slot) => {
-                  const isActive = form.time === slot;
+                {availableBlocks.map((block, idx) => {
+                  const startStr = minutesToTimeStr(block.start);
+                  const endStr = minutesToTimeStr(block.end);
+                  const label = `${startStr} - ${endStr}`;
+                  const isActive = form.time === startStr;
                   return (
                     <button
-                      key={slot}
-                      onClick={() => handleFormChange("time", slot)}
+                      key={idx}
+                      onClick={() => handleFormChange("time", startStr)}
                       className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                         isActive
                           ? "border-primary-500 bg-primary-50 text-primary-700 font-medium"
                           : "border-surface-200 hover:border-surface-300 text-surface-600 hover:bg-surface-50"
                       }`}
                     >
-                      {slot}
+                      {label}
                     </button>
                   );
                 })}
