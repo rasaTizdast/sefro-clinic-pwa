@@ -8,6 +8,7 @@ import { PiChartPieSliceDuotone } from "react-icons/pi";
 import { Outlet } from "react-router";
 
 import { CommandPalette } from "./components/CommandPalette";
+import { PwaUpdater } from "./components/PwaUpdater";
 import { QuickActionProvider } from "./components/QuickActionProvider";
 import Sidebar from "./components/Sidebar";
 import { LoadingBar } from "./components/ui/LoadingBar";
@@ -33,6 +34,7 @@ function AppContent() {
   return (
     <CommandPaletteContext.Provider value={{ open, setOpen }}>
       <div className="flex h-screen gap-3 overflow-hidden p-2 pb-24 md:p-3 md:pb-3">
+        <PwaUpdater />
         <LoadingBar />
         <Sidebar items={items} />
         <main className="scrollable-content flex-1 p-1 md:p-3">
