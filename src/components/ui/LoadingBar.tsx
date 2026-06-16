@@ -80,7 +80,7 @@ export function LoadingBar() {
 
   return (
     <motion.div
-      className="pointer-events-none fixed inset-x-0 top-0 z-[9999] h-[3px]"
+      className="pointer-events-none fixed inset-x-0 top-0 z-9999 h-0.75"
       aria-hidden="true"
       initial={false}
       animate={{ opacity: progress > 0 ? 1 : 0 }}
