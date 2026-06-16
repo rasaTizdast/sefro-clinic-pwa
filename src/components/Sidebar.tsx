@@ -206,7 +206,9 @@ const DesktopSidebar = ({
       transition={{ type: "spring", stiffness: 250, damping: 25, mass: 0.8 }}
       className={`border-primary-200 bg-primary-50/80 sticky top-3 hidden h-[calc(100vh-1.5rem)] flex-col overflow-visible rounded-2xl border p-4 shadow-sm backdrop-blur md:flex ${className || ""}`}
     >
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <div
+        className={`mb-6 flex items-center ${isCollapsed ? "justify-center" : "justify-between gap-3"}`}
+      >
         <div className="flex items-center gap-2.5">
           <AnimatePresence mode="wait">
             {!isCollapsed && (
