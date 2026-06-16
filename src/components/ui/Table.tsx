@@ -233,7 +233,7 @@ export function Table<T>(props: TableProps<T>) {
 
   return (
     <>
-      <div className="tablet:block hidden">
+      <div className="tablet:block z-1 hidden">
         <DesktopTable
           columns={columns}
           data={data}
