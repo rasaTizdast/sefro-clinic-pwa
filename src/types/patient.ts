@@ -7,9 +7,9 @@ export interface Patient {
   id: number;
   firstName: string;
   lastName: string;
-  phone: string;
+  mobileNumber: string;
   nationalId: string;
-  bitmojiId: string;
+  bitmojiCode: string;
   lastVisit: string;
   visitCount: number;
   status: PatientStatus;
@@ -21,7 +21,7 @@ export interface Patient {
 export interface PatientFormData {
   firstName: string;
   lastName: string;
-  phone: string;
+  mobileNumber: string;
   nationalId: string;
-  bitmojiId: string;
+  bitmojiCode: string;
 }

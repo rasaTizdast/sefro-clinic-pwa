@@ -6,7 +6,13 @@ export type {
   PatientVisit,
   ServiceCategoryStat,
 } from "./analytics";
-export type { ApiError, ApiResponse, PaginatedRequest, PaginatedResponse } from "./api";
+export type {
+  ApiError,
+  ApiResponse,
+  DrfPaginatedResponse,
+  PaginatedRequest,
+  PaginatedResponse,
+} from "./api";
 export type {
   Appointment,
   AppointmentStatus,
@@ -14,7 +20,7 @@ export type {
   WizardFormData,
   WizardStep,
 } from "./appointment";
-export type { LoginState } from "./auth";
+export type { AuthUser, LoginRequest, LoginResponse, LoginState } from "./auth";
 export type { Maybe, PageState, Trend } from "./common";
 export type {
   AppointmentStatusConfig,
