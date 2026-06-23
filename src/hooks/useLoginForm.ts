@@ -1,6 +1,8 @@
 import { useActionState } from "react";
+import { useNavigate } from "react-router";
 
 import { useToast } from "../components/ui";
+import { useAuth } from "../contexts/AuthContext";
 import type { LoginState } from "../types/auth";
 
 const PERSIAN_ARABIC_DIGITS = "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩";
@@ -29,6 +31,8 @@ const validate = (identifier: string, password: string): LoginState["errors"] =>
 
 export const useLoginForm = () => {
   const toast = useToast();
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const [state, formAction, isPending] = useActionState(
     async (_prevState: LoginState, formData: FormData): Promise<LoginState> => {
@@ -48,14 +52,25 @@ export const useLoginForm = () => {
         };
       }
 
-      toast.success("ورود موفق", "به پنل مدیریت خوش آمدید.");
-
-      return {
-        status: "success",
-        errors: {},
-        message: `خوش آمدید، ${normalizeIdentifier(identifier)}`,
-        rememberMe,
-      };
+      try {
+        await login(normalizeIdentifier(identifier), password);
+        toast.success("ورود موفق", "به پنل مدیریت خوش آمدید.");
+        navigate("/");
+        return {
+          status: "success",
+          errors: {},
+          message: `خوش آمدید، ${normalizeIdentifier(identifier)}`,
+          rememberMe,
+        };
+      } catch {
+        toast.error("خطا در ورود", "نام کاربری یا رمز عبور نادرست است.");
+        return {
+          status: "error",
+          errors: {},
+          message: "نام کاربری یا رمز عبور نادرست است.",
+          rememberMe,
+        };
+      }
     },
     { status: "idle", errors: {}, message: null, rememberMe: true } as LoginState
   );

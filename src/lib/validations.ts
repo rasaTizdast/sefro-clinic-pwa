@@ -14,7 +14,7 @@ export const patientFormSchema = z.object({
     .string()
     .min(2, "نام خانوادگی باید حداقل ۲ کاراکتر باشد")
     .regex(NAME_PATTERN, "نام خانوادگی نباید شامل اعداد باشد"),
-  phone: z
+  mobileNumber: z
     .string()
     .regex(DIGIT_ONLY, "شماره تلفن باید فقط شامل اعداد باشد")
     .refine((v) => toLatinDigits(v).length === 11, {
@@ -26,7 +26,7 @@ export const patientFormSchema = z.object({
     .refine((v) => toLatinDigits(v).length === 10, {
       message: "کد ملی باید ۱۰ رقم باشد",
     }),
-  bitmojiId: z.string().optional(),
+  bitmojiCode: z.string().optional(),
 });
 
 export type PatientFormSchema = z.infer<typeof patientFormSchema>;

@@ -7,7 +7,7 @@ describe("patientFormSchema", () => {
     const result = patientFormSchema.safeParse({
       firstName: "علی",
       lastName: "محمدی",
-      phone: "09121234567",
+      mobileNumber: "09121234567",
       nationalId: "1234567890",
     });
     expect(result.success).toBe(true);
@@ -17,7 +17,7 @@ describe("patientFormSchema", () => {
     const result = patientFormSchema.safeParse({
       firstName: "ا",
       lastName: "محمدی",
-      phone: "09121234567",
+      mobileNumber: "09121234567",
       nationalId: "1234567890",
     });
     expect(result.success).toBe(false);
@@ -30,7 +30,7 @@ describe("patientFormSchema", () => {
     const result = patientFormSchema.safeParse({
       firstName: "علی123",
       lastName: "محمدی",
-      phone: "09121234567",
+      mobileNumber: "09121234567",
       nationalId: "1234567890",
     });
     expect(result.success).toBe(false);
@@ -40,7 +40,7 @@ describe("patientFormSchema", () => {
     const result = patientFormSchema.safeParse({
       firstName: "علی",
       lastName: "محمدی",
-      phone: "0912abc4567",
+      mobileNumber: "0912abc4567",
       nationalId: "1234567890",
     });
     expect(result.success).toBe(false);
@@ -50,7 +50,7 @@ describe("patientFormSchema", () => {
     const result = patientFormSchema.safeParse({
       firstName: "علی",
       lastName: "محمدی",
-      phone: "0912",
+      mobileNumber: "0912",
       nationalId: "1234567890",
     });
     expect(result.success).toBe(false);
@@ -60,7 +60,7 @@ describe("patientFormSchema", () => {
     const result = patientFormSchema.safeParse({
       firstName: "علی",
       lastName: "محمدی",
-      phone: "۰۹۱۲۱۲۳۴۵۶۷",
+      mobileNumber: "۰۹۱۲۱۲۳۴۵۶۷",
       nationalId: "1234567890",
     });
     expect(result.success).toBe(true);
@@ -70,28 +70,28 @@ describe("patientFormSchema", () => {
     const result = patientFormSchema.safeParse({
       firstName: "علی",
       lastName: "محمدی",
-      phone: "09121234567",
+      mobileNumber: "09121234567",
       nationalId: "12345",
     });
     expect(result.success).toBe(false);
   });
 
-  it("handles optional bitmojiId", () => {
+  it("handles optional bitmojiCode", () => {
     const result = patientFormSchema.safeParse({
       firstName: "علی",
       lastName: "محمدی",
-      phone: "09121234567",
+      mobileNumber: "09121234567",
       nationalId: "1234567890",
-      bitmojiId: "abc123",
+      bitmojiCode: "abc123",
     });
     expect(result.success).toBe(true);
   });
 
-  it("accepts missing bitmojiId", () => {
+  it("accepts missing bitmojiCode", () => {
     const result = patientFormSchema.safeParse({
       firstName: "علی",
       lastName: "محمدی",
-      phone: "09121234567",
+      mobileNumber: "09121234567",
       nationalId: "1234567890",
     });
     expect(result.success).toBe(true);
