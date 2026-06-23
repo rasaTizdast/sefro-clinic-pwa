@@ -13,6 +13,12 @@ import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
 import { Tabs } from "../components/ui/Tabs";
 import { Textarea } from "../components/ui/Textarea";
+import {
+  useCreateProduct,
+  useDeleteProduct,
+  useProductsList,
+  useUpdateProduct,
+} from "../hooks/api";
 import type { WarehouseItem } from "../types/warehouse";
 
 const categoryTabs = [
@@ -37,174 +43,6 @@ const categoryOptions = [
   { value: "office", label: "لوازم اداری" },
 ];
 
-const initialItems: WarehouseItem[] = [
-  {
-    id: 1,
-    name: "آمپول سفتریاکسون ۵۰۰mg",
-    category: "medicines",
-    categoryLabel: "داروها",
-    stock: 50,
-    unit: "عدد",
-    unitPrice: "۴۵,۰۰۰",
-    expiryDate: "۱۴۰۵/۰۹/۱۵",
-    description: "",
-  },
-  {
-    id: 2,
-    name: "سرم رینگر",
-    category: "medicines",
-    categoryLabel: "داروها",
-    stock: 3,
-    unit: "عدد",
-    unitPrice: "۲۸,۰۰۰",
-    expiryDate: "۱۴۰۵/۱۲/۲۰",
-    description: "نیاز به تامین مجدد",
-  },
-  {
-    id: 3,
-    name: "پانسمان استریل",
-    category: "consumables",
-    categoryLabel: "مواد مصرفی",
-    stock: 20,
-    unit: "عدد",
-    unitPrice: "۱۲,۰۰۰",
-    expiryDate: "۱۴۰۶/۰۳/۱۰",
-    description: "",
-  },
-  {
-    id: 4,
-    name: "دستکش معاینه",
-    category: "consumables",
-    categoryLabel: "مواد مصرفی",
-    stock: 0,
-    unit: "عدد",
-    unitPrice: "۸,۵۰۰",
-    expiryDate: "۱۴۰۵/۰۸/۰۱",
-    description: "کاملاً تمام شده",
-  },
-  {
-    id: 5,
-    name: "چسب زخم",
-    category: "consumables",
-    categoryLabel: "مواد مصرفی",
-    stock: 100,
-    unit: "عدد",
-    unitPrice: "۳,۵۰۰",
-    expiryDate: "۱۴۰۶/۰۶/۳۰",
-    description: "",
-  },
-  {
-    id: 6,
-    name: "فشارسنج عقربه‌ای",
-    category: "equipment",
-    categoryLabel: "تجهیزات",
-    stock: 8,
-    unit: "عدد",
-    unitPrice: "۱,۸۰۰,۰۰۰",
-    expiryDate: "—",
-    description: "",
-  },
-  {
-    id: 7,
-    name: "گوشی پزشکی",
-    category: "equipment",
-    categoryLabel: "تجهیزات",
-    stock: 15,
-    unit: "عدد",
-    unitPrice: "۲,۵۰۰,۰۰۰",
-    expiryDate: "—",
-    description: "مدل جدید",
-  },
-  {
-    id: 8,
-    name: "صندلی اداری",
-    category: "office",
-    categoryLabel: "لوازم اداری",
-    stock: 12,
-    unit: "عدد",
-    unitPrice: "۴,۵۰۰,۰۰۰",
-    expiryDate: "—",
-    description: "",
-  },
-  {
-    id: 9,
-    name: "کاغذ A4",
-    category: "office",
-    categoryLabel: "لوازم اداری",
-    stock: 0,
-    unit: "بسته",
-    unitPrice: "۱۵۰,۰۰۰",
-    expiryDate: "—",
-    description: "نیاز به سفارش فوری",
-  },
-  {
-    id: 10,
-    name: "سرنگ ۵cc",
-    category: "consumables",
-    categoryLabel: "مواد مصرفی",
-    stock: 200,
-    unit: "عدد",
-    unitPrice: "۳,۰۰۰",
-    expiryDate: "۱۴۰۶/۰۸/۱۵",
-    description: "",
-  },
-  {
-    id: 11,
-    name: "آنتی‌بیوتیک سفکسیم",
-    category: "medicines",
-    categoryLabel: "داروها",
-    stock: 40,
-    unit: "عدد",
-    unitPrice: "۳۵,۰۰۰",
-    expiryDate: "۱۴۰۵/۱۱/۰۵",
-    description: "",
-  },
-  {
-    id: 12,
-    name: "شربت دیفن‌هیدرامین",
-    category: "medicines",
-    categoryLabel: "داروها",
-    stock: 18,
-    unit: "عدد",
-    unitPrice: "۲۲,۰۰۰",
-    expiryDate: "۱۴۰۶/۰۲/۲۰",
-    description: "",
-  },
-  {
-    id: 13,
-    name: "ترازو دیجیتال",
-    category: "equipment",
-    categoryLabel: "تجهیزات",
-    stock: 3,
-    unit: "عدد",
-    unitPrice: "۳,۲۰۰,۰۰۰",
-    expiryDate: "—",
-    description: "کمبود موجودی",
-  },
-  {
-    id: 14,
-    name: "پرونده پزشکی",
-    category: "office",
-    categoryLabel: "لوازم اداری",
-    stock: 60,
-    unit: "عدد",
-    unitPrice: "۲۵,۰۰۰",
-    expiryDate: "—",
-    description: "",
-  },
-  {
-    id: 15,
-    name: "ماسک سه‌لایه",
-    category: "consumables",
-    categoryLabel: "مواد مصرفی",
-    stock: 0,
-    unit: "بسته",
-    unitPrice: "۲۵۰,۰۰۰",
-    expiryDate: "۱۴۰۶/۰۵/۱۵",
-    description: "اتمام موجودی",
-  },
-];
-
 function getStatus(stock: number): { label: string; variant: "success" | "warning" | "danger" } {
   if (stock === 0) return { label: "تمام شده", variant: "danger" };
   if (stock <= 10) return { label: "کم", variant: "warning" };
@@ -212,7 +50,6 @@ function getStatus(stock: number): { label: string; variant: "success" | "warnin
 }
 
 function Warehouse() {
-  const [items, setItems] = useState(initialItems);
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -229,19 +66,23 @@ function Warehouse() {
 
   const pageSize = 8;
 
-  const filteredData = useMemo(() => {
-    let data = items;
-    if (activeTab !== "all") {
-      data = data.filter((item) => item.category === activeTab);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim();
-      data = data.filter((item) => item.name.includes(q));
-    }
-    return data;
-  }, [items, activeTab, searchQuery]);
+  const { data: paginated, isLoading } = useProductsList({
+    page: currentPage,
+    perPage: pageSize,
+    search: searchQuery || undefined,
+  });
+  const createMutation = useCreateProduct();
+  const updateMutation = useUpdateProduct();
+  const deleteMutation = useDeleteProduct();
 
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+  const items = paginated?.data ?? [];
+
+  const filteredData = useMemo(() => {
+    if (activeTab === "all") return items;
+    return items.filter((item) => item.category === activeTab);
+  }, [items, activeTab]);
+
+  const totalPages = paginated?.totalPages ?? 1;
   const pagedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const lowStockCount = items.filter((item) => item.stock <= 10).length;
@@ -285,46 +126,28 @@ function Warehouse() {
   };
 
   const handleDelete = (id: number) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+    deleteMutation.mutate(id);
   };
 
   const handleSave = () => {
     if (!formName.trim()) return;
 
     const categoryLabel = categoryOptions.find((o) => o.value === formCategory)?.label || "";
+    const payload: Record<string, unknown> = {
+      name: formName,
+      category: formCategory,
+      categoryLabel,
+      stock: Number(formStock) || 0,
+      unit: formUnit,
+      unitPrice: formUnitPrice,
+      expiryDate: formExpiryDate,
+      description: formDescription,
+    };
 
     if (editingItem) {
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === editingItem.id
-            ? {
-                ...item,
-                name: formName,
-                category: formCategory,
-                categoryLabel,
-                stock: Number(formStock) || 0,
-                unit: formUnit,
-                unitPrice: formUnitPrice,
-                expiryDate: formExpiryDate,
-                description: formDescription,
-              }
-            : item
-        )
-      );
+      updateMutation.mutate({ id: editingItem.id, data: payload });
     } else {
-      const newId = Math.max(...items.map((i) => i.id), 0) + 1;
-      const newItem: WarehouseItem = {
-        id: newId,
-        name: formName,
-        category: formCategory,
-        categoryLabel,
-        stock: Number(formStock) || 0,
-        unit: formUnit,
-        unitPrice: formUnitPrice,
-        expiryDate: formExpiryDate,
-        description: formDescription,
-      };
-      setItems((prev) => [...prev, newItem]);
+      createMutation.mutate(payload);
     }
 
     setModalOpen(false);
@@ -414,7 +237,7 @@ function Warehouse() {
       </div>
 
       <Card variant="outlined" padding="none">
-        <Table columns={columns} data={pagedData} rowKey={(item) => item.id} />
+        <Table columns={columns} data={pagedData} rowKey={(item) => item.id} loading={isLoading} />
       </Card>
 
       <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />

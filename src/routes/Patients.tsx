@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BiDownload, BiEdit, BiPlus, BiSearch, BiTrash } from "react-icons/bi";
 import { MdPersonAdd } from "react-icons/md";
 import { MdOutlinePeople } from "react-icons/md";
@@ -17,9 +17,15 @@ import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
 import type { Tab } from "../components/ui/Tabs";
 import { Tabs } from "../components/ui/Tabs";
+import {
+  useCreateCustomer,
+  useCustomersList,
+  useDeleteCustomer,
+  useUpdateCustomer,
+} from "../hooks/api";
 import { useQuickActions } from "../hooks/useQuickActions";
-import { normalizeSearch, toPersianDigits } from "../lib/digits";
-import type { Patient, PatientStatus } from "../types/patient";
+import { toPersianDigits } from "../lib/digits";
+import type { Patient, PatientFormData, PatientStatus } from "../types/patient";
 
 type StatusVariant = "success" | "warning" | "info";
 
@@ -38,230 +44,46 @@ const filterTabs: Tab[] = [
 
 const PAGE_SIZE = 10;
 
-const mockPatients: Patient[] = [
-  {
-    id: 1,
-    firstName: "علی",
-    lastName: "رضایی",
-    phone: "09123456789",
-    nationalId: "0012345678",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۳/۰۳",
-    visitCount: 24,
-    status: "active",
-    createdAt: "۱۴۰۴/۱۰/۰۱",
-    products: [],
-    services: [],
-  },
-  {
-    id: 2,
-    firstName: "سارا",
-    lastName: "احمدی",
-    phone: "09198765432",
-    nationalId: "0029876543",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۳/۰۳",
-    visitCount: 8,
-    status: "new",
-    createdAt: "۱۴۰۵/۰۲/۲۸",
-    products: [],
-    services: [],
-  },
-  {
-    id: 3,
-    firstName: "رضا",
-    lastName: "کریمی",
-    phone: "0933557788",
-    nationalId: "0033557788",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۲/۲۸",
-    visitCount: 56,
-    status: "active",
-    createdAt: "۱۴۰۳/۰۶/۱۵",
-    products: [],
-    services: [],
-  },
-  {
-    id: 4,
-    firstName: "مریم",
-    lastName: "نوروزی",
-    phone: "0912223344",
-    nationalId: "0042223344",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۲/۱۵",
-    visitCount: 3,
-    status: "inactive",
-    createdAt: "۱۴۰۵/۰۱/۱۰",
-    products: [],
-    services: [],
-  },
-  {
-    id: 5,
-    firstName: "امیر",
-    lastName: "عباسی",
-    phone: "0901887766",
-    nationalId: "0051887766",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۳/۰۱",
-    visitCount: 18,
-    status: "active",
-    createdAt: "۱۴۰۴/۰۲/۰۵",
-    products: [],
-    services: [],
-  },
-  {
-    id: 6,
-    firstName: "نگین",
-    lastName: "صادقی",
-    phone: "0936644321",
-    nationalId: "0066644321",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۲/۲۰",
-    visitCount: 12,
-    status: "new",
-    createdAt: "۱۴۰۵/۰۲/۱۰",
-    products: [],
-    services: [],
-  },
-  {
-    id: 7,
-    firstName: "محمد",
-    lastName: "حسینی",
-    phone: "0914455667",
-    nationalId: "0074455667",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۱/۱۵",
-    visitCount: 42,
-    status: "active",
-    createdAt: "۱۴۰۲/۰۸/۲۰",
-    products: [],
-    services: [],
-  },
-  {
-    id: 8,
-    firstName: "زهرا",
-    lastName: "محمدی",
-    phone: "0912778899",
-    nationalId: "0082778899",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۴/۱۲/۲۰",
-    visitCount: 1,
-    status: "inactive",
-    createdAt: "۱۴۰۴/۱۲/۱۰",
-    products: [],
-    services: [],
-  },
-  {
-    id: 9,
-    firstName: "حسین",
-    lastName: "رستمی",
-    phone: "0930112233",
-    nationalId: "0090112233",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۲/۰۵",
-    visitCount: 31,
-    status: "active",
-    createdAt: "۱۴۰۳/۱۲/۰۱",
-    products: [],
-    services: [],
-  },
-  {
-    id: 10,
-    firstName: "فاطمه",
-    lastName: "موسوی",
-    phone: "09188990011",
-    nationalId: "01088990011",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۴/۱۱/۲۸",
-    visitCount: 15,
-    status: "active",
-    createdAt: "۱۴۰۴/۰۵/۱۵",
-    products: [],
-    services: [],
-  },
-  {
-    id: 11,
-    firstName: "احمد",
-    lastName: "کرمی",
-    phone: "0903344556",
-    nationalId: "0113344556",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۴/۱۰/۰۸",
-    visitCount: 6,
-    status: "inactive",
-    createdAt: "۱۴۰۴/۰۹/۲۰",
-    products: [],
-    services: [],
-  },
-  {
-    id: 12,
-    firstName: "لیلا",
-    lastName: "حیدری",
-    phone: "0935566778",
-    nationalId: "0125566778",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۳/۰۲",
-    visitCount: 4,
-    status: "new",
-    createdAt: "۱۴۰۵/۰۲/۲۵",
-    products: [],
-    services: [],
-  },
-];
-
 function Patients() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
-  const [patients, setPatients] = useState<Patient[]>(mockPatients);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const { registerAction } = useQuickActions();
 
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+  const searchValue = search.trim() || undefined;
+
+  const {
+    data: paginated,
+    isLoading,
+    isError,
+    refetch,
+  } = useCustomersList({
+    page: currentPage,
+    perPage: PAGE_SIZE,
+    search: searchValue,
+  });
+
+  const createMutation = useCreateCustomer();
+  const updateMutation = useUpdateCustomer();
+  const deleteMutation = useDeleteCustomer();
 
   useEffect(() => {
     const unregister = registerAction({
       id: "newPatient",
       label: "بیمار جدید",
       icon: <MdPersonAdd />,
-      perform: () => setModalOpen(true),
+      perform: () => {
+        setEditingPatient(null);
+        setModalOpen(true);
+      },
     });
     return unregister;
   }, [registerAction]);
 
-  const filteredPatients = useMemo(() => {
-    let result = [...patients];
-
-    if (activeTab === "active") {
-      result = result.filter((p) => p.status === "active");
-    } else if (activeTab === "inactive") {
-      result = result.filter((p) => p.status === "inactive");
-    } else if (activeTab === "new") {
-      result = result.filter((p) => p.status === "new");
-    }
-
-    if (search.trim()) {
-      const q = normalizeSearch(search);
-      result = result.filter(
-        (p) =>
-          normalizeSearch(p.firstName).includes(q) ||
-          normalizeSearch(p.lastName).includes(q) ||
-          normalizeSearch(p.phone).includes(q) ||
-          normalizeSearch(p.nationalId).includes(q)
-      );
-    }
-
-    return result;
-  }, [activeTab, search, patients]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredPatients.length / PAGE_SIZE));
-  const safePage = Math.min(currentPage, totalPages);
-  const pageData = filteredPatients.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const patients = paginated?.data ?? [];
+  const totalPages = paginated?.totalPages ?? 1;
 
   const tabCounts = useMemo(() => {
     const all = patients.length;
@@ -276,29 +98,42 @@ function Patients() {
     badge: tabCounts[tab.id as keyof typeof tabCounts],
   }));
 
-  const handleAddPatient = (patient: Patient) => {
-    setPatients((prev) => [patient, ...prev]);
-    setModalOpen(false);
+  const filteredPatients = useMemo(() => {
+    if (activeTab === "all") return patients;
+    return patients.filter((p) => p.status === activeTab);
+  }, [activeTab, patients]);
+
+  const handleSavePatient = useCallback(
+    async (data: PatientFormData) => {
+      if (editingPatient) {
+        await updateMutation.mutateAsync({ id: editingPatient.id, data });
+        setEditingPatient(null);
+      } else {
+        await createMutation.mutateAsync(data);
+      }
+    },
+    [editingPatient, createMutation, updateMutation]
+  );
+
+  const handleDeletePatient = (id: number) => {
+    deleteMutation.mutate(id);
   };
 
-  const handleRetry = () => {
-    setError(null);
-    setLoading(true);
-    setTimeout(() => setLoading(false), 800);
-  };
-
-  const getActionItems = () => [
+  const getActionItems = (patient: Patient) => [
     {
       label: "ویرایش",
       icon: <BiEdit className="size-4" />,
-      onClick: () => {},
+      onClick: () => {
+        setEditingPatient(patient);
+        setModalOpen(true);
+      },
     },
     { divider: true },
     {
       label: "حذف",
       icon: <BiTrash className="size-4" />,
       danger: true,
-      onClick: () => {},
+      onClick: () => handleDeletePatient(patient.id),
     },
   ];
 
@@ -309,10 +144,10 @@ function Patients() {
       render: (item) => `${item.firstName} ${item.lastName}`,
     },
     {
-      key: "phone",
+      key: "mobileNumber",
       header: "تلفن",
       width: "130px",
-      render: (item) => toPersianDigits(item.phone),
+      render: (item) => toPersianDigits(item.mobileNumber),
     },
     {
       key: "nationalId",
@@ -360,7 +195,7 @@ function Patients() {
       header: "عملیات",
       align: "center",
       width: "80px",
-      render: () => (
+      render: (item) => (
         <Select
           align="end"
           trigger={
@@ -371,18 +206,18 @@ function Patients() {
               startIcon={<PiDotsThreeVertical className="size-4" />}
             />
           }
-          items={getActionItems()}
+          items={getActionItems(item)}
         />
       ),
     },
   ];
 
-  if (error) {
+  if (isError) {
     return (
       <div className="flex flex-col gap-6">
-        <Alert variant="error" title="خطا در بارگذاری" dismissible onDismiss={() => setError(null)}>
-          <p>{error}</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={handleRetry}>
+        <Alert variant="error" title="خطا در بارگذاری" dismissible onDismiss={() => {}}>
+          <p>خطا در دریافت لیست بیماران.</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
             تلاش مجدد
           </Button>
         </Alert>
@@ -404,7 +239,10 @@ function Patients() {
           <Button
             variant="primary"
             startIcon={<BiPlus className="size-5" />}
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              setEditingPatient(null);
+              setModalOpen(true);
+            }}
           >
             بیمار جدید
           </Button>
@@ -435,7 +273,7 @@ function Patients() {
         />
 
         <div className="p-4">
-          {loading ? (
+          {isLoading ? (
             <Table columns={columns} data={[]} loading rowKey={() => ""} />
           ) : filteredPatients.length === 0 ? (
             <EmptyState
@@ -448,7 +286,10 @@ function Patients() {
                 <Button
                   variant="primary"
                   startIcon={<BiPlus className="size-5" />}
-                  onClick={() => setModalOpen(true)}
+                  onClick={() => {
+                    setEditingPatient(null);
+                    setModalOpen(true);
+                  }}
                 >
                   ثبت بیمار جدید
                 </Button>
@@ -456,7 +297,7 @@ function Patients() {
             />
           ) : (
             <>
-              <Table columns={columns} data={pageData} rowKey={(item) => item.id} />
+              <Table columns={columns} data={filteredPatients} rowKey={(item) => item.id} />
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -469,7 +310,25 @@ function Patients() {
       </Card>
 
       {modalOpen && (
-        <PatientFormModal onClose={() => setModalOpen(false)} onSuccess={handleAddPatient} />
+        <PatientFormModal
+          onClose={() => {
+            setModalOpen(false);
+            setEditingPatient(null);
+          }}
+          onSave={handleSavePatient}
+          initialData={
+            editingPatient
+              ? {
+                  firstName: editingPatient.firstName,
+                  lastName: editingPatient.lastName,
+                  mobileNumber: editingPatient.mobileNumber,
+                  nationalId: editingPatient.nationalId,
+                  bitmojiCode: editingPatient.bitmojiCode,
+                }
+              : undefined
+          }
+          isPending={createMutation.isPending || updateMutation.isPending}
+        />
       )}
     </div>
   );

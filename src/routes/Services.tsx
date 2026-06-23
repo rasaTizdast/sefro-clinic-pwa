@@ -14,6 +14,12 @@ import { type Column, Table } from "../components/ui/Table";
 import { TabPanel, Tabs } from "../components/ui/Tabs";
 import { Textarea } from "../components/ui/Textarea";
 import { Toggle } from "../components/ui/Toggle";
+import {
+  useCreateService,
+  useDeleteService,
+  useServicesList,
+  useUpdateService,
+} from "../hooks/api";
 import type { Service, ServiceCategory, ServiceFormData } from "../types/service";
 
 const DEFAULT_CATEGORIES: ServiceCategory[] = [
@@ -34,117 +40,6 @@ const initialForm: ServiceFormData = {
 
 const initialCategoryForm = { name: "" };
 
-const mockServices: Service[] = [
-  {
-    id: 1,
-    title: "فیشال صورت",
-    category: "زیبایی",
-    duration: 45,
-    price: 350000,
-    description: "پاکسازی عمقی و مرطوب‌سازی پوست صورت",
-    isActive: true,
-  },
-  {
-    id: 2,
-    title: "میکرونیدلینگ",
-    category: "زیبایی",
-    duration: 60,
-    price: 500000,
-    description: "تحریک کلاژن‌سازی با سوزن‌های ریز",
-    isActive: true,
-  },
-  {
-    id: 3,
-    title: "لیزر موهای زائد",
-    category: "زیبایی",
-    duration: 30,
-    price: 450000,
-    description: "حذف دائمی موهای زائد با لیزر",
-    isActive: true,
-  },
-  {
-    id: 4,
-    title: "درمان آکنه",
-    category: "زیبایی",
-    duration: 30,
-    price: 250000,
-    description: "درجۀ یک آکنه و جوش صورت",
-    isActive: false,
-  },
-  {
-    id: 5,
-    title: "مشاوره تغذیه",
-    category: "مشاوره",
-    duration: 30,
-    price: 180000,
-    description: "مشاوره تغذیه و رژیم درمانی",
-    isActive: true,
-  },
-  {
-    id: 6,
-    title: "مشاوره روانشناسی",
-    category: "مشاوره",
-    duration: 45,
-    price: 250000,
-    description: "مشاوره فردی و مدیریت استرس",
-    isActive: true,
-  },
-  {
-    id: 7,
-    title: "فیزیوتراپی",
-    category: "درمانی",
-    duration: 45,
-    price: 300000,
-    description: "فیزیوتراپی تخصصی برای انواع دردهای عضلانی",
-    isActive: true,
-  },
-  {
-    id: 8,
-    title: "آزمایش خون",
-    category: "آزمایشگاهی",
-    duration: 15,
-    price: 120000,
-    description: "انواع آزمایش‌های خون و بیوشیمی",
-    isActive: true,
-  },
-  {
-    id: 9,
-    title: "تزریق بوتاکس",
-    category: "زیبایی",
-    duration: 30,
-    price: 800000,
-    description: "تزریق بوتاکس برای کاهش چین و چروک",
-    isActive: true,
-  },
-  {
-    id: 10,
-    title: "درمان زگیل",
-    category: "درمانی",
-    duration: 20,
-    price: 200000,
-    description: "درمان و برداشتن زگیل با لیزر یا کرایو",
-    isActive: true,
-  },
-  {
-    id: 11,
-    title: "پاکسازی پوست",
-    category: "زیبایی",
-    duration: 60,
-    price: 350000,
-    description: "پاکسازی تخصصی پوست با بخور و ماسک",
-    isActive: false,
-  },
-  {
-    id: 12,
-    title: "مشاوره پوست و مو",
-    category: "مشاوره",
-    duration: 30,
-    price: 200000,
-    description: "مشاوره تخصصی مشکلات پوست و مو",
-    isActive: true,
-  },
-];
-
 const PAGE_SIZE = 6;
 
 const statusConfig: Record<string, { label: string; variant: "success" | "warning" }> = {
@@ -157,7 +52,6 @@ function formatPrice(price: number): string {
 }
 
 function Services() {
-  const [services, setServices] = useState<Service[]>(mockServices);
   const [categories, setCategories] = useState<ServiceCategory[]>(DEFAULT_CATEGORIES);
   const [activeTab, setActiveTab] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -167,6 +61,13 @@ function Services() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [categoryForm, setCategoryForm] = useState(initialCategoryForm);
   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null);
+
+  const { data: paginated, isLoading } = useServicesList({ page: currentPage, perPage: PAGE_SIZE });
+  const createMutation = useCreateService();
+  const updateMutation = useUpdateService();
+  const deleteMutation = useDeleteService();
+
+  const services = paginated?.data ?? [];
 
   const categoryTabs = useMemo(
     () => [{ id: "all", label: "همه" }, ...categories.map((c) => ({ id: c.name, label: c.name }))],
@@ -181,7 +82,8 @@ function Services() {
   const filteredServices =
     activeTab === "all" ? services : services.filter((s) => s.category === activeTab);
 
-  const totalPages = Math.max(1, Math.ceil(filteredServices.length / PAGE_SIZE));
+  const totalPages =
+    paginated?.totalPages ?? Math.max(1, Math.ceil(filteredServices.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const paginatedServices = filteredServices.slice(
     (safePage - 1) * PAGE_SIZE,
@@ -217,10 +119,8 @@ function Services() {
   }
 
   function handleSave() {
-    const newService: Service = {
-      id: editingService ? editingService.id : Date.now(),
+    const payload: Record<string, unknown> = {
       title: form.title,
-      category: form.category,
       duration: Number(form.duration),
       price: Number(form.price),
       description: form.description,
@@ -228,22 +128,15 @@ function Services() {
     };
 
     if (editingService) {
-      setServices((prev) => prev.map((s) => (s.id === editingService.id ? newService : s)));
+      updateMutation.mutate({ id: editingService.id, data: payload });
     } else {
-      setServices((prev) => [...prev, newService]);
+      createMutation.mutate(payload);
     }
-
     closeModal();
   }
 
   function handleDelete(service: Service) {
-    setServices((prev) => prev.filter((s) => s.id !== service.id));
-  }
-
-  function handleToggleActive(service: Service) {
-    setServices((prev) =>
-      prev.map((s) => (s.id === service.id ? { ...s, isActive: !s.isActive } : s))
-    );
+    deleteMutation.mutate(service.id);
   }
 
   function handleTabChange(tabId: string) {
@@ -292,9 +185,6 @@ function Services() {
         prev.map((c) =>
           c.id === editingCategory.id ? { ...c, name: categoryForm.name.trim() } : c
         )
-      );
-      setServices((prev) =>
-        prev.map((s) => (s.category === oldName ? { ...s, category: categoryForm.name.trim() } : s))
       );
       if (activeTab === oldName) setActiveTab(categoryForm.name.trim());
     } else {
@@ -347,7 +237,9 @@ function Services() {
           <Toggle
             label={cfg.label}
             checked={item.isActive}
-            onChange={() => handleToggleActive(item)}
+            onChange={() =>
+              updateMutation.mutate({ id: item.id, data: { isActive: !item.isActive } })
+            }
           />
         );
       },
@@ -416,6 +308,7 @@ function Services() {
             data={paginatedServices}
             rowKey={(item) => item.id}
             className="rounded-none border-0"
+            loading={isLoading}
           />
         </TabPanel>
         <div className="border-surface-200 flex items-center justify-center border-t px-5 py-4">
@@ -498,11 +391,9 @@ function Services() {
         title="مدیریت دسته‌بندی‌ها"
         size="md"
         footer={
-          <>
-            <Button variant="outline" onClick={closeCategoryModal}>
-              بستن
-            </Button>
-          </>
+          <Button variant="outline" onClick={closeCategoryModal}>
+            بستن
+          </Button>
         }
       >
         <div className="flex flex-col gap-4">
@@ -554,11 +445,7 @@ function Services() {
                       <button
                         onClick={() => handleDeleteCategory(cat)}
                         disabled={inUse}
-                        className={`cursor-pointer rounded p-1 transition-colors ${
-                          inUse
-                            ? "text-surface-200 cursor-not-allowed"
-                            : "text-surface-400 hover:text-danger-600"
-                        }`}
+                        className={`cursor-pointer rounded p-1 transition-colors ${inUse ? "text-surface-200 cursor-not-allowed" : "text-surface-400 hover:text-danger-600"}`}
                         title={inUse ? "این دسته‌بندی در حال استفاده است" : "حذف"}
                       >
                         <CiTrash className="size-4" />

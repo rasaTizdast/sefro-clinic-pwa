@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { BiDollar, BiDownload, BiHeart, BiUser } from "react-icons/bi";
 import { IoDocumentTextOutline } from "react-icons/io5";
 import { PiClockCounterClockwise } from "react-icons/pi";
@@ -24,6 +24,8 @@ import { SearchButton } from "../components/SearchButton";
 import { Button } from "../components/ui/Button";
 import { Card, CardTitle } from "../components/ui/Card";
 import { Select } from "../components/ui/Select";
+import { Skeleton } from "../components/ui/Skeleton";
+import { useAllReports, useFilteredReports } from "../hooks/api";
 import type {
   AppointmentStat,
   KpiStat,
@@ -40,89 +42,103 @@ const dateRangeOptions = [
   { value: "year", label: "امسال" },
 ];
 
-const kpiStats: KpiStat[] = [
-  {
-    title: "مجموع مراجعین",
-    value: "۱,۲۴۷",
-    change: "+۱۲٪",
-    trend: "up",
-    icon: <BiUser className="size-5" />,
-  },
-  {
-    title: "درآمد کل",
-    value: "۱۸۷,۵۰۰,۰۰۰",
-    change: "+۸٪",
-    trend: "up",
-    icon: <BiDollar className="size-5" />,
-  },
-  {
-    title: "نرخ مراجعه مجدد",
-    value: "۶۸٪",
-    change: "+۵٪",
-    trend: "up",
-    icon: <PiClockCounterClockwise className="size-5" />,
-  },
-  {
-    title: "میانگین رضایت",
-    value: "۴.۸",
-    change: "+۰.۳",
-    trend: "up",
-    icon: <BiHeart className="size-5" />,
-  },
-];
-
-const monthlyRevenue: MonthlyRevenue[] = [
-  { month: "فروردین", revenue: 12000000 },
-  { month: "اردیبهشت", revenue: 15000000 },
-  { month: "خرداد", revenue: 13500000 },
-  { month: "تیر", revenue: 17000000 },
-  { month: "مرداد", revenue: 16000000 },
-  { month: "شهریور", revenue: 19000000 },
-  { month: "مهر", revenue: 21000000 },
-  { month: "آبان", revenue: 18500000 },
-  { month: "آذر", revenue: 22000000 },
-  { month: "دی", revenue: 20500000 },
-  { month: "بهمن", revenue: 24000000 },
-  { month: "اسفند", revenue: 26000000 },
-];
-
-const appointmentStatusData: AppointmentStat[] = [
-  { name: "انجام شده", value: 185, color: "#10b981" },
-  { name: "در انتظار", value: 65, color: "#f59e0b" },
-  { name: "لغو شده", value: 30, color: "#ef4444" },
-  { name: "تأیید شده", value: 120, color: "#2563eb" },
-];
-
-const monthlyVisits: PatientVisit[] = [
-  { month: "فروردین", visits: 85 },
-  { month: "اردیبهشت", visits: 95 },
-  { month: "خرداد", visits: 78 },
-  { month: "تیر", visits: 110 },
-  { month: "مرداد", visits: 102 },
-  { month: "شهریور", visits: 120 },
-  { month: "مهر", visits: 135 },
-  { month: "آبان", visits: 118 },
-  { month: "آذر", visits: 145 },
-  { month: "دی", visits: 128 },
-  { month: "بهمن", visits: 155 },
-  { month: "اسفند", visits: 170 },
-];
-
-const serviceCategoryData: ServiceCategoryStat[] = [
-  { name: "ویزیت عمومی", value: 320 },
-  { name: "داخلی", value: 210 },
-  { name: "جراحی", value: 140 },
-  { name: "آزمایشگاه", value: 260 },
-  { name: "تصویربرداری", value: 180 },
-  { name: "داروخانه", value: 290 },
-];
-
 function formatCurrency(value: number): string {
   return value.toLocaleString("fa-IR");
 }
 
 function Analytics() {
   const [dateRange, setDateRange] = useState("year");
+  const { data: allReports, isLoading: allLoading } = useAllReports();
+
+  const dateParams = useMemo(() => {
+    const now = new Date();
+    const to = now.toISOString().split("T")[0];
+    const from = new Date();
+    switch (dateRange) {
+      case "today":
+        return { dateFrom: to, dateTo: to };
+      case "week":
+        from.setDate(from.getDate() - 7);
+        return { dateFrom: from.toISOString().split("T")[0], dateTo: to };
+      case "month":
+        from.setMonth(from.getMonth() - 1);
+        return { dateFrom: from.toISOString().split("T")[0], dateTo: to };
+      case "quarter":
+        from.setMonth(from.getMonth() - 3);
+        return { dateFrom: from.toISOString().split("T")[0], dateTo: to };
+      case "year":
+      default:
+        return { dateFrom: "", dateTo: "" };
+    }
+  }, [dateRange]);
+
+  const { data: filteredReports, isLoading: filteredLoading } = useFilteredReports(
+    dateParams.dateFrom || undefined,
+    dateParams.dateTo || undefined
+  );
+  const reports = dateRange === "year" ? allReports : filteredReports;
+  const isLoading = dateRange === "year" ? allLoading : filteredLoading;
+
+  const kpiStats: KpiStat[] = reports
+    ? [
+        {
+          title: "مجموع مراجعین",
+          value: reports.customerCount?.toLocaleString("fa-IR") ?? "۰",
+          change: "",
+          trend: "up",
+          icon: <BiUser className="size-5" />,
+        },
+        {
+          title: "درآمد کل",
+          value: reports.totalRevenue?.toLocaleString("fa-IR") ?? "۰",
+          change: "",
+          trend: "up",
+          icon: <BiDollar className="size-5" />,
+        },
+        {
+          title: "نرخ مراجعه مجدد",
+          value: reports.retentionRate ? `${reports.retentionRate}٪` : "۰٪",
+          change: "",
+          trend: "up",
+          icon: <PiClockCounterClockwise className="size-5" />,
+        },
+        {
+          title: "میانگین رضایت",
+          value: "—",
+          change: "",
+          trend: "flat",
+          icon: <BiHeart className="size-5" />,
+        },
+      ]
+    : [];
+
+  const monthlyRevenue: MonthlyRevenue[] = reports?.monthlyRevenue ?? [];
+  const appointmentStatusData: AppointmentStat[] = reports?.appointmentStats ?? [];
+  const monthlyVisits: PatientVisit[] = reports?.monthlyVisits ?? [];
+  const serviceCategoryData: ServiceCategoryStat[] = reports?.serviceCategoryStats ?? [];
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <Skeleton width="200px" height="2rem" />
+          <div className="flex gap-2">
+            <Skeleton width="130px" height="2.5rem" variant="rectangular" />
+            <Skeleton width="130px" height="2.5rem" variant="rectangular" />
+          </div>
+        </div>
+        <Skeleton width="200px" height="2.5rem" variant="rectangular" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} variant="outlined" padding="lg">
+              <Skeleton width="60%" height="1rem" />
+              <Skeleton width="40%" height="2rem" className="mt-2" />
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -160,9 +176,7 @@ function Analytics() {
               <div className="flex flex-col items-end gap-1">
                 <span className="text-primary-600">{stat.icon}</span>
                 <span
-                  className={`text-sm font-semibold ${
-                    stat.trend === "up" ? "text-success-600" : "text-danger-600"
-                  }`}
+                  className={`text-sm font-semibold ${stat.trend === "up" ? "text-success-600" : "text-danger-600"}`}
                 >
                   {stat.change}
                 </span>
@@ -183,11 +197,7 @@ function Analytics() {
                 <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                 <Tooltip
                   formatter={(value) => [`${formatCurrency(Number(value))} تومان`, "درآمد"]}
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: "1px solid #e2e8f0",
-                    fontSize: 13,
-                  }}
+                  contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
                 />
                 <Line
                   type="monotone"
@@ -222,11 +232,7 @@ function Analytics() {
                 </Pie>
                 <Tooltip
                   formatter={(value) => [Number(value), "تعداد"]}
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: "1px solid #e2e8f0",
-                    fontSize: 13,
-                  }}
+                  contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
                 />
                 <Legend
                   verticalAlign="bottom"
@@ -261,11 +267,7 @@ function Analytics() {
                 <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                 <Tooltip
                   formatter={(value) => [Number(value), "مراجعه"]}
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: "1px solid #e2e8f0",
-                    fontSize: 13,
-                  }}
+                  contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
                 />
                 <Bar dataKey="visits" fill="#2563eb" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -283,11 +285,7 @@ function Analytics() {
                 <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                 <Tooltip
                   formatter={(value) => [Number(value), "تعداد"]}
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: "1px solid #e2e8f0",
-                    fontSize: 13,
-                  }}
+                  contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
                 />
                 <Area
                   type="monotone"

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   BiCalendar,
   BiCheck,
@@ -18,7 +18,9 @@ import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
+import { Skeleton } from "../components/ui/Skeleton";
 import { Textarea } from "../components/ui/Textarea";
+import { useCustomersList, useReserveVisit, useServicesList, useVisitsList } from "../hooks/api";
 import type {
   Appointment,
   AppointmentStatus,
@@ -26,8 +28,6 @@ import type {
   WizardFormData,
   WizardStep,
 } from "../types/appointment";
-import type { Patient } from "../types/patient";
-import type { Service } from "../types/service";
 
 const PERSIAN_MONTHS = [
   "فروردین",
@@ -120,296 +120,10 @@ type StatusVariant = "success" | "warning" | "danger" | "info";
 
 const statusConfig: Record<AppointmentStatus, { label: string; variant: StatusVariant }> = {
   confirmed: { label: "تأیید شده", variant: "success" },
-  waiting: { label: "در انتظار", variant: "warning" },
-  cancelled: { label: "لغو شده", variant: "danger" },
+  pending: { label: "در انتظار", variant: "warning" },
+  canceled: { label: "لغو شده", variant: "danger" },
   completed: { label: "انجام شده", variant: "info" },
 };
-
-const mockPatients: Patient[] = [
-  {
-    id: 1,
-    firstName: "علی",
-    lastName: "رضایی",
-    phone: "09123456789",
-    nationalId: "0012345678",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۳/۰۳",
-    visitCount: 24,
-    status: "active",
-    createdAt: "۱۴۰۴/۱۰/۰۱",
-    products: [],
-    services: [],
-  },
-  {
-    id: 2,
-    firstName: "سارا",
-    lastName: "احمدی",
-    phone: "09198765432",
-    nationalId: "0029876543",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۳/۰۳",
-    visitCount: 8,
-    status: "new",
-    createdAt: "۱۴۰۵/۰۲/۲۸",
-    products: [],
-    services: [],
-  },
-  {
-    id: 3,
-    firstName: "رضا",
-    lastName: "کریمی",
-    phone: "0933557788",
-    nationalId: "0033557788",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۲/۲۸",
-    visitCount: 56,
-    status: "active",
-    createdAt: "۱۴۰۳/۰۶/۱۵",
-    products: [],
-    services: [],
-  },
-  {
-    id: 4,
-    firstName: "مریم",
-    lastName: "نوروزی",
-    phone: "0912223344",
-    nationalId: "0042223344",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۲/۱۵",
-    visitCount: 3,
-    status: "inactive",
-    createdAt: "۱۴۰۵/۰۱/۱۰",
-    products: [],
-    services: [],
-  },
-  {
-    id: 5,
-    firstName: "امیر",
-    lastName: "عباسی",
-    phone: "0901887766",
-    nationalId: "0051887766",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۳/۰۱",
-    visitCount: 18,
-    status: "active",
-    createdAt: "۱۴۰۴/۰۲/۰۵",
-    products: [],
-    services: [],
-  },
-  {
-    id: 6,
-    firstName: "نگین",
-    lastName: "صادقی",
-    phone: "0936644321",
-    nationalId: "0066644321",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۲/۲۰",
-    visitCount: 12,
-    status: "new",
-    createdAt: "۱۴۰۵/۰۲/۱۰",
-    products: [],
-    services: [],
-  },
-  {
-    id: 7,
-    firstName: "محمد",
-    lastName: "حسینی",
-    phone: "0914455667",
-    nationalId: "0074455667",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۱/۱۵",
-    visitCount: 42,
-    status: "active",
-    createdAt: "۱۴۰۲/۰۸/۲۰",
-    products: [],
-    services: [],
-  },
-  {
-    id: 8,
-    firstName: "زهرا",
-    lastName: "محمدی",
-    phone: "0912778899",
-    nationalId: "0082778899",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۴/۱۲/۲۰",
-    visitCount: 1,
-    status: "inactive",
-    createdAt: "۱۴۰۴/۱۲/۱۰",
-    products: [],
-    services: [],
-  },
-  {
-    id: 9,
-    firstName: "حسین",
-    lastName: "رستمی",
-    phone: "0930112233",
-    nationalId: "0090112233",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۲/۰۵",
-    visitCount: 31,
-    status: "active",
-    createdAt: "۱۴۰۳/۱۲/۰۱",
-    products: [],
-    services: [],
-  },
-  {
-    id: 10,
-    firstName: "فاطمه",
-    lastName: "موسوی",
-    phone: "09188990011",
-    nationalId: "01088990011",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۴/۱۱/۲۸",
-    visitCount: 15,
-    status: "active",
-    createdAt: "۱۴۰۴/۰۵/۱۵",
-    products: [],
-    services: [],
-  },
-  {
-    id: 11,
-    firstName: "احمد",
-    lastName: "کرمی",
-    phone: "0903344556",
-    nationalId: "0113344556",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۴/۱۰/۰۸",
-    visitCount: 6,
-    status: "inactive",
-    createdAt: "۱۴۰۴/۰۹/۲۰",
-    products: [],
-    services: [],
-  },
-  {
-    id: 12,
-    firstName: "لیلا",
-    lastName: "حیدری",
-    phone: "0935566778",
-    nationalId: "0125566778",
-    bitmojiId: "",
-    lastVisit: "۱۴۰۵/۰۳/۰۲",
-    visitCount: 4,
-    status: "new",
-    createdAt: "۱۴۰۵/۰۲/۲۵",
-    products: [],
-    services: [],
-  },
-];
-
-const mockServices: Service[] = [
-  {
-    id: 1,
-    title: "فیشال صورت",
-    category: "زیبایی",
-    duration: 45,
-    price: 350000,
-    description: "پاکسازی عمقی و مرطوب‌سازی پوست صورت",
-    isActive: true,
-  },
-  {
-    id: 2,
-    title: "میکرونیدلینگ",
-    category: "زیبایی",
-    duration: 60,
-    price: 500000,
-    description: "تحریک کلاژن‌سازی با سوزن‌های ریز",
-    isActive: true,
-  },
-  {
-    id: 3,
-    title: "لیزر موهای زائد",
-    category: "زیبایی",
-    duration: 30,
-    price: 450000,
-    description: "حذف دائمی موهای زائد با لیزر",
-    isActive: true,
-  },
-  {
-    id: 4,
-    title: "درمان آکنه",
-    category: "زیبایی",
-    duration: 30,
-    price: 250000,
-    description: "درجۀ یک آکنه و جوش صورت",
-    isActive: false,
-  },
-  {
-    id: 5,
-    title: "مشاوره تغذیه",
-    category: "مشاوره",
-    duration: 30,
-    price: 180000,
-    description: "مشاوره تغذیه و رژیم درمانی",
-    isActive: true,
-  },
-  {
-    id: 6,
-    title: "مشاوره روانشناسی",
-    category: "مشاوره",
-    duration: 45,
-    price: 250000,
-    description: "مشاوره فردی و مدیریت استرس",
-    isActive: true,
-  },
-  {
-    id: 7,
-    title: "فیزیوتراپی",
-    category: "درمانی",
-    duration: 45,
-    price: 300000,
-    description: "فیزیوتراپی تخصصی برای انواع دردهای عضلانی",
-    isActive: true,
-  },
-  {
-    id: 8,
-    title: "آزمایش خون",
-    category: "آزمایشگاهی",
-    duration: 15,
-    price: 120000,
-    description: "انواع آزمایش‌های خون و بیوشیمی",
-    isActive: true,
-  },
-  {
-    id: 9,
-    title: "تزریق بوتاکس",
-    category: "زیبایی",
-    duration: 30,
-    price: 800000,
-    description: "تزریق بوتاکس برای کاهش چین و چروک",
-    isActive: true,
-  },
-  {
-    id: 10,
-    title: "درمان زگیل",
-    category: "درمانی",
-    duration: 20,
-    price: 200000,
-    description: "درمان و برداشتن زگیل با لیزر یا کرایو",
-    isActive: true,
-  },
-  {
-    id: 11,
-    title: "پاکسازی پوست",
-    category: "زیبایی",
-    duration: 60,
-    price: 350000,
-    description: "پاکسازی تخصصی پوست با بخور و ماسک",
-    isActive: false,
-  },
-  {
-    id: 12,
-    title: "مشاوره پوست و مو",
-    category: "مشاوره",
-    duration: 30,
-    price: 200000,
-    description: "مشاوره تخصصی مشکلات پوست و مو",
-    isActive: true,
-  },
-];
-
-const patientNames = mockPatients.map((p) => `${p.firstName} ${p.lastName}`);
-const activeServices = mockServices.filter((s) => s.isActive);
-const statuses: Appointment["status"][] = ["confirmed", "waiting", "cancelled", "completed"];
 
 const START_HOUR = 8;
 const END_HOUR = 16;
@@ -421,40 +135,44 @@ function minutesToTimeStr(minutes: number): string {
   return toPersian(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`);
 }
 
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+function getFreeBlocks(
+  dayApps: Appointment[],
+  serviceDuration: number
+): { start: number; end: number }[] {
+  const occupiedRanges: { start: number; end: number }[] = dayApps.map((apt) => ({
+    start: parseTimeToMinutes(apt.time) - TIME_BUFFER,
+    end: parseTimeToMinutes(apt.time) + apt.duration + TIME_BUFFER,
+  }));
 
-function pickRandomTimeInRange(): number {
-  const startMin = START_HOUR * 60;
-  const endMin = END_HOUR * 60;
-  return Math.floor(Math.random() * (endMin - startMin)) + startMin;
-}
-
-function generateMockAppointments(jy: number, jm: number, startId = 1): Appointment[] {
-  const results: Appointment[] = [];
-  const daysInMonth = getPersianMonthDays(jm, jy);
-
-  for (let i = 0; i < 20; i++) {
-    const day = Math.floor(Math.random() * daysInMonth) + 1;
-    const svc = pick(activeServices);
-    const timeMin = pickRandomTimeInRange();
-    const timeStr = minutesToTimeStr(timeMin);
-    const dateStr = `${jy}/${jm}/${day}`;
-
-    results.push({
-      id: startId + i,
-      time: timeStr,
-      patient: pick(patientNames),
-      service: svc.title,
-      serviceId: svc.id,
-      duration: svc.duration,
-      date: dateStr,
-      status: pick(statuses),
-    });
+  occupiedRanges.sort((a, b) => a.start - b.start);
+  const merged: { start: number; end: number }[] = [];
+  for (const range of occupiedRanges) {
+    const last = merged[merged.length - 1];
+    if (last && range.start <= last.end) {
+      last.end = Math.max(last.end, range.end);
+    } else {
+      merged.push({ ...range });
+    }
   }
 
-  return results;
+  const dayEnd = END_HOUR * 60;
+  const freeBlocks: { start: number; end: number }[] = [];
+  let cursor = START_HOUR * 60;
+
+  for (const occ of merged) {
+    const gap = occ.start - cursor;
+    if (gap >= serviceDuration) {
+      freeBlocks.push({ start: cursor, end: occ.start });
+    }
+    cursor = Math.max(cursor, occ.end);
+  }
+
+  const remaining = dayEnd - cursor;
+  if (remaining >= serviceDuration) {
+    freeBlocks.push({ start: cursor, end: dayEnd });
+  }
+
+  return freeBlocks;
 }
 
 function Calendar() {
@@ -474,33 +192,38 @@ function Calendar() {
     notes: "",
   });
   const [patientSearch, setPatientSearch] = useState("");
-  const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
-  const seededRef = useRef(new Set<string>());
 
   const persian = getPersianDate(viewDate);
 
-  useEffect(() => {
-    const key = `${persian.year}-${persian.month}`;
-    if (seededRef.current.has(key)) return;
-    seededRef.current.add(key);
-    setAllAppointments((prev) => [
-      ...prev,
-      ...generateMockAppointments(persian.year, persian.month, prev.length + 1),
-    ]);
-  }, [persian.year, persian.month]);
+  const { data: paginatedPatients, isLoading: patientsLoading } = useCustomersList({
+    perPage: 100,
+  });
+  const { data: paginatedServices, isLoading: servicesLoading } = useServicesList({
+    perPage: 100,
+  });
+  const { data: paginatedVisits, isLoading: visitsLoading } = useVisitsList({
+    year: persian.year,
+    month: persian.month,
+    perPage: 200,
+  });
+  const { mutate: reserveVisit, isPending: isCreating } = useReserveVisit();
+
+  const patients = paginatedPatients?.data ?? [];
+  const services = paginatedServices?.data ?? [];
+  const allAppointments = paginatedVisits?.data ?? [];
 
   const todayStr = `${todayInfo.year}/${todayInfo.month}/${todayInfo.day}`;
 
   const filteredPatients = useMemo(
     () =>
       patientSearch
-        ? mockPatients.filter((p) =>
-            `${p.firstName} ${p.lastName}${p.phone}`
+        ? patients.filter((p) =>
+            `${p.firstName} ${p.lastName}${p.mobileNumber}`
               .toLowerCase()
               .includes(patientSearch.toLowerCase())
           )
-        : mockPatients,
-    [patientSearch]
+        : patients,
+    [patients, patientSearch]
   );
 
   const grid = useMemo(() => {
@@ -543,51 +266,11 @@ function Calendar() {
   const selectedDayAppointments = allAppointments.filter((a) => a.date === selectedDate);
 
   const selectedPatient = form.patientId
-    ? (mockPatients.find((p) => p.id === form.patientId) ?? null)
+    ? (patients.find((p) => p.id === form.patientId) ?? null)
     : null;
   const selectedService = form.serviceId
-    ? (mockServices.find((s) => s.id === form.serviceId) ?? null)
+    ? (services.find((s) => s.id === form.serviceId) ?? null)
     : null;
-
-  function getFreeBlocks(
-    dayApps: Appointment[],
-    serviceDuration: number
-  ): { start: number; end: number }[] {
-    const occupiedRanges: { start: number; end: number }[] = dayApps.map((apt) => ({
-      start: parseTimeToMinutes(apt.time) - TIME_BUFFER,
-      end: parseTimeToMinutes(apt.time) + apt.duration + TIME_BUFFER,
-    }));
-
-    occupiedRanges.sort((a, b) => a.start - b.start);
-    const merged: { start: number; end: number }[] = [];
-    for (const range of occupiedRanges) {
-      const last = merged[merged.length - 1];
-      if (last && range.start <= last.end) {
-        last.end = Math.max(last.end, range.end);
-      } else {
-        merged.push({ ...range });
-      }
-    }
-
-    const dayEnd = END_HOUR * 60;
-    const freeBlocks: { start: number; end: number }[] = [];
-    let cursor = START_HOUR * 60;
-
-    for (const occ of merged) {
-      const gap = occ.start - cursor;
-      if (gap >= serviceDuration) {
-        freeBlocks.push({ start: cursor, end: occ.start });
-      }
-      cursor = Math.max(cursor, occ.end);
-    }
-
-    const remaining = dayEnd - cursor;
-    if (remaining >= serviceDuration) {
-      freeBlocks.push({ start: cursor, end: dayEnd });
-    }
-
-    return freeBlocks;
-  }
 
   const availableBlocks = useMemo(() => {
     if (!selectedService || !form.date) return [];
@@ -664,18 +347,20 @@ function Calendar() {
 
   function handleSubmitForm() {
     if (!selectedPatient || !selectedService || !form.date || !form.time) return;
-    const newAppt: Appointment = {
-      id: Date.now(),
-      time: form.time,
-      patient: `${selectedPatient.firstName} ${selectedPatient.lastName}`,
-      service: selectedService.title,
-      serviceId: selectedService.id,
-      duration: selectedService.duration,
-      date: form.date,
-      status: "confirmed",
-    };
-    setAllAppointments((prev) => [...prev, newAppt]);
-    handleCloseModal();
+    reserveVisit(
+      {
+        customer: selectedPatient.id,
+        services: [selectedService.id],
+        date: form.date,
+        time: form.time,
+        notes: form.notes || undefined,
+      },
+      {
+        onSuccess: () => {
+          handleCloseModal();
+        },
+      }
+    );
   }
 
   function getStepDaysInMonth(): number {
@@ -726,6 +411,8 @@ function Calendar() {
     if (parts.length !== 3) return "—";
     return `${toPersianDigits(parseInt(parts[2]))} ${PERSIAN_MONTHS[parseInt(parts[1]) - 1]} ${toPersianDigits(parseInt(parts[0]))}`;
   })();
+
+  const isLoading = patientsLoading || servicesLoading || visitsLoading;
 
   const STEP_LABELS: { key: WizardStep; label: string }[] = [
     { key: "patient", label: "بیمار" },
@@ -824,7 +511,7 @@ function Calendar() {
                       {p.firstName} {p.lastName}
                     </p>
                     <p className="text-surface-500 truncate text-xs" dir="ltr">
-                      {toPersian(p.phone)}
+                      {toPersian(p.mobileNumber)}
                     </p>
                   </div>
                   {isSelected && <BiCheck className="text-primary-600 me-auto size-5 shrink-0" />}
@@ -844,7 +531,7 @@ function Calendar() {
                   {selectedPatient.firstName} {selectedPatient.lastName}
                 </p>
                 <p className="text-surface-500 mt-0.5 text-xs" dir="ltr">
-                  {toPersian(selectedPatient.phone)}
+                  {toPersian(selectedPatient.mobileNumber)}
                 </p>
               </div>
             </div>
@@ -860,41 +547,40 @@ function Calendar() {
 
   function renderServiceStep() {
     if (!selectedPatient) return null;
+    const activeServices = services.filter((s) => s.isActive);
     return (
       <div className="flex flex-col gap-3">
         <p className="text-surface-600 text-xs font-medium">
           انتخاب خدمت برای {selectedPatient.firstName} {selectedPatient.lastName}
         </p>
         <div className="mobile:grid-cols-2 grid grid-cols-1 gap-3">
-          {mockServices
-            .filter((s) => s.isActive)
-            .map((svc) => {
-              const isSelected = form.serviceId === svc.id;
-              return (
-                <button
-                  key={svc.id}
-                  onClick={() => handleFormChange("serviceId", svc.id)}
-                  className={`focus-visible:ring-primary-600/40 relative cursor-pointer rounded-lg border p-3 text-right transition-all outline-none focus-visible:ring-2 ${
-                    isSelected
-                      ? "border-primary-500 bg-primary-50 shadow-sm"
-                      : "border-surface-200 hover:border-surface-300 bg-white hover:shadow-sm"
-                  }`}
-                >
-                  {isSelected && (
-                    <span className="bg-primary-600 absolute end-2 top-2 flex size-5 items-center justify-center rounded-full text-white">
-                      <BiCheck className="size-3" />
-                    </span>
-                  )}
-                  <p className="text-surface-900 text-sm font-medium">{svc.title}</p>
-                  <p className="text-surface-500 mt-1 text-xs">
-                    {toPersianDigits(svc.duration)} دقیقه
-                  </p>
-                  <p className="text-primary-700 mt-1 text-xs font-medium">
-                    {toPersianDigits(svc.price)} تومان
-                  </p>
-                </button>
-              );
-            })}
+          {activeServices.map((svc) => {
+            const isSelected = form.serviceId === svc.id;
+            return (
+              <button
+                key={svc.id}
+                onClick={() => handleFormChange("serviceId", svc.id)}
+                className={`focus-visible:ring-primary-600/40 relative cursor-pointer rounded-lg border p-3 text-right transition-all outline-none focus-visible:ring-2 ${
+                  isSelected
+                    ? "border-primary-500 bg-primary-50 shadow-sm"
+                    : "border-surface-200 hover:border-surface-300 bg-white hover:shadow-sm"
+                }`}
+              >
+                {isSelected && (
+                  <span className="bg-primary-600 absolute end-2 top-2 flex size-5 items-center justify-center rounded-full text-white">
+                    <BiCheck className="size-3" />
+                  </span>
+                )}
+                <p className="text-surface-900 text-sm font-medium">{svc.title}</p>
+                <p className="text-surface-500 mt-1 text-xs">
+                  {toPersianDigits(svc.duration)} دقیقه
+                </p>
+                <p className="text-primary-700 mt-1 text-xs font-medium">
+                  {toPersianDigits(svc.price)} تومان
+                </p>
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -1025,6 +711,28 @@ function Calendar() {
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4 sm:gap-6">
+        <div className="flex items-center justify-between">
+          <Skeleton width="160px" height="2rem" />
+          <div className="flex gap-2">
+            <Skeleton width="120px" height="2.5rem" variant="rectangular" />
+            <Skeleton width="120px" height="2.5rem" variant="rectangular" />
+          </div>
+        </div>
+        <div className="grid gap-6 xl:grid-cols-4">
+          <div className="xl:col-span-3">
+            <Skeleton width="100%" height="380px" variant="rectangular" />
+          </div>
+          <div>
+            <Skeleton width="100%" height="300px" variant="rectangular" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -1212,8 +920,12 @@ function Calendar() {
               <Button variant="ghost" onClick={handleWizardBack}>
                 قبلی
               </Button>
-              <Button variant="primary" onClick={handleSubmitForm} disabled={!form.time}>
-                ثبت نوبت
+              <Button
+                variant="primary"
+                onClick={handleSubmitForm}
+                disabled={!form.time || isCreating}
+              >
+                {isCreating ? "در حال ثبت..." : "ثبت نوبت"}
               </Button>
             </>
           ) : wizardStep === "service" ? (
