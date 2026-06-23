@@ -1,0 +1,52 @@
+export const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+
+export const API_PREFIX = "/api";
+
+export const API_URL = `${API_BASE_URL}${API_PREFIX}`;
+
+export const endpoints = {
+  auth: {
+    token: "/auth/token/",
+    refresh: "/auth/token/refresh/",
+    logout: "/auth/logout/",
+    me: "/auth/me/",
+    employees: "/auth/employees/",
+    employeesList: "/auth/employees/list/",
+    employee: (id: number) => `/auth/employees/${id}/`,
+  },
+  customers: {
+    list: "/customers/",
+    detail: (id: number) => `/customers/${id}/`,
+  },
+  visits: {
+    list: "/visits/",
+    detail: (id: number) => `/visits/${id}/`,
+    confirm: (id: number) => `/visits/${id}/confirm/`,
+    complete: (id: number) => `/visits/${id}/complete/`,
+    cancel: (id: number) => `/visits/${id}/cancel/`,
+    reserve: "/visits/reserve/",
+  },
+  payments: {
+    list: "/payments/",
+    detail: (id: number) => `/payments/${id}/`,
+    byService: "/payments/by_service/",
+  },
+  products: {
+    list: "/inventory/products/",
+    detail: (id: number) => `/inventory/products/${id}/`,
+  },
+  services: {
+    list: "/services/",
+    detail: (id: number) => `/services/${id}/`,
+  },
+  reports: {
+    all: "/reports/all/",
+    filtered: "/reports/",
+    customers: "/reports/customers/",
+    visits: "/reports/visits/",
+    referral: "/reports/referral/",
+  },
+  dashboard: {
+    stats: "/dashboard/",
+  },
+} as const;
