@@ -1,9 +1,11 @@
 import jalaali from "jalaali-js";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { BiPlus } from "react-icons/bi";
 
+import { useCustomersList } from "../../hooks/api";
 import type { TransactionFormData } from "../../types/accounting";
 import type { Service } from "../../types/service";
+import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { JalaliDatePicker } from "../ui/JalaliDatePicker";
@@ -20,8 +22,7 @@ interface AddTransactionModalProps {
 const paymentOptions = [
   { value: "cash", label: "نقدی" },
   { value: "card", label: "کارت خوان" },
-  { value: "online", label: "آنلاین" },
-  { value: "cheque", label: "چک" },
+  { value: "transfer", label: "کارت به کارت" },
 ];
 
 function getDefaultJalaliDate(): string {
@@ -34,12 +35,31 @@ const defaultDate = getDefaultJalaliDate();
 
 export function AddTransactionModal({ open, onClose, onSave, services }: AddTransactionModalProps) {
   const [date, setDate] = useState<string>(defaultDate);
-  const [patient, setPatient] = useState("");
+  const [patientSearch, setPatientSearch] = useState("");
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  const [selectedPatientName, setSelectedPatientName] = useState("");
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const [serviceId, setServiceId] = useState("");
   const selectedService = services.find((s) => s.id === Number(serviceId));
   const amount = selectedService ? String(selectedService.price) : "";
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [description, setDescription] = useState("");
+  const patientRef = useRef<HTMLDivElement>(null);
+
+  const { data: paginatedPatients } = useCustomersList({ perPage: 200 });
+  const patients = paginatedPatients?.data ?? [];
+
+  const filteredPatients = useMemo(
+    () =>
+      patientSearch
+        ? patients.filter((p) =>
+            `${p.firstName} ${p.lastName}${p.mobileNumber}`
+              .toLowerCase()
+              .includes(patientSearch.toLowerCase())
+          )
+        : [],
+    [patients, patientSearch]
+  );
 
   const serviceOptions = useMemo(
     () =>
@@ -52,24 +72,51 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
     [services]
   );
 
+  function selectPatient(patient: { id: number; firstName: string; lastName: string }) {
+    setSelectedPatientId(patient.id);
+    setSelectedPatientName(`${patient.firstName} ${patient.lastName}`);
+    setPatientSearch(`${patient.firstName} ${patient.lastName}`);
+    setShowPatientDropdown(false);
+  }
+
+  function handlePatientInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setPatientSearch(e.target.value);
+    setSelectedPatientId(null);
+    setSelectedPatientName("");
+    setShowPatientDropdown(true);
+  }
+
+  function handlePatientInputBlur() {
+    setTimeout(() => setShowPatientDropdown(false), 200);
+  }
+
+  function handlePatientInputFocus() {
+    if (patientSearch && !selectedPatientId) {
+      setShowPatientDropdown(true);
+    }
+  }
+
   function handleServiceChange(e: React.ChangeEvent<HTMLSelectElement>) {
     setServiceId(e.target.value);
   }
 
   function resetForm() {
     setDate(defaultDate);
-    setPatient("");
+    setPatientSearch("");
+    setSelectedPatientId(null);
+    setSelectedPatientName("");
     setServiceId("");
     setPaymentMethod("cash");
     setDescription("");
   }
 
   function handleSave() {
-    if (!date || !patient.trim() || !serviceId || !amount || !paymentMethod) return;
+    if (!date || !selectedPatientId || !serviceId || !amount || !paymentMethod) return;
 
     const data: TransactionFormData = {
       date,
-      patient: patient.trim(),
+      patientId: selectedPatientId,
+      patientName: selectedPatientName,
       serviceId: Number(serviceId),
       amount: Number(amount),
       paymentMethod,
@@ -86,7 +133,7 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
   }
 
   const isValid =
-    date && patient.trim() && serviceId && amount && Number(amount) > 0 && paymentMethod;
+    date && selectedPatientId && serviceId && amount && Number(amount) > 0 && paymentMethod;
 
   return (
     <Modal
@@ -118,12 +165,40 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
           containerClassName="w-full"
         />
 
-        <Input
-          label="نام بیمار"
-          value={patient}
-          onChange={(e) => setPatient(e.target.value)}
-          placeholder="مثال: علی رضایی"
-        />
+        <div ref={patientRef} className="relative">
+          <Input
+            label="بیمار"
+            value={patientSearch}
+            onChange={handlePatientInputChange}
+            onFocus={handlePatientInputFocus}
+            onBlur={handlePatientInputBlur}
+            placeholder="جستجوی بیمار..."
+          />
+          {selectedPatientId && selectedPatientName && (
+            <div className="mt-1">
+              <Badge variant="info" size="sm">
+                {selectedPatientName}
+              </Badge>
+            </div>
+          )}
+          {showPatientDropdown && patientSearch && filteredPatients.length > 0 && (
+            <div className="border-surface-200 absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border bg-white shadow-lg">
+              {filteredPatients.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="hover:bg-primary-50 w-full px-3 py-2 text-right text-sm transition-colors"
+                  onMouseDown={() => selectPatient(p)}
+                >
+                  <span className="font-medium">
+                    {p.firstName} {p.lastName}
+                  </span>
+                  <span className="text-surface-400 mr-2 text-xs">{p.mobileNumber}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <Select
           label="خدمت"
@@ -134,13 +209,11 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
           searchable
         />
 
-        {services.find((s) => s.id === Number(serviceId)) && (
+        {selectedService && (
           <div className="bg-surface-50 border-surface-200 text-surface-600 rounded-lg border p-3 text-sm">
-            <span className="text-surface-700 font-medium">
-              {services.find((s) => s.id === Number(serviceId))!.title}
-            </span>
+            <span className="text-surface-700 font-medium">{selectedService.title}</span>
             {" — "}
-            <span>{services.find((s) => s.id === Number(serviceId))!.description}</span>
+            <span>{selectedService.description}</span>
           </div>
         )}
 

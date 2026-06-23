@@ -1,7 +1,10 @@
 import { AnimatePresence, motion } from "motion/react";
 import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
+import { BiExit } from "react-icons/bi";
 import { Link, useLocation } from "react-router";
 
+import { useAuth } from "../contexts/AuthContext";
+import { useLogout } from "../hooks/api/useAuthQuery";
 import type { SidebarItem, SidebarItemGroup, SidebarSection } from "../types/sidebar";
 import { Avatar } from "./ui/Avatar";
 
@@ -200,6 +203,13 @@ const DesktopSidebar = ({
     }
   }, [isCollapsed]);
 
+  const { user } = useAuth();
+  const logoutMutation = useLogout();
+
+  const displayName = user?.username ?? "کاربر";
+  const subtitle =
+    user?.role === "admin" ? "مدیر سیستم" : user?.role === "employee" ? "کارمند" : "";
+
   return (
     <motion.aside
       animate={{ width: isCollapsed ? 80 : 256 }}
@@ -283,10 +293,10 @@ const DesktopSidebar = ({
       <div className="border-surface-200/60 mt-4 border-t pt-4">
         <div
           className={`flex items-center gap-3 rounded-xl px-3 py-2 ${
-            isCollapsed ? "justify-center px-0" : ""
+            isCollapsed ? "flex-col justify-center px-0" : ""
           }`}
         >
-          <Avatar size={isCollapsed ? "sm" : "md"} name="کاربر" />
+          <Avatar size={isCollapsed ? "sm" : "md"} name={displayName} />
           <AnimatePresence mode="wait">
             {!isCollapsed && (
               <motion.div
@@ -294,13 +304,46 @@ const DesktopSidebar = ({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.08 }}
-                className="min-w-0 text-sm"
+                className="min-w-0 flex-1 text-sm"
               >
-                <p className="text-surface-800 truncate font-medium">کاربر</p>
-                <p className="text-surface-500 truncate text-xs">admin@sefroclinic.ir</p>
+                <p className="text-surface-800 truncate font-medium">{displayName}</p>
+                {subtitle && <p className="text-surface-500 truncate text-xs">{subtitle}</p>}
               </motion.div>
             )}
           </AnimatePresence>
+          <button
+            type="button"
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+            className="text-surface-400 hover:bg-danger-50 hover:text-danger-600 focus-visible:ring-danger-600/40 grid size-9 shrink-0 cursor-pointer place-items-center rounded-xl transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="خروج از سیستم"
+            title="خروج از سیستم"
+          >
+            {logoutMutation.isPending ? (
+              <svg
+                className="size-4 animate-spin"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            ) : (
+              <BiExit className="size-5" />
+            )}
+          </button>
         </div>
       </div>
     </motion.aside>
@@ -344,6 +387,12 @@ const MobileMoreSheet = ({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartYRef = useRef<number | null>(null);
   const dragOffsetRef = useRef(0);
+  const logoutMutation = useLogout();
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+    onClose();
+  };
 
   const handleSheetDragStart = (event: ReactPointerEvent<HTMLButtonElement>) => {
     dragStartYRef.current = event.clientY;
@@ -454,6 +503,43 @@ const MobileMoreSheet = ({
                 ))}
               </div>
             ))}
+          </div>
+
+          <div className="border-surface-100 mt-2 border-t pt-3">
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={logoutMutation.isPending}
+              className="focus-visible:ring-danger-600/40 text-danger-600 hover:bg-danger-50 flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="grid size-7 shrink-0 place-items-center text-xl">
+                {logoutMutation.isPending ? (
+                  <svg
+                    className="size-5 animate-spin"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                ) : (
+                  <BiExit />
+                )}
+              </span>
+              <span>خروج از سیستم</span>
+            </button>
           </div>
         </motion.div>
       </div>
