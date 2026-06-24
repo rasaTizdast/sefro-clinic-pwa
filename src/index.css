@@ -85,6 +85,11 @@ body {
   font-family: "Vazirmatn", sans-serif;
 }
 
+[data-sonner-toast],
+[data-sonner-toaster] * {
+  font-family: inherit !important;
+}
+
 @keyframes toast-progress {
   from {
     transform: scaleX(1);
