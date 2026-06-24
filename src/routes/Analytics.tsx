@@ -25,7 +25,7 @@ import { Button } from "../components/ui/Button";
 import { Card, CardTitle } from "../components/ui/Card";
 import { Select } from "../components/ui/Select";
 import { Skeleton } from "../components/ui/Skeleton";
-import { useAllReports, useFilteredReports } from "../hooks/api";
+import { useAllReports, useFilteredReports, useReferralRate, useVisitReports } from "../hooks/api";
 import type {
   AppointmentStat,
   KpiStat,
@@ -76,8 +76,13 @@ function Analytics() {
     dateParams.dateFrom || undefined,
     dateParams.dateTo || undefined
   );
+  const { data: referralData } = useReferralRate();
+  const { data: visitReports } = useVisitReports();
   const reports = dateRange === "year" ? allReports : filteredReports;
   const isLoading = dateRange === "year" ? allLoading : filteredLoading;
+
+  const retentionRate = referralData?.referralRate ?? 0;
+  const avgSatisfaction = reports?.avgSatisfaction ?? 0;
 
   const kpiStats: KpiStat[] = reports
     ? [
@@ -97,14 +102,14 @@ function Analytics() {
         },
         {
           title: "نرخ مراجعه مجدد",
-          value: reports.retentionRate ? `${reports.retentionRate}٪` : "۰٪",
+          value: `${retentionRate}٪`,
           change: "",
           trend: "up",
           icon: <PiClockCounterClockwise className="size-5" />,
         },
         {
           title: "میانگین رضایت",
-          value: "—",
+          value: avgSatisfaction ? `${avgSatisfaction.toFixed(1)}` : "—",
           change: "",
           trend: "flat",
           icon: <BiHeart className="size-5" />,
@@ -114,7 +119,7 @@ function Analytics() {
 
   const monthlyRevenue: MonthlyRevenue[] = reports?.monthlyRevenue ?? [];
   const appointmentStatusData: AppointmentStat[] = reports?.appointmentStats ?? [];
-  const monthlyVisits: PatientVisit[] = reports?.monthlyVisits ?? [];
+  const monthlyVisits: PatientVisit[] = visitReports ?? [];
   const serviceCategoryData: ServiceCategoryStat[] = reports?.serviceCategoryStats ?? [];
 
   if (isLoading) {

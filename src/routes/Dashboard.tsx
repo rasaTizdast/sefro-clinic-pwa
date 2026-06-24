@@ -40,12 +40,13 @@ const appointmentStatusMap: Record<
 };
 
 const patientStatusMap: Record<
-  "active" | "inactive" | "new",
+  "active" | "inactive" | "new" | "loyal",
   { label: string; variant: "success" | "warning" | "info" }
 > = {
   active: { label: "فعال", variant: "success" },
   inactive: { label: "غیرفعال", variant: "warning" },
   new: { label: "جدید", variant: "info" },
+  loyal: { label: "وفادار", variant: "success" },
 };
 
 type QuickAction = {

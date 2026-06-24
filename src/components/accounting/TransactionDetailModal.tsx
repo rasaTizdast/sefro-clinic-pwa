@@ -60,7 +60,7 @@ export function TransactionDetailModal({
             <span className="text-surface-500 text-xs font-medium">خدمت مرتبط</span>
             <div className="mt-1 flex items-center justify-between">
               <span className="text-surface-900 text-sm font-medium">{service.title}</span>
-              <span className="text-surface-500 text-xs">{service.category}</span>
+              <span className="text-surface-500 text-xs">{service.duration} دقیقه</span>
             </div>
             {service.description && (
               <p className="text-surface-500 mt-1 text-xs">{service.description}</p>

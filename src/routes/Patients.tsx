@@ -33,6 +33,7 @@ const statusMap: Record<PatientStatus, { label: string; variant: StatusVariant }
   active: { label: "فعال", variant: "success" },
   inactive: { label: "غیرفعال", variant: "warning" },
   new: { label: "جدید", variant: "info" },
+  loyal: { label: "وفادار", variant: "success" },
 };
 
 const filterTabs: Tab[] = [
@@ -161,20 +162,6 @@ function Patients() {
       align: "center",
       width: "90px",
       render: (item) => new Intl.NumberFormat("fa-IR").format(item.visitCount),
-    },
-    {
-      key: "products",
-      header: "محصولات",
-      align: "center",
-      width: "80px",
-      render: (item) => item.products.length,
-    },
-    {
-      key: "services",
-      header: "خدمات",
-      align: "center",
-      width: "80px",
-      render: (item) => item.services.length,
     },
     {
       key: "status",

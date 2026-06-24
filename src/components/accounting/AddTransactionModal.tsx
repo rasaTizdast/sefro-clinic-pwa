@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { BiPlus } from "react-icons/bi";
 
 import { useCustomersList } from "../../hooks/api";
-import type { TransactionFormData } from "../../types/accounting";
+import type { PaymentMethod, TransactionFormData } from "../../types/accounting";
 import type { Service } from "../../types/service";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -42,7 +42,7 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
   const [serviceId, setServiceId] = useState("");
   const selectedService = services.find((s) => s.id === Number(serviceId));
   const amount = selectedService ? String(selectedService.price) : "";
-  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [description, setDescription] = useState("");
   const patientRef = useRef<HTMLDivElement>(null);
 
@@ -229,7 +229,7 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
           label="روش پرداخت"
           options={paymentOptions}
           value={paymentMethod}
-          onChange={(e) => setPaymentMethod(e.target.value)}
+          onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
         />
 
         <Input
