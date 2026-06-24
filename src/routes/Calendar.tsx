@@ -21,6 +21,7 @@ import { Modal } from "../components/ui/Modal";
 import { Skeleton } from "../components/ui/Skeleton";
 import { Textarea } from "../components/ui/Textarea";
 import { useCustomersList, useReserveVisit, useServicesList, useVisitsList } from "../hooks/api";
+import { toLatinDigits, toPersianDigits as toPersianDigitsLib } from "../lib/digits";
 import type {
   Appointment,
   AppointmentStatus,
@@ -46,25 +47,20 @@ const PERSIAN_MONTHS = [
 
 const WEEKDAYS = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
 
-const persianDigits = "۰۱۲۳۴۵۶۷۸۹";
-const latinDigits = "0123456789";
-
 function toPersianDigits(num: number): string {
-  return num.toString().replace(/\d/g, (d) => persianDigits[parseInt(d)]);
+  return toPersianDigitsLib(num.toString());
 }
 
 function toPersian(str: string): string {
-  return str.replace(/\d/g, (d) => persianDigits[parseInt(d)]);
+  return toPersianDigitsLib(str);
 }
 
 function parseFaNumber(str: string): number {
-  const cleaned = str.replace(/[^\d۰-۹]/g, "");
-  const latin = cleaned.replace(/[۰-۹]/g, (d) => latinDigits[persianDigits.indexOf(d)]);
-  return parseInt(latin, 10);
+  return parseInt(toLatinDigits(str), 10);
 }
 
 function parseTimeToMinutes(time: string): number {
-  const latin = time.replace(/[۰-۹]/g, (d) => latinDigits[persianDigits.indexOf(d)]);
+  const latin = toLatinDigits(time);
   const [h, m] = latin.split(":").map(Number);
   return h * 60 + m;
 }
@@ -132,7 +128,11 @@ const TIME_BUFFER = 10;
 function minutesToTimeStr(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return toPersian(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`);
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+}
+
+function minutesToTimeStrPersian(minutes: number): string {
+  return toPersianDigitsLib(minutesToTimeStr(minutes));
 }
 
 function getFreeBlocks(
@@ -682,8 +682,7 @@ function Calendar() {
               <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto">
                 {availableBlocks.map((block, idx) => {
                   const startStr = minutesToTimeStr(block.start);
-                  const endStr = minutesToTimeStr(block.end);
-                  const label = `${startStr} - ${endStr}`;
+                  const label = `${minutesToTimeStrPersian(block.start)} - ${minutesToTimeStrPersian(block.end)}`;
                   const isActive = form.time === startStr;
                   return (
                     <button
@@ -891,12 +890,12 @@ function Calendar() {
                           {status.label}
                         </Badge>
                       </div>
-                      <p className="text-surface-900 text-xs font-medium">{appt.patient}</p>
+                      <p className="text-surface-900 text-xs font-medium">{appt.patient?.firstName} {appt.patient?.lastName}</p>
                       {isExpanded && (
                         <div className="border-surface-200 text-surface-500 mt-1.5 flex flex-col gap-1 border-t pt-1.5 text-[11px]">
                           <div className="flex items-center gap-1.5">
                             <BiNote className="text-surface-400 size-3" />
-                            <span>{appt.service}</span>
+                            <span>{appt.service?.title}</span>
                           </div>
                         </div>
                       )}
