@@ -34,6 +34,7 @@ export {
   useFilteredReports,
   useReferralRate,
   useVisitComparison,
+  useVisitReports,
 } from "./useReportsQuery";
 export {
   useCreateService,

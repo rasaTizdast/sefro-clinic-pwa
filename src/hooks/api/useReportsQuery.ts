@@ -38,3 +38,10 @@ export function useReferralRate() {
     queryFn: reportsService.getReferralRate,
   });
 }
+
+export function useVisitReports() {
+  return useQuery({
+    queryKey: queryKeys.reports.visits,
+    queryFn: reportsService.getVisitReports,
+  });
+}
