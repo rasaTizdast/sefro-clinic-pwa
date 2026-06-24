@@ -14,11 +14,16 @@ type RawPatient = Record<string, unknown> & {
   lastVisitDate?: string;
   visitNumber?: number;
   isNewCustomer?: boolean;
+  isLoyalCustomer?: boolean;
+  totalPayments?: number;
   createdAt?: string;
 };
 
 const toStatus = (raw: RawPatient): PatientStatus => {
   if (raw.isNewCustomer) return "new";
+  if (raw.isLoyalCustomer) return "loyal";
+  const visitCount = raw.visitNumber ?? 0;
+  if (visitCount === 0) return "inactive";
   return "active";
 };
 
@@ -32,9 +37,10 @@ const toPatient = (raw: RawPatient): Patient => ({
   lastVisit: raw.lastVisitDate ?? "",
   visitCount: raw.visitNumber ?? 0,
   status: toStatus(raw),
+  isNewCustomer: raw.isNewCustomer ?? false,
+  isLoyalCustomer: raw.isLoyalCustomer ?? false,
+  totalPayments: raw.totalPayments ?? 0,
   createdAt: raw.createdAt ?? "",
-  products: [],
-  services: [],
 });
 
 export const listCustomers = async (

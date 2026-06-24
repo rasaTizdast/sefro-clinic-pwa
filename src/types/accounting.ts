@@ -4,7 +4,7 @@ import type { Trend } from "./common";
 
 export type TransactionStatus = "paid" | "cancelled";
 
-export type BackendPaymentMethod = "cash" | "card" | "transfer";
+export type PaymentMethod = "cash" | "card" | "transfer";
 
 export interface Transaction {
   id: number;
@@ -12,9 +12,10 @@ export interface Transaction {
   description: string;
   patient: string;
   amount: number;
-  paymentMethod: string;
+  paymentMethod: PaymentMethod;
   status: TransactionStatus;
   serviceId?: number;
+  customerId?: number;
 }
 
 export interface TransactionFormData {
@@ -23,7 +24,7 @@ export interface TransactionFormData {
   patientName: string;
   serviceId: number;
   amount: number;
-  paymentMethod: string;
+  paymentMethod: PaymentMethod;
   description: string;
 }
 

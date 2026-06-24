@@ -1,14 +1,28 @@
-export type AppointmentStatus = "confirmed" | "pending" | "canceled" | "completed";
+export type AppointmentStatus = "pending" | "confirmed" | "completed" | "canceled";
 
 export interface Appointment {
   id: number;
-  time: string;
-  patient: string;
-  service: string;
-  serviceId: number;
-  duration: number;
+  customer: number;
+  customerName: string;
+  staff: number | null;
+  services: number[];
+  serviceNames: string[];
+  startAt: string;
+  endAt: string;
   date: string;
+  time: string;
+  duration: number;
   status: AppointmentStatus;
+  notes: string;
+  patient?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+  };
+  service?: {
+    id: number;
+    title: string;
+  };
 }
 
 export interface DayCell {
@@ -27,4 +41,12 @@ export interface WizardFormData {
   date: string;
   time: string;
   notes: string;
+}
+
+export interface ReserveVisitPayload {
+  customer: number;
+  services: number[];
+  date: string;
+  time: string;
+  notes?: string;
 }

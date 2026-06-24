@@ -30,7 +30,7 @@ export type {
   PatientStatusVariant,
 } from "./dashboard";
 export type { Patient, PatientFormData, PatientStatus } from "./patient";
-export type { Service, ServiceCategory, ServiceFormData } from "./service";
+export type { Service, ServiceFormData } from "./service";
 export type { ClinicUser, DayHours, UserRole } from "./settings";
 export type { SidebarItem, SidebarItemGroup, SidebarSection } from "./sidebar";
 export type { ToastContextValue, ToastInput, ToastType } from "./toast";

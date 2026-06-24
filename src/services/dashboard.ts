@@ -9,7 +9,23 @@ export interface DashboardStats {
   newCustomers: number;
 }
 
+type RawDashboardStats = Record<string, unknown> & {
+  customerCount?: number;
+  loyalCustomerCount?: number;
+  todaySales?: string | number;
+  todayVisits?: number;
+  newCustomers?: number;
+};
+
+const toDashboardStats = (raw: RawDashboardStats): DashboardStats => ({
+  customerCount: raw.customerCount ?? 0,
+  loyalCustomerCount: raw.loyalCustomerCount ?? 0,
+  todaySales: Number(raw.todaySales ?? 0),
+  todayVisits: raw.todayVisits ?? 0,
+  newCustomers: raw.newCustomers ?? 0,
+});
+
 export const getDashboardStats = async (): Promise<DashboardStats> => {
   const { data } = await apiClient.get(endpoints.dashboard.stats);
-  return data as unknown as DashboardStats;
+  return toDashboardStats(data as RawDashboardStats);
 };

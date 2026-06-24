@@ -5,6 +5,7 @@ interface ReportsData {
   customerCount: number;
   totalRevenue: number;
   retentionRate: number | null;
+  avgSatisfaction: number;
   monthlyRevenue: { month: string; revenue: number }[];
   appointmentStats: { name: string; value: number; color: string }[];
   monthlyVisits: { month: string; visits: number }[];
@@ -15,7 +16,13 @@ type RawAllReports = Record<string, unknown> & {
   totalCustomers?: number;
   totalSales?: number;
   totalVisits?: number;
-  salesChart?: { monthly?: { period: string; total: number }[] };
+  salesChart?: {
+    daily?: { period: string; total: number }[];
+    weekly?: { period: string; total: number }[];
+    monthly?: { period: string; total: number }[];
+    quarterly?: { period: string; total: number }[];
+    yearly?: { period: string; total: number }[];
+  };
   customerStatus?: Record<string, number>;
   servicePopularity?: { id: number; name: string; usage: number }[];
   avgSatisfaction?: number;
@@ -28,6 +35,18 @@ type RawFilteredReports = Record<string, unknown> & {
   servicePopularity?: { id: number; name: string; usage: number }[];
   avgSatisfaction?: number;
   customerBreakdown?: { total?: number };
+};
+
+type RawVisitsReport = Record<string, unknown> & {
+  monthly?: { period: string; count: number }[];
+  weekly?: { period: string; count: number }[];
+  daily?: { period: string; count: number }[];
+};
+
+type RawReferralReport = Record<string, unknown> & {
+  referralRate?: number;
+  newCustomers?: number;
+  returningCustomers?: number;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -80,6 +99,7 @@ function toReportsData(raw: RawAllReports | RawFilteredReports, isAll: boolean):
     customerCount,
     totalRevenue: raw.totalSales ?? 0,
     retentionRate: null,
+    avgSatisfaction: raw.avgSatisfaction ?? 0,
     monthlyRevenue,
     appointmentStats,
     monthlyVisits: [],
@@ -105,6 +125,24 @@ export const getFilteredReports = async (
 export const getCustomerBreakdown = async () => {
   const { data } = await apiClient.get(endpoints.reports.customers);
   return data;
+};
+
+export const getVisitReports = async (): Promise<{ month: string; visits: number }[]> => {
+  const { data } = await apiClient.get(endpoints.reports.visits);
+  const raw = data as RawVisitsReport;
+  const monthly = raw.monthly ?? [];
+  return monthly.map((m) => ({
+    month: m.period,
+    visits: m.count,
+  }));
+};
+
+export const getReferralReports = async (): Promise<{ referralRate: number }> => {
+  const { data } = await apiClient.get(endpoints.reports.referral);
+  const raw = data as RawReferralReport;
+  return {
+    referralRate: raw.referralRate ?? 0,
+  };
 };
 
 export const getVisitComparison = async () => {

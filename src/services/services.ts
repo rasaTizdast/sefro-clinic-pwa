@@ -16,7 +16,6 @@ type RawService = Record<string, unknown> & {
 const toService = (raw: RawService): Service => ({
   id: raw.id,
   title: raw.name ?? "",
-  category: "",
   duration: raw.time ?? 0,
   price: Number(raw.price) || 0,
   description: raw.description ?? "",

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../components/ui";
 import { queryKeys } from "../../lib/query-keys";
 import * as visitsService from "../../services/visits";
+import type { ReserveVisitPayload } from "../../types/appointment";
 
 export function useVisitsList(params?: Record<string, unknown>) {
   return useQuery({
@@ -41,7 +42,7 @@ export function useReserveVisit() {
   const toast = useToast();
 
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) => visitsService.reserveVisit(data),
+    mutationFn: (data: ReserveVisitPayload) => visitsService.reserveVisit(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
       toast.success("نوبت رزرو شد.");

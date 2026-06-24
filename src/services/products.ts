@@ -2,7 +2,7 @@ import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
-import type { WarehouseItem } from "../types/warehouse";
+import type { ProductStatus,WarehouseItem } from "../types/warehouse";
 
 type RawProduct = Record<string, unknown> & {
   id: number;
@@ -17,13 +17,11 @@ type RawProduct = Record<string, unknown> & {
 const toWarehouseItem = (raw: RawProduct): WarehouseItem => ({
   id: raw.id,
   name: raw.name ?? "",
-  category: "",
-  categoryLabel: "",
   stock: raw.count ?? 0,
   unit: raw.unit ?? "",
   unitPrice: raw.unitPrice ?? "0",
-  expiryDate: "",
   description: raw.description ?? "",
+  status: (raw.status as ProductStatus) ?? "available",
 });
 
 const toBackendPayload = (data: Record<string, unknown>) => ({

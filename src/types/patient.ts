@@ -1,7 +1,4 @@
-import type { Service } from "./service";
-import type { WarehouseItem } from "./warehouse";
-
-export type PatientStatus = "active" | "inactive" | "new";
+export type PatientStatus = "new" | "active" | "loyal" | "inactive";
 
 export interface Patient {
   id: number;
@@ -13,9 +10,10 @@ export interface Patient {
   lastVisit: string;
   visitCount: number;
   status: PatientStatus;
+  isNewCustomer: boolean;
+  isLoyalCustomer: boolean;
+  totalPayments: number;
   createdAt: string;
-  products: WarehouseItem[];
-  services: Service[];
 }
 
 export interface PatientFormData {

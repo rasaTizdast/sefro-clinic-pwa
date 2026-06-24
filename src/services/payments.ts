@@ -1,10 +1,10 @@
 import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
-import type { BackendPaymentMethod, Transaction } from "../types/accounting";
+import type { PaymentMethod, Transaction } from "../types/accounting";
 import type { PaginatedResponse } from "../types/api";
 
-const VALID_PAYMENT_METHODS: BackendPaymentMethod[] = ["cash", "card", "transfer"];
+const VALID_PAYMENT_METHODS: PaymentMethod[] = ["cash", "card", "transfer"];
 
 type RawPayment = Record<string, unknown> & {
   id: number;
@@ -22,22 +22,27 @@ const toTransaction = (raw: RawPayment): Transaction => ({
   description: raw.notes ?? "",
   patient: raw.customerName ?? "",
   amount: Number(raw.amount) || 0,
-  paymentMethod: raw.paymentMethod ?? "cash",
+  paymentMethod: (raw.paymentMethod as PaymentMethod) ?? "cash",
   status: "paid",
+  customerId: raw.customer,
 });
 
 const toBackendPayload = (data: Record<string, unknown>) => {
   let method = String(data.paymentMethod ?? "cash");
-  if (!VALID_PAYMENT_METHODS.includes(method as BackendPaymentMethod)) {
+  if (!VALID_PAYMENT_METHODS.includes(method as PaymentMethod)) {
     method = "cash";
   }
-  return {
+  const payload: Record<string, unknown> = {
     customer: data.patientId,
     amount: Number(data.amount) || 0,
     payment_method: method,
     paid_at: data.date,
     notes: data.description ?? "",
   };
+  if (data.serviceId && Number(data.serviceId) > 0) {
+    payload.visit = Number(data.serviceId);
+  }
+  return payload;
 };
 
 export const listPayments = async (
