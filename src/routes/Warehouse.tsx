@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { BiEdit, BiPlus, BiSearch, BiTrash } from "react-icons/bi";
 
 import { SearchButton } from "../components/SearchButton";
@@ -11,7 +11,6 @@ import { Modal } from "../components/ui/Modal";
 import { Pagination } from "../components/ui/Pagination";
 import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
-import { Tabs } from "../components/ui/Tabs";
 import { Textarea } from "../components/ui/Textarea";
 import {
   useCreateProduct,
@@ -21,26 +20,11 @@ import {
 } from "../hooks/api";
 import type { WarehouseItem } from "../types/warehouse";
 
-const categoryTabs = [
-  { id: "all", label: "همه" },
-  { id: "medicines", label: "داروها" },
-  { id: "consumables", label: "مواد مصرفی" },
-  { id: "equipment", label: "تجهیزات" },
-  { id: "office", label: "لوازم اداری" },
-];
-
 const unitOptions = [
   { value: "عدد", label: "عدد" },
   { value: "بسته", label: "بسته" },
   { value: "کیلوگرم", label: "کیلوگرم" },
   { value: "لیتر", label: "لیتر" },
-];
-
-const categoryOptions = [
-  { value: "medicines", label: "داروها" },
-  { value: "consumables", label: "مواد مصرفی" },
-  { value: "equipment", label: "تجهیزات" },
-  { value: "office", label: "لوازم اداری" },
 ];
 
 function getStatus(stock: number): { label: string; variant: "success" | "warning" | "danger" } {
@@ -50,18 +34,15 @@ function getStatus(stock: number): { label: string; variant: "success" | "warnin
 }
 
 function Warehouse() {
-  const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WarehouseItem | null>(null);
 
   const [formName, setFormName] = useState("");
-  const [formCategory, setFormCategory] = useState("");
   const [formStock, setFormStock] = useState("");
   const [formUnit, setFormUnit] = useState("");
   const [formUnitPrice, setFormUnitPrice] = useState("");
-  const [formExpiryDate, setFormExpiryDate] = useState("");
   const [formDescription, setFormDescription] = useState("");
 
   const pageSize = 8;
@@ -77,20 +58,10 @@ function Warehouse() {
 
   const items = paginated?.data ?? [];
 
-  const filteredData = useMemo(() => {
-    if (activeTab === "all") return items;
-    return items.filter((item) => item.category === activeTab);
-  }, [items, activeTab]);
-
   const totalPages = paginated?.totalPages ?? 1;
-  const pagedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pagedData = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const lowStockCount = items.filter((item) => item.stock <= 10).length;
-
-  const handleTabChange = (id: string) => {
-    setActiveTab(id);
-    setCurrentPage(1);
-  };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -99,11 +70,9 @@ function Warehouse() {
 
   const resetForm = () => {
     setFormName("");
-    setFormCategory("");
     setFormStock("");
     setFormUnit("");
     setFormUnitPrice("");
-    setFormExpiryDate("");
     setFormDescription("");
   };
 
@@ -116,11 +85,9 @@ function Warehouse() {
   const openEditModal = (item: WarehouseItem) => {
     setEditingItem(item);
     setFormName(item.name);
-    setFormCategory(item.category);
     setFormStock(String(item.stock));
     setFormUnit(item.unit);
     setFormUnitPrice(item.unitPrice);
-    setFormExpiryDate(item.expiryDate);
     setFormDescription(item.description);
     setModalOpen(true);
   };
@@ -132,15 +99,11 @@ function Warehouse() {
   const handleSave = () => {
     if (!formName.trim()) return;
 
-    const categoryLabel = categoryOptions.find((o) => o.value === formCategory)?.label || "";
     const payload: Record<string, unknown> = {
       name: formName,
-      category: formCategory,
-      categoryLabel,
       stock: Number(formStock) || 0,
       unit: formUnit,
       unitPrice: formUnitPrice,
-      expiryDate: formExpiryDate,
       description: formDescription,
     };
 
@@ -156,11 +119,9 @@ function Warehouse() {
 
   const columns: Column<WarehouseItem>[] = [
     { key: "name", header: "نام محصول" },
-    { key: "categoryLabel", header: "دسته‌بندی", width: "100px", align: "center" },
     { key: "stock", header: "موجودی", width: "70px", align: "center" },
     { key: "unit", header: "واحد", width: "80px", align: "center" },
     { key: "unitPrice", header: "قیمت واحد", width: "110px", align: "center" },
-    { key: "expiryDate", header: "تاریخ انقضا", width: "120px", align: "center" },
     {
       key: "status",
       header: "وضعیت",
@@ -225,7 +186,6 @@ function Warehouse() {
       )}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Tabs tabs={categoryTabs} activeTab={activeTab} onChange={handleTabChange} />
         <div className="w-full shrink-0 sm:w-64">
           <Input
             placeholder="جستجوی محصول..."
@@ -275,22 +235,6 @@ function Warehouse() {
             placeholder="نام محصول را وارد کنید"
           />
           <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="دسته‌بندی"
-              options={categoryOptions}
-              placeholder="انتخاب دسته‌بندی"
-              value={formCategory}
-              onChange={(e) => setFormCategory(e.target.value)}
-            />
-            <Select
-              label="واحد"
-              options={unitOptions}
-              placeholder="انتخاب واحد"
-              value={formUnit}
-              onChange={(e) => setFormUnit(e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
             <Input
               label="تعداد موجودی"
               type="number"
@@ -305,12 +249,15 @@ function Warehouse() {
               placeholder="قیمت را وارد کنید"
             />
           </div>
-          <Input
-            label="تاریخ انقضا"
-            value={formExpiryDate}
-            onChange={(e) => setFormExpiryDate(e.target.value)}
-            placeholder="مثال: ۱۴۰۵/۱۲/۲۰"
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="واحد"
+              options={unitOptions}
+              placeholder="انتخاب واحد"
+              value={formUnit}
+              onChange={(e) => setFormUnit(e.target.value)}
+            />
+          </div>
           <Textarea
             label="توضیحات"
             value={formDescription}
