@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BiDownload, BiEdit, BiPlus, BiSearch, BiTrash } from "react-icons/bi";
 import { MdPersonAdd } from "react-icons/md";
 import { MdOutlinePeople } from "react-icons/md";
@@ -13,7 +13,6 @@ import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Input } from "../components/ui/Input";
 import { Pagination } from "../components/ui/Pagination";
-import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
 import type { Tab } from "../components/ui/Tabs";
 import { Tabs } from "../components/ui/Tabs";
@@ -24,7 +23,10 @@ import {
   useUpdateCustomer,
 } from "../hooks/api";
 import { useQuickActions } from "../hooks/useQuickActions";
+import { formatJalaliDate } from "../lib/date";
 import { toPersianDigits } from "../lib/digits";
+import { exportPatientsToExcel } from "../lib/excel";
+import { formatPrice } from "../lib/format";
 import type { Patient, PatientFormData, PatientStatus } from "../types/patient";
 
 type StatusVariant = "success" | "warning" | "info";
@@ -51,6 +53,8 @@ function Patients() {
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const { registerAction } = useQuickActions();
 
   const searchValue = search.trim() || undefined;
@@ -82,6 +86,16 @@ function Patients() {
     });
     return unregister;
   }, [registerAction]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const patients = paginated?.data ?? [];
   const totalPages = paginated?.totalPages ?? 1;
@@ -118,25 +132,20 @@ function Patients() {
 
   const handleDeletePatient = (id: number) => {
     deleteMutation.mutate(id);
+    setOpenMenuId(null);
   };
 
-  const getActionItems = (patient: Patient) => [
-    {
-      label: "ویرایش",
-      icon: <BiEdit className="size-4" />,
-      onClick: () => {
-        setEditingPatient(patient);
-        setModalOpen(true);
-      },
-    },
-    { divider: true },
-    {
-      label: "حذف",
-      icon: <BiTrash className="size-4" />,
-      danger: true,
-      onClick: () => handleDeletePatient(patient.id),
-    },
-  ];
+  const handleExport = async () => {
+    exportPatientsToExcel(patients);
+  };
+
+  const statusLabel = (status: PatientStatus) => statusMap[status].label;
+  const statusVariant = (status: PatientStatus) => statusMap[status].variant;
+
+  const satisfactionStars = (value: number) => {
+    if (!value) return "—";
+    return "★".repeat(Math.max(1, Math.min(5, Math.round(value))));
+  };
 
   const columns: Column<Patient>[] = [
     {
@@ -147,54 +156,114 @@ function Patients() {
     {
       key: "mobileNumber",
       header: "تلفن",
-      width: "130px",
+      width: "120px",
       render: (item) => toPersianDigits(item.mobileNumber),
     },
     {
-      key: "nationalId",
-      header: "کد ملی",
-      render: (item) => toPersianDigits(item.nationalId),
+      key: "satisfaction",
+      header: "رضایت",
+      align: "center",
+      width: "80px",
+      render: (item) => (
+        <span
+          className={`text-sm ${item.satisfaction >= 4 ? "text-success-500" : item.satisfaction >= 3 ? "text-warning-500" : "text-surface-400"}`}
+        >
+          {item.satisfaction ? satisfactionStars(item.satisfaction) : "—"}
+        </span>
+      ),
     },
-    { key: "lastVisit", header: "آخرین مراجعه", align: "center", width: "130px" },
     {
       key: "visitCount",
-      header: "تعداد مراجعات",
+      header: "مراجعات",
+      align: "center",
+      width: "70px",
+      render: (item) => new Intl.NumberFormat("fa-IR").format(item.visitCount),
+    },
+    {
+      key: "totalPayments",
+      header: "کل پرداختی",
+      align: "end",
+      width: "100px",
+      render: (item) => (
+        <span
+          className={item.totalPayments > 0 ? "text-surface-900 font-medium" : "text-surface-400"}
+        >
+          {item.totalPayments > 0 ? formatPrice(item.totalPayments) : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "lastVisit",
+      header: "آخرین مراجعه",
+      align: "center",
+      width: "110px",
+      render: (item) => (
+        <span className={item.lastVisit ? "text-surface-700" : "text-surface-400"}>
+          {item.lastVisit || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "createdAt",
+      header: "عضویت",
       align: "center",
       width: "90px",
-      render: (item) => new Intl.NumberFormat("fa-IR").format(item.visitCount),
+      render: (item) => (
+        <span className="text-surface-500 text-xs">{formatJalaliDate(item.createdAt)}</span>
+      ),
     },
     {
       key: "status",
       header: "وضعیت",
       align: "center",
-      width: "90px",
-      render: (item) => {
-        const s = statusMap[item.status];
-        return (
-          <Badge variant={s.variant} size="sm">
-            {s.label}
-          </Badge>
-        );
-      },
+      width: "80px",
+      render: (item) => (
+        <Badge variant={statusVariant(item.status)} size="sm">
+          {statusLabel(item.status)}
+        </Badge>
+      ),
     },
     {
       key: "actions",
       header: "عملیات",
       align: "center",
-      width: "80px",
+      width: "70px",
       render: (item) => (
-        <Select
-          align="end"
-          trigger={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="border-surface-200 hover:border-surface-300 hover:bg-surface-50 border"
-              startIcon={<PiDotsThreeVertical className="size-4" />}
-            />
-          }
-          items={getActionItems(item)}
-        />
+        <div className="relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="border-surface-200 hover:border-surface-300 hover:bg-surface-50 border"
+            startIcon={<PiDotsThreeVertical className="size-4" />}
+            onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+          />
+          {openMenuId === item.id && (
+            <div
+              ref={menuRef}
+              className="border-surface-200 absolute start-0 z-50 min-w-[120px] rounded-xl border bg-white shadow-lg ring-1 ring-black/5"
+            >
+              <button
+                onClick={() => {
+                  setEditingPatient(item);
+                  setModalOpen(true);
+                  setOpenMenuId(null);
+                }}
+                className="text-surface-700 hover:bg-surface-100 flex w-full items-center gap-2 px-3 py-2 text-sm"
+              >
+                <BiEdit className="size-4" />
+                ویرایش
+              </button>
+              <div className="border-surface-100 border-t" />
+              <button
+                onClick={() => handleDeletePatient(item.id)}
+                className="text-danger-600 hover:bg-danger-50 flex w-full items-center gap-2 px-3 py-2 text-sm"
+              >
+                <BiTrash className="size-4" />
+                حذف
+              </button>
+            </div>
+          )}
+        </div>
       ),
     },
   ];
@@ -220,7 +289,11 @@ function Patients() {
           <p className="text-surface-500 mt-1 text-sm">مدیریت بیماران کلینیک</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" startIcon={<BiDownload className="size-4" />}>
+          <Button
+            variant="outline"
+            startIcon={<BiDownload className="size-4" />}
+            onClick={handleExport}
+          >
             خروجی
           </Button>
           <Button
@@ -311,6 +384,7 @@ function Patients() {
                   mobileNumber: editingPatient.mobileNumber,
                   nationalId: editingPatient.nationalId,
                   bitmojiCode: editingPatient.bitmojiCode,
+                  notes: editingPatient.notes,
                 }
               : undefined
           }
