@@ -43,4 +43,7 @@ export const queryKeys = {
   dashboard: {
     stats: ["dashboard", "stats"] as const,
   },
+  workTime: {
+    all: ["workTime"] as const,
+  },
 } as const;

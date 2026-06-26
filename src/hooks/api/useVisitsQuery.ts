@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../components/ui";
 import { queryKeys } from "../../lib/query-keys";
 import * as visitsService from "../../services/visits";
-import type { ReserveVisitPayload } from "../../types/appointment";
+import type { ReserveVisitPayload, UpdateVisitPayload } from "../../types/appointment";
 
 export function useVisitsList(params?: Record<string, unknown>) {
   return useQuery({
@@ -18,22 +18,6 @@ export function useVisit(id: number) {
     queryKey: queryKeys.visits.detail(id),
     queryFn: () => visitsService.getVisit(id),
     enabled: id > 0,
-  });
-}
-
-export function useCreateVisit() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-
-  return useMutation({
-    mutationFn: (data: Record<string, unknown>) => visitsService.createVisit(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
-      toast.success("نوبت با موفقیت ثبت شد.");
-    },
-    onError: () => {
-      toast.error("خطا در ثبت نوبت");
-    },
   });
 }
 
@@ -81,6 +65,39 @@ export function useCompleteVisit() {
     },
     onError: () => {
       toast.error("خطا در اتمام نوبت");
+    },
+  });
+}
+
+export function useUpdateVisit() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: UpdateVisitPayload }) =>
+      visitsService.updateVisit(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
+      toast.success("نوبت ویرایش شد.");
+    },
+    onError: () => {
+      toast.error("خطا در ویرایش نوبت");
+    },
+  });
+}
+
+export function useDeleteVisit() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (id: number) => visitsService.deleteVisit(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
+      toast.success("نوبت حذف شد.");
+    },
+    onError: () => {
+      toast.error("خطا در حذف نوبت");
     },
   });
 }

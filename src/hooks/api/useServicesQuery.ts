@@ -31,9 +31,6 @@ export function useCreateService() {
       queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
       toast.success("خدمت با موفقیت افزوده شد.");
     },
-    onError: () => {
-      toast.error("خطا در افزودن خدمت");
-    },
   });
 }
 

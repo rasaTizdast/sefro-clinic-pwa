@@ -27,6 +27,7 @@ export const patientFormSchema = z.object({
       message: "کد ملی باید ۱۰ رقم باشد",
     }),
   bitmojiCode: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export type PatientFormSchema = z.infer<typeof patientFormSchema>;

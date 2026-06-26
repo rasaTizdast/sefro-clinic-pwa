@@ -49,4 +49,8 @@ export const endpoints = {
   dashboard: {
     stats: "/dashboard/",
   },
+  workTime: {
+    list: "/work-time/",
+    detail: (id: number) => `/work-time/${id}/`,
+  },
 } as const;

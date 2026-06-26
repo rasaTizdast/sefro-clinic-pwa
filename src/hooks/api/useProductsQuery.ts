@@ -31,9 +31,6 @@ export function useCreateProduct() {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       toast.success("محصول با موفقیت افزوده شد.");
     },
-    onError: () => {
-      toast.error("خطا در افزودن محصول");
-    },
   });
 }
 
@@ -47,9 +44,6 @@ export function useUpdateProduct() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       toast.success("محصول به‌روزرسانی شد.");
-    },
-    onError: () => {
-      toast.error("خطا در به‌روزرسانی محصول");
     },
   });
 }

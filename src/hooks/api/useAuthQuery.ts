@@ -19,6 +19,7 @@ export function useEmployees() {
   return useQuery({
     queryKey: queryKeys.auth.employees,
     queryFn: authService.listEmployees,
+    retry: false,
   });
 }
 

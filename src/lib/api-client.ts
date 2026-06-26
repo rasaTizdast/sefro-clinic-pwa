@@ -56,6 +56,7 @@ apiClient.interceptors.response.use(
         error.message ??
         "خطای ناشناخته",
       code: error.code,
+      raw: responseData,
     };
 
     return Promise.reject(normalized);
