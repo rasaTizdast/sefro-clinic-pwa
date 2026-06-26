@@ -1,15 +1,28 @@
 import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
 
+interface SalesChartEntry {
+  period: string;
+  total: number;
+}
+
 interface ReportsData {
   customerCount: number;
   totalRevenue: number;
+  totalVisits: number;
   retentionRate: number | null;
   avgSatisfaction: number;
   monthlyRevenue: { month: string; revenue: number }[];
   appointmentStats: { name: string; value: number; color: string }[];
   monthlyVisits: { month: string; visits: number }[];
   serviceCategoryStats: { name: string; value: number }[];
+  salesChart: {
+    daily: SalesChartEntry[];
+    weekly: SalesChartEntry[];
+    monthly: SalesChartEntry[];
+    quarterly: SalesChartEntry[];
+    yearly: SalesChartEntry[];
+  };
 }
 
 type RawAllReports = Record<string, unknown> & {
@@ -31,7 +44,13 @@ type RawAllReports = Record<string, unknown> & {
 type RawFilteredReports = Record<string, unknown> & {
   totalSales?: number;
   totalVisits?: number;
-  monthly?: { period: string; total: number }[];
+  salesChart?: {
+    daily?: { period: string; total: number }[];
+    weekly?: { period: string; total: number }[];
+    monthly?: { period: string; total: number }[];
+    quarterly?: { period: string; total: number }[];
+    yearly?: { period: string; total: number }[];
+  };
   servicePopularity?: { id: number; name: string; usage: number }[];
   avgSatisfaction?: number;
   customerBreakdown?: { total?: number };
@@ -56,60 +75,74 @@ const STATUS_COLORS: Record<string, string> = {
   canceled: "#ef4444",
 };
 
-function toReportsData(raw: RawAllReports | RawFilteredReports, isAll: boolean): ReportsData {
-  const monthlyRaw = isAll
-    ? (raw as RawAllReports).salesChart?.monthly
-    : (raw as RawFilteredReports).monthly;
+function extractChart(raw: RawAllReports | RawFilteredReports) {
+  const chart = isAllReports(raw) ? raw.salesChart : raw.salesChart;
+  return {
+    daily: (chart?.daily ?? []).map((e) => ({ period: e.period, total: e.total })),
+    weekly: (chart?.weekly ?? []).map((e) => ({ period: e.period, total: e.total })),
+    monthly: (chart?.monthly ?? []).map((e) => ({ period: e.period, total: e.total })),
+    quarterly: (chart?.quarterly ?? []).map((e) => ({ period: e.period, total: e.total })),
+    yearly: (chart?.yearly ?? []).map((e) => ({ period: e.period, total: e.total })),
+  };
+}
 
-  const monthlyRevenue = (monthlyRaw ?? []).map((m) => ({
+function isAllReports(raw: RawAllReports | RawFilteredReports): raw is RawAllReports {
+  return "totalCustomers" in raw;
+}
+
+function extractAppointmentStats(raw: RawAllReports | RawFilteredReports) {
+  const customerStatus = isAllReports(raw) ? raw.customerStatus : undefined;
+  if (!customerStatus) return [];
+
+  return Object.entries(customerStatus).map(([key, value]) => ({
+    name:
+      key === "pending"
+        ? "در انتظار"
+        : key === "confirmed"
+          ? "تأیید شده"
+          : key === "completed"
+            ? "انجام شده"
+            : key === "canceled"
+              ? "لغو شده"
+              : key,
+    value,
+    color: STATUS_COLORS[key] ?? "#94a3b8",
+  }));
+}
+
+function toReportsData(raw: RawAllReports | RawFilteredReports): ReportsData {
+  const chart = extractChart(raw);
+  const monthlyRevenue = chart.monthly.map((m) => ({
     month: m.period,
     revenue: m.total,
   }));
-
-  const customerStatus = isAll ? (raw as RawAllReports).customerStatus : undefined;
-
-  const appointmentStats = customerStatus
-    ? Object.entries(customerStatus).map(([key, value]) => ({
-        name:
-          key === "pending"
-            ? "در انتظار"
-            : key === "confirmed"
-              ? "تأیید شده"
-              : key === "completed"
-                ? "انجام شده"
-                : key === "canceled"
-                  ? "لغو شده"
-                  : key,
-        value,
-        color: STATUS_COLORS[key] ?? "#94a3b8",
-      }))
-    : [];
-
+  const appointmentStats = extractAppointmentStats(raw);
   const popularity = (raw.servicePopularity ?? []).slice(0, 10);
   const serviceCategoryStats = popularity.map((s) => ({
     name: s.name,
     value: s.usage,
   }));
-
-  const customerCount = isAll
-    ? ((raw as RawAllReports).totalCustomers ?? 0)
+  const customerCount = isAllReports(raw)
+    ? (raw.totalCustomers ?? 0)
     : ((raw as RawFilteredReports).customerBreakdown?.total ?? 0);
 
   return {
     customerCount,
     totalRevenue: raw.totalSales ?? 0,
+    totalVisits: raw.totalVisits ?? 0,
     retentionRate: null,
     avgSatisfaction: raw.avgSatisfaction ?? 0,
     monthlyRevenue,
     appointmentStats,
     monthlyVisits: [],
     serviceCategoryStats,
+    salesChart: chart,
   };
 }
 
 export const getAllReports = async (): Promise<ReportsData> => {
   const { data } = await apiClient.get(endpoints.reports.all);
-  return toReportsData(data as RawAllReports, true);
+  return toReportsData(data as RawAllReports);
 };
 
 export const getFilteredReports = async (
@@ -119,7 +152,7 @@ export const getFilteredReports = async (
   const { data } = await apiClient.get(endpoints.reports.filtered, {
     params: { dateFrom, dateTo },
   });
-  return toReportsData(data as RawFilteredReports, false);
+  return toReportsData(data as RawFilteredReports);
 };
 
 export const getCustomerBreakdown = async () => {

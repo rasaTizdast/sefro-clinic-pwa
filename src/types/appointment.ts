@@ -4,6 +4,7 @@ export interface Appointment {
   id: number;
   customer: number;
   customerName: string;
+  customerMobile: string;
   staff: number | null;
   services: number[];
   serviceNames: string[];
@@ -14,15 +15,6 @@ export interface Appointment {
   duration: number;
   status: AppointmentStatus;
   notes: string;
-  patient?: {
-    id: number;
-    firstName: string;
-    lastName: string;
-  };
-  service?: {
-    id: number;
-    title: string;
-  };
 }
 
 export interface DayCell {
@@ -48,5 +40,12 @@ export interface ReserveVisitPayload {
   services: number[];
   date: string;
   time: string;
+  notes?: string;
+}
+
+export interface UpdateVisitPayload {
+  services?: number[];
+  date?: string;
+  time?: string;
   notes?: string;
 }

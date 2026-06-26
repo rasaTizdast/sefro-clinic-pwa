@@ -32,4 +32,5 @@ export interface PaginatedRequest {
 export interface ApiError {
   message: string;
   code?: string;
+  raw?: Record<string, unknown>;
 }

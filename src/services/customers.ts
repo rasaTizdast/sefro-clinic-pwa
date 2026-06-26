@@ -11,6 +11,8 @@ type RawPatient = Record<string, unknown> & {
   mobileNumber?: string;
   nationalId?: string;
   bitmojiCode?: string;
+  satisfaction?: number;
+  notes?: string;
   lastVisitDate?: string;
   visitNumber?: number;
   isNewCustomer?: boolean;
@@ -34,12 +36,14 @@ const toPatient = (raw: RawPatient): Patient => ({
   mobileNumber: raw.mobileNumber ?? "",
   nationalId: raw.nationalId ?? "",
   bitmojiCode: raw.bitmojiCode ?? "",
+  satisfaction: raw.satisfaction ?? 0,
+  notes: raw.notes ?? "",
   lastVisit: raw.lastVisitDate ?? "",
   visitCount: raw.visitNumber ?? 0,
   status: toStatus(raw),
   isNewCustomer: raw.isNewCustomer ?? false,
   isLoyalCustomer: raw.isLoyalCustomer ?? false,
-  totalPayments: raw.totalPayments ?? 0,
+  totalPayments: Number(raw.totalPayments) || 0,
   createdAt: raw.createdAt ?? "",
 });
 
@@ -68,8 +72,11 @@ export const getCustomer = async (id: number): Promise<Patient> => {
   return toPatient(data as RawPatient);
 };
 
-export const createCustomer = (customer: PatientFormData) =>
-  apiClient.post(endpoints.customers.list, customer);
+export const createCustomer = (customer: PatientFormData) => {
+  const payload: Record<string, unknown> = { ...customer };
+  if (!payload.bitmojiCode) delete payload.bitmojiCode;
+  return apiClient.post(endpoints.customers.list, payload);
+};
 
 export const updateCustomer = (id: number, customer: Partial<PatientFormData>) =>
   apiClient.put(endpoints.customers.detail(id), customer);

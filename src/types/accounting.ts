@@ -16,13 +16,14 @@ export interface Transaction {
   status: TransactionStatus;
   serviceId?: number;
   customerId?: number;
+  visitId?: number;
 }
 
 export interface TransactionFormData {
   date: string;
   patientId: number;
   patientName: string;
-  serviceId: number;
+  visitId: number;
   amount: number;
   paymentMethod: PaymentMethod;
   description: string;

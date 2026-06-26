@@ -2,7 +2,7 @@ import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
-import type { Appointment, ReserveVisitPayload } from "../types/appointment";
+import type { Appointment, ReserveVisitPayload, UpdateVisitPayload } from "../types/appointment";
 
 type RawAppointment = Record<string, unknown> & {
   id: number;
@@ -26,7 +26,10 @@ function computeDuration(startAt: string, endAt: string): number {
 
 function extractDate(dateTime: string): string {
   if (!dateTime) return "";
-  return dateTime.split(" ")[0];
+  const datePart = dateTime.split(" ")[0];
+  const parts = datePart.split("-").map(Number);
+  if (parts.length !== 3) return datePart;
+  return `${parts[0]}/${parts[1]}/${parts[2]}`;
 }
 
 function extractTime(dateTime: string): string {
@@ -39,7 +42,8 @@ function extractTime(dateTime: string): string {
 const toAppointment = (raw: RawAppointment): Appointment => ({
   id: raw.id,
   customer: raw.customer ?? 0,
-  customerName: "",
+  customerName: (raw.customerName as string) ?? "",
+  customerMobile: (raw.customerMobile as string) ?? "",
   staff: raw.staff ?? null,
   services: raw.services ?? [],
   serviceNames: raw.serviceNames ?? [],
@@ -50,8 +54,6 @@ const toAppointment = (raw: RawAppointment): Appointment => ({
   duration: computeDuration(raw.startAt ?? "", raw.endAt ?? ""),
   status: (raw.status as Appointment["status"]) ?? "pending",
   notes: raw.notes ?? "",
-  patient: undefined,
-  service: undefined,
 });
 
 export const listVisits = async (
@@ -80,9 +82,6 @@ export const getVisit = async (id: number): Promise<Appointment> => {
   return toAppointment(data as RawAppointment);
 };
 
-export const createVisit = (visit: Record<string, unknown>) =>
-  apiClient.post(endpoints.visits.list, visit);
-
 export const confirmVisit = (id: number) => apiClient.post(endpoints.visits.confirm(id));
 
 export const completeVisit = (id: number) => apiClient.post(endpoints.visits.complete(id));
@@ -91,3 +90,8 @@ export const cancelVisit = (id: number) => apiClient.post(endpoints.visits.cance
 
 export const reserveVisit = (data: ReserveVisitPayload) =>
   apiClient.post(endpoints.visits.reserve, data);
+
+export const updateVisit = (id: number, data: UpdateVisitPayload) =>
+  apiClient.patch(endpoints.visits.detail(id), data);
+
+export const deleteVisit = (id: number) => apiClient.delete(endpoints.visits.detail(id));

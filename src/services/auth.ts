@@ -14,7 +14,11 @@ export const getMe = async (): Promise<AuthUser> => {
 
 export const listEmployees = async (): Promise<AuthUser[]> => {
   const { data } = await apiClient.get(endpoints.auth.employeesList);
-  return data as unknown as AuthUser[];
+  const raw = data as Record<string, unknown>;
+  if (Array.isArray(raw)) return raw as unknown as AuthUser[];
+  if (Array.isArray(raw.results)) return raw.results as unknown as AuthUser[];
+  if (Array.isArray(raw.data)) return raw.data as unknown as AuthUser[];
+  return [];
 };
 
 export const createEmployee = (employee: Record<string, unknown>) =>

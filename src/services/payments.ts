@@ -14,6 +14,7 @@ type RawPayment = Record<string, unknown> & {
   paidAt?: string;
   notes?: string;
   customer?: number;
+  visit?: number;
 };
 
 const toTransaction = (raw: RawPayment): Transaction => ({
@@ -25,6 +26,7 @@ const toTransaction = (raw: RawPayment): Transaction => ({
   paymentMethod: (raw.paymentMethod as PaymentMethod) ?? "cash",
   status: "paid",
   customerId: raw.customer,
+  visitId: raw.visit,
 });
 
 const toBackendPayload = (data: Record<string, unknown>) => {
@@ -34,14 +36,12 @@ const toBackendPayload = (data: Record<string, unknown>) => {
   }
   const payload: Record<string, unknown> = {
     customer: data.patientId,
+    visit: data.visitId,
     amount: Number(data.amount) || 0,
     payment_method: method,
     paid_at: data.date,
     notes: data.description ?? "",
   };
-  if (data.serviceId && Number(data.serviceId) > 0) {
-    payload.visit = Number(data.serviceId);
-  }
   return payload;
 };
 
@@ -83,4 +83,24 @@ export const getPaymentsByService = async (dateFrom?: string, dateTo?: string) =
     params: { dateFrom, dateTo },
   });
   return data;
+};
+
+const PAGE_SIZE = 20;
+
+export const exportAllPayments = async (
+  dateFrom?: string,
+  dateTo?: string
+): Promise<Transaction[]> => {
+  let page = 1;
+  let allData: Transaction[] = [];
+  let totalPages = 1;
+
+  while (page <= totalPages) {
+    const result = await listPayments({ page, perPage: PAGE_SIZE, dateFrom, dateTo });
+    allData = allData.concat(result.data);
+    totalPages = result.totalPages;
+    page++;
+  }
+
+  return allData;
 };
