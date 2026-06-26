@@ -15,11 +15,16 @@ import { Button } from "../components/ui/Button";
 import { Card, CardTitle } from "../components/ui/Card";
 import { JalaliDatePicker } from "../components/ui/JalaliDatePicker";
 import { Pagination } from "../components/ui/Pagination";
-import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
-import { useCreatePayment, usePaymentsList, useServicesList } from "../hooks/api";
+import {
+  useCreatePayment,
+  useFilteredReports,
+  usePaymentsList,
+  useServicesList,
+} from "../hooks/api";
 import { useQuickActions } from "../hooks/useQuickActions";
 import { exportTransactionsToExcel } from "../lib/excel";
+import { exportAllPayments } from "../services/payments";
 import type {
   AccountingStat,
   DailyRevenue,
@@ -39,8 +44,7 @@ const transactionStatusMap: Record<
 const paymentMethodLabels: Record<string, string> = {
   cash: "نقدی",
   card: "کارت خوان",
-  online: "آنلاین",
-  cheque: "چک",
+  transfer: "کارت به کارت",
 };
 
 const periodLabels: Record<PeriodFilter, string> = {
@@ -145,173 +149,73 @@ function getPeriodDateRange(period: PeriodFilter): { from: string; to: string } 
   }
 }
 
-function computeStats(transactions: Transaction[], period: PeriodFilter): AccountingStat[] {
-  const { from, to } = getPeriodDateRange(period);
-  const todayStr = getPersianToday();
-
-  const todayTransactions = transactions.filter((t) => t.date === todayStr && t.status === "paid");
-  const todaySum = todayTransactions.reduce((s, t) => s + t.amount, 0);
-
-  const periodTransactions = transactions.filter(
-    (t) => t.date >= from && t.date <= to && t.status === "paid"
-  );
-  const periodSum = periodTransactions.reduce((s, t) => s + t.amount, 0);
-
-  return [
-    {
-      title: "درآمد امروز",
-      value: formatPrice(todaySum),
-      icon: <CiMoneyBill className="text-success-600 size-6" />,
-      trend: "up",
-      change: "بر اساس تراکنش‌های امروز",
-    },
-    {
-      title: `درآمد ${periodLabels[period]}`,
-      value: formatPrice(periodSum),
-      icon: <CiReceipt className="text-primary-600 size-6" />,
-      trend: "up",
-      change: `${periodTransactions.length} تراکنش`,
-    },
-    {
-      title: "تعداد تراکنش‌ها",
-      value: String(periodTransactions.length),
-      icon: <IoCashOutline className="text-warning-600 size-6" />,
-      trend: periodTransactions.length >= 5 ? "up" : "down",
-      change: `${periodTransactions.filter((t) => t.status === "paid").length} موفق`,
-    },
-    {
-      title: "میانگین هر تراکنش",
-      value:
-        periodTransactions.length > 0
-          ? formatPrice(Math.round(periodSum / periodTransactions.length))
-          : "۰",
-      icon: <IoCardOutline className="text-info-600 size-6" />,
-      trend: "up",
-      change: "تومان",
-    },
-  ];
+function getChartLookback(period: PeriodFilter, to: string): string {
+  switch (period) {
+    case "today":
+      return addDays(to, -29);
+    case "week":
+      return addDays(to, -55);
+    case "month":
+      return addMonths(to, -11);
+    case "threeMonths":
+      return addMonths(to, -11);
+    case "year":
+      return addYears(to, -2);
+  }
 }
 
-function getRevenueData(transactions: Transaction[], period: PeriodFilter): DailyRevenue[] {
-  const { to: periodTo } = getPeriodDateRange(period);
-
+function formatChartData(
+  chart: {
+    daily: { period: string; total: number }[];
+    weekly: { period: string; total: number }[];
+    monthly: { period: string; total: number }[];
+    quarterly: { period: string; total: number }[];
+    yearly: { period: string; total: number }[];
+  },
+  period: PeriodFilter
+): DailyRevenue[] {
   switch (period) {
     case "today": {
-      const from = addDays(periodTo, -29);
-      const paid = transactions.filter(
-        (t) => t.date >= from && t.date <= periodTo && t.status === "paid"
-      );
-      const grouped = new Map<string, number>();
-      paid.forEach((t) => {
-        grouped.set(t.date, (grouped.get(t.date) || 0) + t.amount);
-      });
-      const days: DailyRevenue[] = [];
-      let current = from;
-      while (current <= periodTo) {
-        days.push({ day: current.slice(5), amount: grouped.get(current) || 0 });
-        current = addDays(current, 1);
-      }
-      return days;
+      return chart.daily.map((d) => ({
+        day: toPersianDigits(d.period.slice(5)),
+        amount: d.total,
+      }));
     }
     case "week": {
-      const from = addDays(periodTo, -55);
-      const paid = transactions.filter(
-        (t) => t.date >= from && t.date <= periodTo && t.status === "paid"
-      );
-      const weeks: DailyRevenue[] = [];
-      let weekStart = from;
-      while (weekStart <= periodTo) {
-        const weekEnd = addDays(weekStart, 6);
-        const amount = paid
-          .filter((t) => t.date >= weekStart && t.date <= weekEnd)
-          .reduce((s, t) => s + t.amount, 0);
-        weeks.push({
-          day: `${weekStart.slice(5)}-${weekEnd.slice(5)}`,
-          amount,
-        });
-        weekStart = addDays(weekStart, 7);
-      }
-      return weeks;
+      return chart.weekly.map((d) => {
+        const dayLabel = toPersianDigits(d.period.replace("/", "/"));
+        return { day: dayLabel, amount: d.total };
+      });
     }
     case "month": {
-      const from = addMonths(periodTo, -11);
-      const paid = transactions.filter(
-        (t) => t.date >= from && t.date <= periodTo && t.status === "paid"
-      );
-      const grouped = new Map<string, number>();
-      paid.forEach((t) => {
-        const monthKey = t.date.slice(0, 7);
-        grouped.set(monthKey, (grouped.get(monthKey) || 0) + t.amount);
-      });
-      const months: DailyRevenue[] = [];
-      let current = from;
-      while (current <= periodTo) {
-        const monthKey = current.slice(0, 7);
-        const latinKey = toLatinDigits(monthKey);
-        const parts = latinKey.split("/");
-        const yearSuffix = toPersianDigits(parts[0].slice(-2));
+      return chart.monthly.map((d) => {
+        const latin = toLatinDigits(d.period);
+        const parts = latin.split("/");
         const monthNum = parseInt(parts[1], 10);
-        months.push({
+        const yearSuffix = toPersianDigits(parts[0].slice(-2));
+        return {
           day: `${jalaliMonthNames[monthNum - 1]} ${yearSuffix}`,
-          amount: grouped.get(monthKey) || 0,
-        });
-        current = addMonths(current, 1);
-      }
-      return months;
+          amount: d.total,
+        };
+      });
     }
     case "threeMonths": {
-      const from = addMonths(periodTo, -11);
-      const paid = transactions.filter(
-        (t) => t.date >= from && t.date <= periodTo && t.status === "paid"
-      );
-      const grouped = new Map<string, number>();
-      paid.forEach((t) => {
-        const latinKey = toLatinDigits(t.date.slice(0, 7));
-        const [y, m] = latinKey.split("/").map(Number);
-        const qIdx = Math.floor((m - 1) / 3);
-        const seasonKey = `${y}-${qIdx}`;
-        grouped.set(seasonKey, (grouped.get(seasonKey) || 0) + t.amount);
-      });
-      const quarters: DailyRevenue[] = [];
-      let current = from;
-      while (current <= periodTo) {
-        const monthKey = current.slice(0, 7);
-        const latinKey = toLatinDigits(monthKey);
-        const parts = latinKey.split("/");
-        const yearNum = parts[0];
-        const monthNum = parseInt(parts[1], 10);
-        const qIdx = Math.floor((monthNum - 1) / 3);
-        const seasonKey = `${yearNum}-${qIdx}`;
-        const yearSuffix = toPersianDigits(yearNum.slice(-2));
-        quarters.push({
+      return chart.quarterly.map((d) => {
+        const latin = toLatinDigits(d.period);
+        const parts = latin.split("/");
+        const qIdx = parseInt(parts[1], 10) - 1;
+        const yearSuffix = toPersianDigits(parts[0].slice(-2));
+        return {
           day: `${persianSeasons[qIdx]} ${yearSuffix}`,
-          amount: grouped.get(seasonKey) || 0,
-        });
-        current = addMonths(current, 3);
-      }
-      return quarters;
+          amount: d.total,
+        };
+      });
     }
     case "year": {
-      const from = addYears(periodTo, -2);
-      const paid = transactions.filter(
-        (t) => t.date >= from && t.date <= periodTo && t.status === "paid"
-      );
-      const grouped = new Map<string, number>();
-      paid.forEach((t) => {
-        const yearKey = t.date.slice(0, 4);
-        grouped.set(yearKey, (grouped.get(yearKey) || 0) + t.amount);
-      });
-      const years: DailyRevenue[] = [];
-      let current = from;
-      while (current <= periodTo) {
-        const yearKey = current.slice(0, 4);
-        years.push({
-          day: yearKey,
-          amount: grouped.get(yearKey) || 0,
-        });
-        current = addYears(current, 1);
-      }
-      return years;
+      return chart.yearly.map((d) => ({
+        day: toPersianDigits(d.period),
+        amount: d.total,
+      }));
     }
   }
 }
@@ -320,18 +224,31 @@ function Accounting() {
   const [currentPage, setCurrentPage] = useState(1);
   const [dateFrom, setDateFrom] = useState<string | null>(null);
   const [dateTo, setDateTo] = useState<string | null>(null);
-  const [typeFilter, setTypeFilter] = useState("");
   const [activePeriod, setActivePeriod] = useState<PeriodFilter>("month");
 
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [exporting, setExporting] = useState(false);
 
-  const { data: paginatedPayments } = usePaymentsList({ page: currentPage, perPage: 20 });
+  const todayStr = getPersianToday();
+  const { from: periodFrom, to: periodTo } = getPeriodDateRange(activePeriod);
+  const chartFrom = getChartLookback(activePeriod, periodTo);
+
+  const { data: paginatedPayments, isLoading: paymentsLoading } = usePaymentsList({
+    page: currentPage,
+    perPage: 20,
+    dateFrom: dateFrom ?? periodFrom,
+    dateTo: dateTo ?? periodTo,
+  });
   const { data: servicesData } = useServicesList();
+  const { data: periodReport } = useFilteredReports(periodFrom, periodTo);
+  const { data: todayReport } = useFilteredReports(todayStr, todayStr);
+  const { data: chartReport } = useFilteredReports(chartFrom, periodTo);
+
   const { mutateAsync: createPayment } = useCreatePayment();
   const transactions = paginatedPayments?.data ?? [];
-  const services = servicesData?.data ?? [];
+  const services = useMemo(() => servicesData?.data ?? [], [servicesData]);
 
   const { registerAction } = useQuickActions();
 
@@ -345,34 +262,54 @@ function Accounting() {
     return unregister;
   }, [registerAction]);
 
-  const stats = useMemo(
-    () => computeStats(transactions as Transaction[], activePeriod),
-    [transactions, activePeriod]
-  );
+  const stats = useMemo<AccountingStat[]>(() => {
+    const todayRevenue = todayReport?.totalRevenue ?? 0;
+    const periodRevenue = periodReport?.totalRevenue ?? 0;
+    const periodVisits = periodReport?.totalVisits ?? 0;
+
+    return [
+      {
+        title: "درآمد امروز",
+        value: formatPrice(todayRevenue),
+        icon: <CiMoneyBill className="text-success-600 size-6" />,
+        trend: "up",
+        change: "بر اساس گزارش امروز",
+      },
+      {
+        title: `درآمد ${periodLabels[activePeriod]}`,
+        value: formatPrice(periodRevenue),
+        icon: <CiReceipt className="text-primary-600 size-6" />,
+        trend: "up",
+        change: `${periodVisits} تراکنش`,
+      },
+      {
+        title: "تعداد تراکنش‌ها",
+        value: String(periodVisits),
+        icon: <IoCashOutline className="text-warning-600 size-6" />,
+        trend: periodVisits >= 5 ? "up" : "down",
+        change: `${periodVisits} در این دوره`,
+      },
+      {
+        title: "میانگین هر تراکنش",
+        value: periodVisits > 0 ? formatPrice(Math.round(periodRevenue / periodVisits)) : "۰",
+        icon: <IoCardOutline className="text-info-600 size-6" />,
+        trend: "up",
+        change: "تومان",
+      },
+    ];
+  }, [periodReport, todayReport, activePeriod]);
+
   const revenueData = useMemo(
-    () => getRevenueData(transactions, activePeriod),
-    [transactions, activePeriod]
+    () => (chartReport ? formatChartData(chartReport.salesChart, activePeriod) : []),
+    [chartReport, activePeriod]
   );
 
-  const filtered = useMemo(() => {
-    const { from, to } = getPeriodDateRange(activePeriod);
-    return transactions.filter((t) => {
-      const dateFromMatch = dateFrom ? t.date >= dateFrom : true;
-      const dateToMatch = dateTo ? t.date <= dateTo : true;
-      const periodMatch =
-        activePeriod === "today" ? t.date === from : t.date >= from && t.date <= to;
-      const typeMatch = typeFilter ? t.status === typeFilter : true;
-      return dateFromMatch && dateToMatch && periodMatch && typeMatch;
-    });
-  }, [transactions, dateFrom, dateTo, typeFilter, activePeriod]);
-
-  const pageSize = 10;
-  const totalPages = Math.ceil(filtered.length / pageSize);
-  const paginatedData = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = paginatedPayments?.totalPages ?? 1;
 
   async function handleAddTransaction(data: TransactionFormData) {
     await createPayment({
       patientId: data.patientId,
+      visitId: data.visitId,
       date: data.date,
       amount: data.amount,
       paymentMethod: data.paymentMethod,
@@ -394,6 +331,16 @@ function Accounting() {
     [selectedTransaction, services]
   );
 
+  async function handleExcelExport() {
+    setExporting(true);
+    try {
+      const allPayments = await exportAllPayments(dateFrom ?? periodFrom, dateTo ?? periodTo);
+      exportTransactionsToExcel(allPayments);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const columns: Column<Transaction>[] = [
     { key: "date", header: "تاریخ", width: "110px", align: "center" },
     { key: "description", header: "توضیحات" },
@@ -403,7 +350,7 @@ function Accounting() {
       header: "مبلغ (تومان)",
       align: "end",
       width: "140px",
-      render: (item) => (
+      render: (item: Transaction) => (
         <span className="text-surface-900 font-medium">{formatPrice(item.amount)}</span>
       ),
     },
@@ -412,7 +359,7 @@ function Accounting() {
       header: "روش پرداخت",
       align: "center",
       width: "110px",
-      render: (item) => (
+      render: (item: Transaction) => (
         <span className="text-surface-600">{paymentMethodLabels[item.paymentMethod]}</span>
       ),
     },
@@ -421,7 +368,7 @@ function Accounting() {
       header: "وضعیت",
       align: "center",
       width: "110px",
-      render: (item) => {
+      render: (item: Transaction) => {
         const s = transactionStatusMap[item.status];
         return (
           <Badge variant={s.variant} size="sm">
@@ -435,7 +382,7 @@ function Accounting() {
       header: "عملیات",
       align: "center",
       width: "90px",
-      render: (item) => (
+      render: (item: Transaction) => (
         <Button
           variant="ghost"
           size="sm"
@@ -451,11 +398,10 @@ function Accounting() {
   function clearFilters() {
     setDateFrom(null);
     setDateTo(null);
-    setTypeFilter("");
     setCurrentPage(1);
   }
 
-  const hasFilters = dateFrom !== null || dateTo !== null || typeFilter !== "";
+  const hasFilters = dateFrom !== null || dateTo !== null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -467,9 +413,10 @@ function Accounting() {
           <Button
             variant="outline"
             startIcon={<BiDownload className="size-5" />}
-            onClick={() => exportTransactionsToExcel(transactions)}
+            onClick={handleExcelExport}
+            disabled={exporting}
           >
-            گزارش اکسل
+            {exporting ? "در حال خروجی..." : "گزارش اکسل"}
           </Button>
           <Button
             variant="primary"
@@ -582,33 +529,24 @@ function Accounting() {
             }}
             containerClassName="w-full sm:w-40"
           />
-          <div className="w-full sm:w-44">
-            <Select
-              label="نوع تراکنش"
-              placeholder="همه"
-              value={typeFilter}
-              onChange={(e) => {
-                setTypeFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              options={[
-                { value: "paid", label: "پرداخت شده" },
-                { value: "cancelled", label: "لغو شده" },
-              ]}
-            />
-          </div>
           {hasFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               پاک کردن فیلترها
             </Button>
           )}
         </div>
-        <Table
-          columns={columns}
-          data={paginatedData}
-          rowKey={(item) => item.id}
-          className="rounded-none border-0"
-        />
+        {paymentsLoading && transactions.length === 0 ? (
+          <div className="flex items-center justify-center py-12 text-sm text-gray-400">
+            در حال بارگذاری...
+          </div>
+        ) : (
+          <Table
+            columns={columns}
+            data={transactions}
+            rowKey={(item) => item.id}
+            className="rounded-none border-0"
+          />
+        )}
         {totalPages > 1 && (
           <div className="border-surface-200 flex items-center justify-center border-t px-5 py-4">
             <Pagination
