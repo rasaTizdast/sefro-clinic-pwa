@@ -1,14 +1,13 @@
 import { useState } from "react";
+import { BiCalendar, BiMinus, BiPlus, BiTrendingDown, BiTrendingUp } from "react-icons/bi";
 import {
-  BiCalendar,
-  BiMinus,
-  BiPlus,
-  BiSearch,
-  BiTrendingDown,
-  BiTrendingUp,
-} from "react-icons/bi";
-import { IoDocumentTextOutline } from "react-icons/io5";
-import { MdEventAvailable, MdPayments, MdPeople, MdPersonAdd } from "react-icons/md";
+  MdEventAvailable,
+  MdPayments,
+  MdPeople,
+  MdPersonAdd,
+  MdStar,
+  MdStore,
+} from "react-icons/md";
 import { useNavigate } from "react-router";
 
 import PatientFormModal from "../components/patients/PatientFormModal";
@@ -18,16 +17,15 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, CardTitle } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
-import { Progress } from "../components/ui/Progress";
-import { Skeleton, SkeletonTable } from "../components/ui/Skeleton";
+import { Skeleton } from "../components/ui/Skeleton";
 import { type Column, Table } from "../components/ui/Table";
-import { useCreateCustomer, useCustomersList, useVisitsList } from "../hooks/api";
+import { useCreateCustomer, useVisitsList } from "../hooks/api";
 import { useDashboardStats } from "../hooks/api/useDashboardQuery";
 import { toPersianDigits } from "../lib/digits";
 import type { Appointment } from "../types/appointment";
 import type { PageState, Trend } from "../types/common";
 import type { DashboardStat } from "../types/dashboard";
-import type { Patient, PatientFormData } from "../types/patient";
+import type { PatientFormData } from "../types/patient";
 
 const appointmentStatusMap: Record<
   Appointment["status"],
@@ -39,16 +37,6 @@ const appointmentStatusMap: Record<
   completed: { label: "انجام شده", variant: "info" },
 };
 
-const patientStatusMap: Record<
-  "active" | "inactive" | "new" | "loyal",
-  { label: string; variant: "success" | "warning" | "info" }
-> = {
-  active: { label: "فعال", variant: "success" },
-  inactive: { label: "غیرفعال", variant: "warning" },
-  new: { label: "جدید", variant: "info" },
-  loyal: { label: "وفادار", variant: "success" },
-};
-
 type QuickAction = {
   label: string;
   icon: React.ReactNode;
@@ -58,7 +46,7 @@ type QuickAction = {
 
 const appointmentColumns: Column<Appointment>[] = [
   { key: "time", header: "ساعت", width: "80px" },
-  { key: "patient", header: "بیمار" },
+  { key: "customerName", header: "بیمار" },
   {
     key: "status",
     header: "وضعیت",
@@ -73,40 +61,6 @@ const appointmentColumns: Column<Appointment>[] = [
     },
   },
 ];
-
-const patientColumns: Column<
-  Pick<Patient, "id" | "firstName" | "lastName" | "mobileNumber" | "lastVisit" | "status">
->[] = [
-  {
-    key: "name",
-    header: "نام بیمار",
-    render: (item) => `${item.firstName} ${item.lastName}`,
-  },
-  {
-    key: "mobileNumber",
-    header: "تلفن",
-    render: (item) => toPersianDigits(item.mobileNumber),
-  },
-  { key: "lastVisit", header: "آخرین مراجعه", align: "center" },
-  {
-    key: "status",
-    header: "وضعیت",
-    align: "center",
-    render: (item) => {
-      const s = patientStatusMap[item.status];
-      return (
-        <Badge variant={s.variant} size="sm">
-          {s.label}
-        </Badge>
-      );
-    },
-  },
-];
-
-function toLatinDigits(str: string): string {
-  const persian = "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩";
-  return str.replace(/[۰-۹٠-٩]/g, (d) => String(persian.indexOf(d) % 10));
-}
 
 function trendIcon(trend: Trend) {
   if (trend === "up") return <BiTrendingUp className="text-success-600 size-4" />;
@@ -149,16 +103,12 @@ function Dashboard() {
   const { data: todayVisits, isLoading: visitsLoading } = useVisitsList({
     dateFrom: todayStr,
     dateTo: todayStr,
+    perPage: 50,
   });
-  const { data: recentPatientsData, isLoading: patientsLoading } = useCustomersList({ page: 1 });
 
   const appointments = todayVisits?.data ?? [];
-  const recentPatients = recentPatientsData?.data ?? [];
 
-  const completedCount = appointments.filter((a: Appointment) => a.status === "completed").length;
-  const capacityPercent =
-    appointments.length > 0 ? Math.round((completedCount / appointments.length) * 100) : 0;
-  const isLoading = statsLoading || visitsLoading || patientsLoading;
+  const isLoading = statsLoading || visitsLoading;
   const hasError = statsError;
 
   const stats: DashboardStat[] = dashboardStats
@@ -172,11 +122,11 @@ function Dashboard() {
           variant: "default",
         },
         {
-          title: "نوبت‌های امروز",
-          value: toPersianDigits(String(appointments.length)),
+          title: "کل مشتریان",
+          value: toPersianDigits(String(dashboardStats.customerCount)),
           change: "",
           trend: "flat",
-          icon: <MdEventAvailable className="size-5" />,
+          icon: <MdStore className="size-5" />,
           variant: "info",
         },
         {
@@ -193,6 +143,14 @@ function Dashboard() {
           change: "",
           trend: "flat",
           icon: <MdPersonAdd className="size-5" />,
+          variant: "warning",
+        },
+        {
+          title: "مشتریان وفادار",
+          value: toPersianDigits(String(dashboardStats.loyalCustomerCount)),
+          change: "",
+          trend: "flat",
+          icon: <MdStar className="size-5" />,
           variant: "warning",
         },
       ]
@@ -215,12 +173,6 @@ function Dashboard() {
       variant: "secondary" as const,
       onClick: () => setPatientModalOpen(true),
     },
-    { label: "جستجوی بیمار", icon: <BiSearch className="size-5" />, variant: "outline" as const },
-    {
-      label: "گزارش سریع",
-      icon: <IoDocumentTextOutline className="size-5" />,
-      variant: "ghost" as const,
-    },
   ];
 
   if (isLoading) {
@@ -231,27 +183,15 @@ function Dashboard() {
             <Skeleton width="160px" height="2rem" />
             <Skeleton width="200px" height="1rem" />
           </div>
-          <Skeleton width="130px" height="2.5rem" variant="rectangular" />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
             <Card key={i} variant="outlined" padding="lg">
-              <div className="flex flex-col gap-3">
-                <Skeleton width="60%" height="0.875rem" />
-                <Skeleton width="40%" height="1.75rem" />
-                <Skeleton width="100%" height="0.5rem" variant="rectangular" />
-              </div>
+              <Skeleton width="60%" height="3.5rem" />
             </Card>
           ))}
         </div>
-        <Skeleton width="100%" height="6rem" variant="rectangular" />
-        <div className="grid gap-6 xl:grid-cols-2">
-          <SkeletonTable rows={4} columns={4} />
-          <div className="flex flex-col gap-4">
-            <Skeleton width="100%" height="4rem" variant="rectangular" />
-            <SkeletonTable rows={3} columns={3} />
-          </div>
-        </div>
+        <Skeleton width="100%" height="16rem" variant="rectangular" />
       </div>
     );
   }
@@ -296,19 +236,10 @@ function Dashboard() {
           <h1 className="text-surface-900 text-2xl font-bold">داشبورد</h1>
           <p className="text-surface-500 mt-1 text-sm">امروز: {today}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            startIcon={<BiPlus className="size-5" />}
-            onClick={() => navigate("/calendar")}
-          >
-            نوبت جدید
-          </Button>
-          <SearchButton />
-        </div>
+        <SearchButton />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {stats.map((stat) => (
           <Card key={stat.title} variant="outlined" padding="lg">
             <div className="flex items-start justify-between">
@@ -326,12 +257,6 @@ function Dashboard() {
                 {stat.change}
               </div>
             </div>
-            <Progress
-              value={Number(toLatinDigits(stat.value).replace(/[^\d]/g, "")) * 7}
-              variant={stat.variant}
-              size="sm"
-              className="mt-4"
-            />
           </Card>
         ))}
       </div>
@@ -353,77 +278,37 @@ function Dashboard() {
         </div>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card variant="outlined" padding="none">
-          <div className="border-surface-200 flex items-center justify-between border-b px-5 py-4">
-            <CardTitle>نوبت‌های امروز</CardTitle>
-            <Badge variant="info" size="sm" dot>
-              {appointments.length} نوبت
-            </Badge>
-          </div>
-          {appointments.length > 0 ? (
-            <Table
-              columns={appointmentColumns}
-              data={appointments}
-              rowKey={(item) => item.id}
-              className="rounded-none border-0"
-            />
-          ) : (
-            <div className="px-5 py-8">
-              <EmptyState title="نوبتی ثبت نشده" description="برای امروز هیچ نوبتی ثبت نشده است." />
-            </div>
-          )}
-        </Card>
-
-        <div className="flex flex-col gap-6">
-          <Card variant="outlined" padding="none">
-            <div className="border-surface-200 flex items-center justify-between border-b px-5 py-4">
-              <CardTitle>ظرفیت امروز</CardTitle>
-              <span className="text-surface-500 text-sm font-medium">{capacityPercent}%</span>
-            </div>
-            <div className="px-5 pt-4">
-              <Progress value={capacityPercent} variant="info" size="md" showLabel />
-            </div>
-            <div className="mt-2 px-5 pb-2">
-              <div className="text-surface-500 flex items-center justify-between py-2 text-sm">
-                <span>انجام شده: {completedCount}</span>
-                <span>کل: {appointments.length}</span>
-              </div>
-            </div>
-          </Card>
-
-          <Card variant="outlined" padding="none">
-            <div className="border-surface-200 flex items-center justify-between border-b px-5 py-4">
-              <CardTitle>مراجعین اخیر</CardTitle>
-              <Badge variant="default" size="sm">
-                {recentPatients.length} بیمار
-              </Badge>
-            </div>
-            {recentPatients.length > 0 ? (
-              <Table
-                columns={patientColumns}
-                data={recentPatients}
-                rowKey={(item) => item.id}
-                className="rounded-none border-0"
-              />
-            ) : (
-              <div className="px-5 py-8">
-                <EmptyState
-                  title="بیماری ثبت نشده"
-                  description="هنوز هیچ بیماری در سیستم ثبت نشده است."
-                />
-              </div>
-            )}
-          </Card>
+      <Card variant="outlined" padding="none">
+        <div className="border-surface-200 flex items-center justify-between border-b px-5 py-4">
+          <CardTitle>نوبت‌های امروز</CardTitle>
+          <Badge variant="info" size="sm" dot>
+            {appointments.length} نوبت
+          </Badge>
         </div>
-      </div>
+        {appointments.length > 0 ? (
+          <Table
+            columns={appointmentColumns}
+            data={appointments}
+            rowKey={(item) => item.id}
+            className="rounded-none border-0"
+          />
+        ) : (
+          <div className="px-5 py-8">
+            <EmptyState title="نوبتی ثبت نشده" description="برای امروز هیچ نوبتی ثبت نشده است." />
+          </div>
+        )}
+      </Card>
 
-      {appointments.length === 0 && recentPatients.length === 0 && (
+      {appointments.length === 0 && (
         <EmptyState
           title="داده‌ای وجود ندارد"
-          description="با استفاده از دکمه بالای صفحه، اولین نوبت امروز را ثبت کنید."
+          description="از بخش تقویم یک نوبت جدید ثبت کنید."
           action={
-            <Button variant="primary" startIcon={<BiPlus />} onClick={() => navigate("/calendar")}>
+            <Button
+              variant="primary"
+              startIcon={<BiCalendar />}
+              onClick={() => navigate("/calendar")}
+            >
               ثبت نوبت جدید
             </Button>
           }
