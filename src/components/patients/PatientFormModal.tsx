@@ -5,6 +5,7 @@ import type { PatientFormData } from "../../types/patient";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
+import { Textarea } from "../ui/Textarea";
 
 interface PatientFormModalProps {
   onClose: () => void;
@@ -19,6 +20,7 @@ const initialValues: PatientFormData = {
   mobileNumber: "",
   nationalId: "",
   bitmojiCode: "",
+  notes: "",
 };
 
 function PatientFormModal({
@@ -65,7 +67,11 @@ function PatientFormModal({
 
     setSubmitting(true);
     try {
-      await onSave({ ...result.data, bitmojiCode: result.data.bitmojiCode ?? "" });
+      await onSave({
+        ...result.data,
+        bitmojiCode: result.data.bitmojiCode ?? "",
+        notes: result.data.notes ?? "",
+      });
       onClose();
     } finally {
       setSubmitting(false);
@@ -152,6 +158,14 @@ function PatientFormModal({
           value={values.bitmojiCode}
           onChange={handleChange("bitmojiCode")}
           disabled={loading}
+        />
+        <Textarea
+          label="یادداشت‌ها"
+          placeholder="یادداشت‌های مربوط به بیمار..."
+          value={values.notes}
+          onChange={(e) => setValues((prev) => ({ ...prev, notes: e.target.value }))}
+          disabled={loading}
+          rows={3}
         />
       </div>
     </Modal>
