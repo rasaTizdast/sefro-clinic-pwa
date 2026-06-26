@@ -5,9 +5,11 @@ import {
   BiCheck,
   BiChevronLeft,
   BiChevronRight,
+  BiEdit,
   BiNote,
   BiPlus,
   BiSearch,
+  BiSolidTrash,
   BiTime,
 } from "react-icons/bi";
 
@@ -20,8 +22,21 @@ import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { Skeleton } from "../components/ui/Skeleton";
 import { Textarea } from "../components/ui/Textarea";
-import { useCustomersList, useReserveVisit, useServicesList, useVisitsList } from "../hooks/api";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  useCancelVisit,
+  useCompleteVisit,
+  useConfirmVisit,
+  useCustomersList,
+  useDeleteVisit,
+  useReserveVisit,
+  useServicesList,
+  useUpdateVisit,
+  useVisitsList,
+  useWorkTime,
+} from "../hooks/api";
 import { toLatinDigits, toPersianDigits as toPersianDigitsLib } from "../lib/digits";
+import { formatPrice } from "../lib/format";
 import type {
   Appointment,
   AppointmentStatus,
@@ -121,8 +136,8 @@ const statusConfig: Record<AppointmentStatus, { label: string; variant: StatusVa
   completed: { label: "انجام شده", variant: "info" },
 };
 
-const START_HOUR = 8;
-const END_HOUR = 16;
+const DEFAULT_START_HOUR = 8;
+const DEFAULT_END_HOUR = 16;
 const TIME_BUFFER = 10;
 
 function minutesToTimeStr(minutes: number): string {
@@ -137,7 +152,9 @@ function minutesToTimeStrPersian(minutes: number): string {
 
 function getFreeBlocks(
   dayApps: Appointment[],
-  serviceDuration: number
+  serviceDuration: number,
+  startHour: number = DEFAULT_START_HOUR,
+  endHour: number = DEFAULT_END_HOUR
 ): { start: number; end: number }[] {
   const occupiedRanges: { start: number; end: number }[] = dayApps.map((apt) => ({
     start: parseTimeToMinutes(apt.time) - TIME_BUFFER,
@@ -155,9 +172,9 @@ function getFreeBlocks(
     }
   }
 
-  const dayEnd = END_HOUR * 60;
+  const dayEnd = endHour * 60;
   const freeBlocks: { start: number; end: number }[] = [];
-  let cursor = START_HOUR * 60;
+  let cursor = startHour * 60;
 
   for (const occ of merged) {
     const gap = occ.start - cursor;
@@ -175,7 +192,45 @@ function getFreeBlocks(
   return freeBlocks;
 }
 
+interface TimelineBlock {
+  startMinutes: number;
+  endMinutes: number;
+  appointment: Appointment | null;
+  isEmpty: boolean;
+}
+
+function buildDayTimeline(
+  appointments: Appointment[],
+  startHour: number = DEFAULT_START_HOUR,
+  endHour: number = DEFAULT_END_HOUR
+): TimelineBlock[] {
+  const sorted = [...appointments].sort(
+    (a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time)
+  );
+
+  const blocks: TimelineBlock[] = [];
+  let cursor = startHour * 60;
+  const dayEnd = endHour * 60;
+
+  for (const apt of sorted) {
+    const aptStart = parseTimeToMinutes(apt.time);
+    if (aptStart > cursor) {
+      blocks.push({ startMinutes: cursor, endMinutes: aptStart, appointment: null, isEmpty: true });
+    }
+    const aptEnd = aptStart + apt.duration;
+    blocks.push({ startMinutes: aptStart, endMinutes: aptEnd, appointment: apt, isEmpty: false });
+    cursor = Math.max(cursor, aptEnd);
+  }
+
+  if (cursor < dayEnd) {
+    blocks.push({ startMinutes: cursor, endMinutes: dayEnd, appointment: null, isEmpty: true });
+  }
+
+  return blocks;
+}
+
 function Calendar() {
+  const { user } = useAuth();
   const [todayInfo] = useState(() => getPersianDate(new Date()));
   const [viewDate, setViewDate] = useState(() => getFirstOfPersianMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<string>(
@@ -193,6 +248,14 @@ function Calendar() {
   });
   const [patientSearch, setPatientSearch] = useState("");
 
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editAppointment, setEditAppointment] = useState<Appointment | null>(null);
+  const [editNotes, setEditNotes] = useState("");
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+
+  const [mobileView, setMobileView] = useState<"timeline" | "list">("list");
+
   const persian = getPersianDate(viewDate);
 
   const { data: paginatedPatients, isLoading: patientsLoading } = useCustomersList({
@@ -207,6 +270,13 @@ function Calendar() {
     perPage: 200,
   });
   const { mutate: reserveVisit, isPending: isCreating } = useReserveVisit();
+  const { mutate: updateVisitMutation, isPending: isUpdating } = useUpdateVisit();
+  const { mutate: deleteVisitMutation, isPending: isDeleting } = useDeleteVisit();
+  const { mutate: confirmVisit } = useConfirmVisit();
+  const { mutate: completeVisit } = useCompleteVisit();
+  const { mutate: cancelVisit } = useCancelVisit();
+
+  const { data: workTime } = useWorkTime();
 
   const patients = paginatedPatients?.data ?? [];
   const services = paginatedServices?.data ?? [];
@@ -265,6 +335,39 @@ function Calendar() {
 
   const selectedDayAppointments = allAppointments.filter((a) => a.date === selectedDate);
 
+  const dayRange = useMemo(() => {
+    const wtStart = workTime?.startTime
+      ? parseTimeToMinutes(workTime.startTime)
+      : DEFAULT_START_HOUR * 60;
+    const wtEnd = workTime?.endTime ? parseTimeToMinutes(workTime.endTime) : DEFAULT_END_HOUR * 60;
+
+    let minStart = wtStart;
+    let maxEnd = wtEnd;
+
+    for (const apt of selectedDayAppointments) {
+      const s = parseTimeToMinutes(apt.time);
+      const e = s + apt.duration;
+      if (s < minStart) minStart = s;
+      if (e > maxEnd) maxEnd = e;
+    }
+
+    const startHour = Math.floor(minStart / 60);
+    const endHour = Math.ceil(maxEnd / 60);
+
+    return {
+      startHour,
+      endHour,
+      startMinutes: startHour * 60,
+      endMinutes: endHour * 60,
+      totalMinutes: (endHour - startHour) * 60,
+    };
+  }, [workTime, selectedDayAppointments]);
+
+  const timelineBlocks = useMemo(
+    () => buildDayTimeline(selectedDayAppointments, dayRange.startHour, dayRange.endHour),
+    [selectedDayAppointments, dayRange.startHour, dayRange.endHour]
+  );
+
   const selectedPatient = form.patientId
     ? (patients.find((p) => p.id === form.patientId) ?? null)
     : null;
@@ -275,25 +378,75 @@ function Calendar() {
   const availableBlocks = useMemo(() => {
     if (!selectedService || !form.date) return [];
     const dayApps = allAppointments.filter((a) => a.date === form.date);
-    return getFreeBlocks(dayApps, selectedService.duration);
-  }, [selectedService, form.date, allAppointments]);
+    const wtStart = workTime?.startTime
+      ? parseTimeToMinutes(workTime.startTime) / 60
+      : DEFAULT_START_HOUR;
+    const wtEnd = workTime?.endTime ? parseTimeToMinutes(workTime.endTime) / 60 : DEFAULT_END_HOUR;
+    return getFreeBlocks(dayApps, selectedService.duration, wtStart, wtEnd);
+  }, [selectedService, form.date, allAppointments, workTime]);
+
+  const availableStartTimes = useMemo(() => {
+    if (!availableBlocks.length || !selectedService) return [];
+    const slots: string[] = [];
+    for (const block of availableBlocks) {
+      let t = block.start;
+      while (t + selectedService.duration <= block.end) {
+        slots.push(minutesToTimeStr(t));
+        t += selectedService.duration;
+      }
+    }
+    return slots;
+  }, [availableBlocks, selectedService]);
+
+  function isBeforeToday(dateStr: string): boolean {
+    const parts = dateStr.split("/").map(Number);
+    if (parts.length !== 3) return false;
+    const d = { year: parts[0], month: parts[1], day: parts[2] };
+    if (d.year < todayInfo.year) return true;
+    if (d.year === todayInfo.year && d.month < todayInfo.month) return true;
+    if (d.year === todayInfo.year && d.month === todayInfo.month && d.day < todayInfo.day)
+      return true;
+    return false;
+  }
+
+  const staffBlocked = (dateStr: string) => user?.role !== "admin" && isBeforeToday(dateStr);
 
   const stepDaysAvailability = useMemo(() => {
+    const wtStart = workTime?.startTime
+      ? parseTimeToMinutes(workTime.startTime) / 60
+      : DEFAULT_START_HOUR;
+    const wtEnd = workTime?.endTime ? parseTimeToMinutes(workTime.endTime) / 60 : DEFAULT_END_HOUR;
+
+    function blocked(dateStr: string) {
+      if (user?.role === "admin") return false;
+      const parts = dateStr.split("/").map(Number);
+      if (parts.length !== 3) return false;
+      if (parts[0] < todayInfo.year) return true;
+      if (parts[0] === todayInfo.year && parts[1] < todayInfo.month) return true;
+      if (parts[0] === todayInfo.year && parts[1] === todayInfo.month && parts[2] < todayInfo.day)
+        return true;
+      return false;
+    }
     const days: Record<string, boolean> = {};
     const daysInMonth = getPersianMonthDays(persian.month, persian.year);
     if (!selectedService) {
       for (let day = 1; day <= daysInMonth; day++) {
-        days[`${persian.year}/${persian.month}/${day}`] = true;
+        const dateStr = `${persian.year}/${persian.month}/${day}`;
+        days[dateStr] = !blocked(dateStr);
       }
       return days;
     }
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${persian.year}/${persian.month}/${day}`;
+      if (blocked(dateStr)) {
+        days[dateStr] = false;
+        continue;
+      }
       const dayApps = allAppointments.filter((a) => a.date === dateStr);
-      days[dateStr] = getFreeBlocks(dayApps, selectedService.duration).length > 0;
+      days[dateStr] = getFreeBlocks(dayApps, selectedService.duration, wtStart, wtEnd).length > 0;
     }
     return days;
-  }, [persian.year, persian.month, allAppointments, selectedService]);
+  }, [persian.year, persian.month, allAppointments, selectedService, user, todayInfo, workTime]);
 
   function handlePrevMonth() {
     setViewDate((prev) => navigateMonth(prev, -1));
@@ -347,20 +500,62 @@ function Calendar() {
 
   function handleSubmitForm() {
     if (!selectedPatient || !selectedService || !form.date || !form.time) return;
+    if (staffBlocked(form.date)) return;
     reserveVisit(
       {
         customer: selectedPatient.id,
         services: [selectedService.id],
-        date: form.date,
+        date: form.date.replace(/\//g, "-"),
         time: form.time,
         notes: form.notes || undefined,
       },
-      {
-        onSuccess: () => {
-          handleCloseModal();
-        },
-      }
+      { onSuccess: () => handleCloseModal() }
     );
+  }
+
+  function handleOpenEdit(appt: Appointment) {
+    setEditAppointment(appt);
+    setEditNotes(appt.notes);
+    setEditModalOpen(true);
+  }
+
+  function handleCloseEdit() {
+    setEditModalOpen(false);
+    setEditAppointment(null);
+  }
+
+  function handleSaveEdit() {
+    if (!editAppointment) return;
+    updateVisitMutation(
+      {
+        id: editAppointment.id,
+        data: {
+          notes: editNotes || undefined,
+        },
+      },
+      { onSuccess: () => handleCloseEdit() }
+    );
+  }
+
+  function handleDeleteConfirm(id: number) {
+    setDeleteConfirmId(id);
+  }
+
+  function handleDeleteExecute() {
+    if (deleteConfirmId === null) return;
+    deleteVisitMutation(deleteConfirmId, {
+      onSuccess: () => {
+        setDeleteConfirmId(null);
+        setSelectedAppointment(null);
+      },
+    });
+  }
+
+  function handleStatusAction(action: "confirm" | "complete" | "cancel", id: number) {
+    const callbacks = { onSuccess: () => setSelectedAppointment(null) };
+    if (action === "confirm") confirmVisit(id, callbacks);
+    else if (action === "complete") completeVisit(id, callbacks);
+    else if (action === "cancel") cancelVisit(id, callbacks);
   }
 
   function getStepDaysInMonth(): number {
@@ -421,6 +616,28 @@ function Calendar() {
   ];
 
   const stepIndex = STEP_LABELS.findIndex((s) => s.key === wizardStep);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4 sm:gap-6">
+        <div className="flex items-center justify-between">
+          <Skeleton width="160px" height="2rem" />
+          <div className="flex gap-2">
+            <Skeleton width="120px" height="2.5rem" variant="rectangular" />
+            <Skeleton width="120px" height="2.5rem" variant="rectangular" />
+          </div>
+        </div>
+        <div className="grid gap-6 xl:grid-cols-5">
+          <div className="xl:col-span-3">
+            <Skeleton width="100%" height="380px" variant="rectangular" />
+          </div>
+          <div className="xl:col-span-2">
+            <Skeleton width="100%" height="380px" variant="rectangular" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   function renderStepIndicator() {
     return (
@@ -576,7 +793,7 @@ function Calendar() {
                   {toPersianDigits(svc.duration)} دقیقه
                 </p>
                 <p className="text-primary-700 mt-1 text-xs font-medium">
-                  {toPersianDigits(svc.price)} تومان
+                  {formatPrice(svc.price)} تومان
                 </p>
               </button>
             );
@@ -588,6 +805,22 @@ function Calendar() {
 
   function renderTimeStep() {
     if (!selectedPatient || !selectedService) return null;
+
+    const occupiedTimes = form.date
+      ? allAppointments.filter((a) => a.date === form.date).map((a) => a.time)
+      : [];
+
+    function handleTimeInput(e: React.ChangeEvent<HTMLInputElement>) {
+      handleFormChange("time", e.target.value);
+    }
+
+    const dateLabel = form.date
+      ? (() => {
+          const parts = form.date.split("/");
+          return `${toPersianDigits(parseInt(parts[2]))} ${PERSIAN_MONTHS[parseInt(parts[1]) - 1]}`;
+        })()
+      : "";
+
     return (
       <div className="flex flex-col gap-4">
         <Card variant="outlined" padding="sm">
@@ -639,7 +872,10 @@ function Calendar() {
               {week.map((cell, ci) => {
                 if (!cell.date) return <div key={ci} className="h-8" />;
                 const isSelected = form.date === cell.date;
+                const isToday = cell.date === todayStr;
                 const hasAvailability = selectedService ? cell.available : true;
+                const todayRing =
+                  isToday && !isSelected ? "ring-2 ring-primary-300 ring-inset" : "";
                 return (
                   <button
                     key={ci}
@@ -652,7 +888,7 @@ function Calendar() {
                       isSelected
                         ? "bg-primary-600 font-bold text-white shadow-sm"
                         : hasAvailability
-                          ? "text-surface-700 hover:bg-surface-100"
+                          ? `text-surface-700 hover:bg-surface-100 ${todayRing}`
                           : "text-surface-300 cursor-not-allowed"
                     }`}
                   >
@@ -665,84 +901,78 @@ function Calendar() {
         </div>
 
         {form.date && (
-          <div>
-            <p className="text-surface-700 mb-2 text-xs font-medium">
-              ساعت‌های موجود برای{" "}
-              {(() => {
-                const parts = form.date.split("/");
-                return `${toPersianDigits(parseInt(parts[2]))} ${PERSIAN_MONTHS[parseInt(parts[1]) - 1]}`;
-              })()}
-              :
-            </p>
-            {availableBlocks.length === 0 ? (
-              <p className="text-surface-400 py-3 text-center text-xs">
-                هیچ وقت خالی در این روز وجود ندارد
-              </p>
-            ) : (
-              <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto">
-                {availableBlocks.map((block, idx) => {
-                  const startStr = minutesToTimeStr(block.start);
-                  const label = `${minutesToTimeStrPersian(block.start)} - ${minutesToTimeStrPersian(block.end)}`;
-                  const isActive = form.time === startStr;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => handleFormChange("time", startStr)}
-                      className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-                        isActive
-                          ? "border-primary-500 bg-primary-50 text-primary-700 font-medium"
-                          : "border-surface-200 hover:border-surface-300 text-surface-600 hover:bg-surface-50"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <label className="text-surface-700 mb-1.5 block text-xs font-medium">
+                  ساعت {dateLabel}
+                </label>
+                <Input
+                  type="time"
+                  value={form.time}
+                  onChange={handleTimeInput}
+                  containerClassName="w-full"
+                />
+              </div>
+            </div>
+
+            {availableStartTimes.length > 0 && (
+              <div>
+                <p className="text-surface-500 mb-2 text-xs">ساعت‌های پیشنهادی:</p>
+                <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+                  {availableStartTimes.map((slot) => {
+                    const isOccupied = occupiedTimes.includes(slot);
+                    const isActive = form.time === slot;
+                    const disabled = isOccupied;
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => handleFormChange("time", slot)}
+                        className={`cursor-pointer rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${
+                          isActive
+                            ? "border-primary-500 bg-primary-50 text-primary-700 font-medium"
+                            : disabled
+                              ? "border-surface-100 text-surface-300 cursor-not-allowed line-through"
+                              : "border-surface-200 hover:border-surface-300 text-surface-600 hover:bg-surface-50"
+                        }`}
+                      >
+                        {minutesToTimeStrPersian(parseTimeToMinutes(slot))}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
-            <div className="mt-3">
-              <Textarea
-                label="توضیحات (اختیاری)"
-                placeholder="توضیحات اضافی..."
-                value={form.notes}
-                onChange={(e) => handleFormChange("notes", e.target.value)}
-              />
-            </div>
+
+            {availableStartTimes.length === 0 && form.date && (
+              <p className="text-surface-400 py-2 text-center text-xs">
+                هیچ وقت خالی در این روز وجود ندارد
+              </p>
+            )}
+
+            <Textarea
+              label="توضیحات (اختیاری)"
+              placeholder="توضیحات اضافی..."
+              value={form.notes}
+              onChange={(e) => handleFormChange("notes", e.target.value)}
+              rows={2}
+            />
           </div>
         )}
       </div>
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col gap-4 sm:gap-6">
-        <div className="flex items-center justify-between">
-          <Skeleton width="160px" height="2rem" />
-          <div className="flex gap-2">
-            <Skeleton width="120px" height="2.5rem" variant="rectangular" />
-            <Skeleton width="120px" height="2.5rem" variant="rectangular" />
-          </div>
-        </div>
-        <div className="grid gap-6 xl:grid-cols-4">
-          <div className="xl:col-span-3">
-            <Skeleton width="100%" height="380px" variant="rectangular" />
-          </div>
-          <div>
-            <Skeleton width="100%" height="300px" variant="rectangular" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-surface-900 text-2xl font-bold">تقویم نوبت‌ها</h1>
+          <p className="text-surface-500 mt-0.5 text-sm">مدیریت و مشاهده نوبت‌ها</p>
         </div>
-        <div className="mt-3 flex items-center gap-3 sm:mt-0">
+        <div className="flex items-center gap-3">
           <Button
             variant="primary"
             startIcon={<BiPlus className="size-5" />}
@@ -754,21 +984,100 @@ function Calendar() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-4">
+      <Card variant="outlined" padding="md">
+        <div className="mb-3 flex items-center gap-2">
+          <BiCalendar className="text-primary-600 size-4" />
+          <h3 className="text-surface-900 text-xs font-semibold">{selectedDateDisplay}</h3>
+          {selectedDayAppointments.length > 0 && (
+            <span className="text-surface-400 me-auto text-xs">
+              {toPersianDigits(selectedDayAppointments.length)} نوبت
+            </span>
+          )}
+        </div>
+
+        <div className="pb-1" dir="ltr">
+          <div className="flex flex-col">
+            <div className="text-surface-400 mb-1 flex text-[10px]">
+              {Array.from({ length: dayRange.endHour - dayRange.startHour }, (_, i) => (
+                <div
+                  key={i}
+                  className="shrink-0 text-start"
+                  style={{ width: `${(60 / dayRange.totalMinutes) * 100}%` }}
+                >
+                  {minutesToTimeStrPersian((dayRange.startHour + i) * 60)}
+                </div>
+              ))}
+            </div>
+            <div className="bg-surface-100/50 flex h-14 w-full overflow-hidden rounded-lg">
+              {timelineBlocks.map((block, i) => {
+                const pct = ((block.endMinutes - block.startMinutes) / dayRange.totalMinutes) * 100;
+                if (block.isEmpty) {
+                  const isFirst = i === 0;
+                  const isLast = i === timelineBlocks.length - 1;
+                  const startEdge = isFirst ? "" : "border-l border-dashed border-surface-300";
+                  const endEdge = isLast ? "" : "border-e border-dashed border-surface-300";
+                  return (
+                    <div
+                      key={i}
+                      className={`relative h-full shrink-0 ${startEdge} ${endEdge}`}
+                      style={{ width: `${pct}%` }}
+                    >
+                      <span className="text-surface-300 absolute start-1 top-1/2 -translate-y-1/2 text-[9px] font-medium select-none">
+                        {minutesToTimeStrPersian(block.startMinutes)} –{" "}
+                        {minutesToTimeStrPersian(block.endMinutes)}
+                      </span>
+                    </div>
+                  );
+                }
+                const apt = block.appointment!;
+                const status = statusConfig[apt.status];
+                const colorMap: Record<StatusVariant, string> = {
+                  success: "bg-success-200 border-success-400 text-success-900",
+                  warning: "bg-warning-200 border-warning-400 text-warning-900",
+                  danger: "bg-danger-200 border-danger-400 text-danger-900",
+                  info: "bg-info-200 border-info-400 text-info-900",
+                };
+                return (
+                  <button
+                    key={i}
+                    onClick={() =>
+                      setSelectedAppointment(selectedAppointment?.id === apt.id ? null : apt)
+                    }
+                    className={`shrink-0 cursor-pointer overflow-hidden rounded-md border text-right text-xs font-medium transition-all hover:shadow-md ${
+                      colorMap[status.variant]
+                    } ${selectedAppointment?.id === apt.id ? "ring-primary-500 z-10 scale-[1.02] shadow-md ring-2" : ""}`}
+                    style={{ width: `${Math.max(pct, 2)}%` }}
+                    title={`${apt.customerName} - ${apt.serviceNames?.[0] ?? ""}`}
+                  >
+                    <span className="block truncate px-1.5 pt-1 leading-tight">
+                      {apt.customerName}
+                    </span>
+                    <span className="block truncate px-1.5 text-[9px] leading-tight opacity-80">
+                      {apt.time} {apt.serviceNames?.[0] ? `• ${apt.serviceNames[0]}` : ""}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid gap-6 xl:grid-cols-5">
         <div className="xl:col-span-3">
           <Card variant="outlined" padding="none">
             <div className="border-surface-200 flex items-center justify-between gap-2 border-b px-4 py-3">
               <div className="flex items-center gap-1">
                 <button
                   onClick={handlePrevMonth}
-                  className="text-surface-500 hover:text-surface-700 hover:bg-surface-100 cursor-pointer rounded-lg p-1 transition-colors"
+                  className="text-surface-500 hover:text-surface-700 hover:bg-surface-100 cursor-pointer rounded-lg p-1.5 transition-colors"
                   aria-label="ماه قبل"
                 >
                   <BiChevronRight className="size-5" />
                 </button>
                 <button
                   onClick={handleNextMonth}
-                  className="text-surface-500 hover:text-surface-700 hover:bg-surface-100 cursor-pointer rounded-lg p-1 transition-colors"
+                  className="text-surface-500 hover:text-surface-700 hover:bg-surface-100 cursor-pointer rounded-lg p-1.5 transition-colors"
                   aria-label="ماه بعد"
                 >
                   <BiChevronLeft className="size-5" />
@@ -812,8 +1121,6 @@ function Calendar() {
                       const selectedStyle = cell.isSelected
                         ? "bg-primary-600 text-white font-bold rounded-lg shadow-sm"
                         : "";
-                      const hoverStyle =
-                        !cell.isToday && !cell.isSelected ? "hover:bg-surface-50 rounded-lg" : "";
 
                       const badgeStyle = cell.isSelected
                         ? "bg-white/20 text-white"
@@ -823,7 +1130,7 @@ function Calendar() {
                         <button
                           key={ci}
                           onClick={() => handleSelectDate(cell.date)}
-                          className={`focus-visible:ring-primary-600/40 mobile:h-14 relative flex h-12 cursor-pointer flex-col items-center justify-center text-sm transition-colors outline-none focus-visible:ring-2 ${selectedStyle || todayStyle || hoverStyle}`}
+                          className={`focus-visible:ring-primary-600/40 mobile:h-14 relative flex h-12 cursor-pointer flex-col items-center justify-center text-sm transition-colors outline-none focus-visible:ring-2 ${selectedStyle || todayStyle}`}
                         >
                           <span className="leading-none">{toPersianDigits(cell.day)}</span>
                           {cell.appointments.length > 0 && (
@@ -843,68 +1150,103 @@ function Calendar() {
           </Card>
         </div>
 
-        <div>
-          <Card variant="outlined" padding="md">
-            <div className="mb-3 flex items-center gap-2">
-              <BiCalendar className="text-primary-600 size-4" />
-              <h3 className="text-surface-900 text-xs font-semibold">{selectedDateDisplay}</h3>
+        <div className="flex flex-col gap-4 xl:col-span-2">
+          <div className="hidden max-sm:block">
+            <div className="border-surface-200 mb-3 flex overflow-hidden rounded-lg border">
+              <button
+                onClick={() => setMobileView("list")}
+                className={`flex-1 cursor-pointer py-2 text-center text-xs font-medium transition-colors ${
+                  mobileView === "list"
+                    ? "bg-primary-600 text-white"
+                    : "text-surface-600 hover:bg-surface-50"
+                }`}
+              >
+                لیست نوبت‌ها
+              </button>
+              <button
+                onClick={() => setMobileView("timeline")}
+                className={`flex-1 cursor-pointer py-2 text-center text-xs font-medium transition-colors ${
+                  mobileView === "timeline"
+                    ? "bg-primary-600 text-white"
+                    : "text-surface-600 hover:bg-surface-50"
+                }`}
+              >
+                جزئیات نوبت
+              </button>
             </div>
+          </div>
 
-            {selectedDayAppointments.length === 0 ? (
-              <EmptyState
-                title="نوبتی ثبت نشده"
-                description="برای این روز نوبتی وجود ندارد"
-                action={
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    startIcon={<BiPlus className="size-4" />}
-                    onClick={handleOpenModal}
-                  >
-                    ثبت نوبت
-                  </Button>
-                }
-              />
-            ) : (
-              <div className="flex flex-col gap-2">
-                {selectedDayAppointments.map((appt) => {
-                  const status = statusConfig[appt.status];
-                  const isExpanded = selectedAppointment?.id === appt.id;
-
-                  return (
-                    <button
-                      key={appt.id}
-                      onClick={() => setSelectedAppointment(isExpanded ? null : appt)}
-                      className={`focus-visible:ring-primary-600/40 w-full cursor-pointer rounded-lg border p-2.5 text-right transition-all outline-none focus-visible:ring-2 ${
-                        isExpanded
-                          ? "border-primary-400 bg-primary-50/50 shadow-sm"
-                          : "border-surface-200 hover:border-surface-300 bg-white hover:shadow-sm"
-                      }`}
-                    >
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <div className="text-surface-500 flex items-center gap-1 text-[11px]">
-                          <BiTime className="size-3" />
-                          <span>{appt.time}</span>
-                        </div>
-                        <Badge variant={status.variant} size="sm">
-                          {status.label}
-                        </Badge>
-                      </div>
-                      <p className="text-surface-900 text-xs font-medium">{appt.patient?.firstName} {appt.patient?.lastName}</p>
-                      {isExpanded && (
-                        <div className="border-surface-200 text-surface-500 mt-1.5 flex flex-col gap-1 border-t pt-1.5 text-[11px]">
-                          <div className="flex items-center gap-1.5">
-                            <BiNote className="text-surface-400 size-3" />
-                            <span>{appt.service?.title}</span>
-                          </div>
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+          <div className="max-sm:hidden">
+            <Card variant="outlined" padding="none">
+              <div className="border-surface-200 border-b px-4 py-2.5">
+                <h3 className="text-surface-900 text-xs font-semibold">نوبت‌های امروز</h3>
               </div>
+              {selectedDayAppointments.length === 0 ? (
+                <EmptyState
+                  title="نوبتی ثبت نشده"
+                  description="برای این روز نوبتی وجود ندارد"
+                  action={
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      startIcon={<BiPlus className="size-4" />}
+                      onClick={handleOpenModal}
+                    >
+                      ثبت نوبت
+                    </Button>
+                  }
+                />
+              ) : (
+                <div className="flex flex-col gap-0 p-3">
+                  {selectedDayAppointments.map((appt) => renderAppointmentCard(appt))}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          <div className="sm:hidden">
+            {mobileView === "list" && (
+              <Card variant="outlined" padding="none">
+                <div className="border-surface-200 border-b px-4 py-2.5">
+                  <h3 className="text-surface-900 text-xs font-semibold">نوبت‌های امروز</h3>
+                </div>
+                {selectedDayAppointments.length === 0 ? (
+                  <EmptyState
+                    title="نوبتی ثبت نشده"
+                    description="برای این روز نوبتی وجود ندارد"
+                    action={
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        startIcon={<BiPlus className="size-4" />}
+                        onClick={handleOpenModal}
+                      >
+                        ثبت نوبت
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <div className="flex flex-col gap-0 p-3">
+                    {selectedDayAppointments.map((appt) => renderAppointmentCard(appt))}
+                  </div>
+                )}
+              </Card>
             )}
-          </Card>
+            {mobileView === "timeline" && (
+              <Card variant="outlined" padding="md">
+                {selectedAppointment ? (
+                  renderDetailView(selectedAppointment)
+                ) : (
+                  <div className="flex flex-col items-center gap-3 py-8 text-center">
+                    <BiNote className="text-surface-300 size-10" />
+                    <p className="text-surface-500 text-sm">
+                      روی یک نوبت در تایم‌لاین بالا کلیک کنید
+                    </p>
+                  </div>
+                )}
+              </Card>
+            )}
+          </div>
         </div>
       </div>
 
@@ -963,8 +1305,336 @@ function Calendar() {
           </motion.div>
         </AnimatePresence>
       </Modal>
+
+      <Modal
+        open={editModalOpen}
+        onClose={handleCloseEdit}
+        title={editAppointment ? `ویرایش نوبت ${editAppointment.customerName}` : ""}
+        size="lg"
+        footer={
+          <>
+            <Button variant="ghost" onClick={handleCloseEdit}>
+              انصراف
+            </Button>
+            <Button variant="primary" onClick={handleSaveEdit} disabled={isUpdating}>
+              {isUpdating ? "در حال ذخیره..." : "ذخیره تغییرات"}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <Card variant="outlined" padding="sm">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary-100 text-primary-700 flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold">
+                {editAppointment?.customerName?.[0] ?? "?"}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-surface-900 text-sm font-medium">
+                  {editAppointment?.customerName}
+                </p>
+                <p className="text-surface-500 mt-0.5 text-xs" dir="ltr">
+                  {editAppointment?.customerMobile ? toPersian(editAppointment.customerMobile) : ""}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-surface-500 mb-1 text-[11px] font-medium">خدمت</p>
+              <div className="text-surface-700 bg-surface-50 rounded-lg px-3 py-2.5 text-sm">
+                {editAppointment?.serviceNames?.[0] ?? "—"}
+              </div>
+            </div>
+            <div>
+              <p className="text-surface-500 mb-1 text-[11px] font-medium">زمان</p>
+              <div className="text-surface-700 bg-surface-50 rounded-lg px-3 py-2.5 text-sm">
+                {editAppointment?.time ?? "—"}
+                {editAppointment != null && editAppointment.duration > 0 && (
+                  <span className="text-surface-400 me-2">
+                    ({toPersianDigits(editAppointment.duration)} دقیقه)
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <Textarea
+            label="توضیحات"
+            placeholder="توضیحات نوبت..."
+            value={editNotes}
+            onChange={(e) => setEditNotes(e.target.value)}
+            rows={3}
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        open={deleteConfirmId !== null}
+        onClose={() => setDeleteConfirmId(null)}
+        title="حذف نوبت"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDeleteConfirmId(null)}>
+              انصراف
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleDeleteExecute}
+              loading={isDeleting}
+              startIcon={<BiSolidTrash className="size-4" />}
+            >
+              {isDeleting ? "در حال حذف..." : "حذف نوبت"}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-surface-600 text-sm leading-relaxed">
+          آیا از حذف این نوبت مطمئن هستید؟ این عمل قابل بازگشت نیست.
+        </p>
+      </Modal>
     </div>
   );
+
+  function renderAppointmentCard(appt: Appointment) {
+    const status = statusConfig[appt.status];
+    const isExpanded = selectedAppointment?.id === appt.id;
+    const isAdmin = user?.role === "admin";
+
+    return (
+      <div key={appt.id} className="border-surface-100 rounded-lg border p-2.5">
+        <button
+          onClick={() => setSelectedAppointment(isExpanded ? null : appt)}
+          className={`focus-visible:ring-primary-600/40 w-full cursor-pointer rounded-lg px-3 py-2.5 text-right transition-all outline-none focus-visible:ring-2 ${
+            isExpanded ? "bg-primary-50/50 shadow-sm" : "hover:bg-surface-50"
+          }`}
+        >
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <div className="text-surface-500 flex items-center gap-1 text-[11px]">
+              <BiTime className="size-3" />
+              <span>{appt.time}</span>
+              {appt.duration > 0 && (
+                <span className="text-surface-400">({toPersianDigits(appt.duration)} دقیقه)</span>
+              )}
+            </div>
+            <Badge variant={status.variant} size="sm">
+              {status.label}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <p className="text-surface-900 truncate text-xs font-medium">{appt.customerName}</p>
+            {appt.customerMobile && (
+              <span className="text-surface-400 shrink-0 text-[10px]" dir="ltr">
+                {toPersian(appt.customerMobile)}
+              </span>
+            )}
+          </div>
+          {appt.serviceNames && appt.serviceNames.length > 0 && (
+            <p className="text-surface-500 mt-0.5 truncate text-[11px]">
+              {appt.serviceNames.join("، ")}
+            </p>
+          )}
+        </button>
+
+        <AnimatePresence initial={false}>
+          {isExpanded && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <div className="border-surface-100 mx-3 mb-2 space-y-3 rounded-lg border bg-white p-3">
+                {appt.notes && (
+                  <div>
+                    <p className="text-surface-500 mb-1 text-[11px] font-medium">توضیحات:</p>
+                    <p className="text-surface-700 text-xs leading-relaxed break-words whitespace-pre-wrap">
+                      {appt.notes}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {appt.status === "pending" && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => handleStatusAction("confirm", appt.id)}
+                      >
+                        تأیید نوبت
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleStatusAction("cancel", appt.id)}
+                      >
+                        لغو
+                      </Button>
+                    </>
+                  )}
+                  {appt.status === "confirmed" && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => handleStatusAction("complete", appt.id)}
+                      >
+                        انجام شد
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleStatusAction("cancel", appt.id)}
+                      >
+                        لغو
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                <div className="border-surface-100 flex items-center gap-2 border-t pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    startIcon={<BiEdit className="size-3.5" />}
+                    onClick={() => handleOpenEdit(appt)}
+                  >
+                    ویرایش
+                  </Button>
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      startIcon={<BiSolidTrash className="size-3.5" />}
+                      onClick={() => handleDeleteConfirm(appt.id)}
+                      className="text-danger-600 hover:text-danger-700 hover:bg-danger-50"
+                    >
+                      حذف
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  function renderDetailView(appt: Appointment) {
+    const status = statusConfig[appt.status];
+    const isAdmin = user?.role === "admin";
+
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-surface-900 text-sm font-medium">{appt.customerName}</p>
+            {appt.customerMobile && (
+              <p className="text-surface-400 mt-0.5 text-xs" dir="ltr">
+                {toPersian(appt.customerMobile)}
+              </p>
+            )}
+            <p className="text-surface-500 mt-0.5 text-xs">
+              {appt.time}
+              {appt.duration > 0 && ` (${toPersianDigits(appt.duration)} دقیقه)`}
+            </p>
+          </div>
+          <Badge variant={status.variant} size="sm">
+            {status.label}
+          </Badge>
+        </div>
+
+        {appt.serviceNames && appt.serviceNames.length > 0 && (
+          <div>
+            <p className="text-surface-500 mb-1 text-[11px] font-medium">خدمات:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {appt.serviceNames.map((name, i) => (
+                <span
+                  key={i}
+                  className="bg-info-50 text-info-700 rounded-md px-2 py-0.5 text-[11px] font-medium"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {appt.notes && (
+          <div>
+            <p className="text-surface-500 mb-1 text-[11px] font-medium">توضیحات:</p>
+            <p className="text-surface-700 text-xs leading-relaxed break-words whitespace-pre-wrap">
+              {appt.notes}
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {appt.status === "pending" && (
+            <>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => handleStatusAction("confirm", appt.id)}
+              >
+                تأیید نوبت
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleStatusAction("cancel", appt.id)}
+              >
+                لغو
+              </Button>
+            </>
+          )}
+          {appt.status === "confirmed" && (
+            <>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => handleStatusAction("complete", appt.id)}
+              >
+                انجام شد
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleStatusAction("cancel", appt.id)}
+              >
+                لغو
+              </Button>
+            </>
+          )}
+        </div>
+
+        <div className="border-surface-100 flex items-center gap-2 border-t pt-2">
+          <Button
+            size="sm"
+            variant="outline"
+            startIcon={<BiEdit className="size-3.5" />}
+            onClick={() => handleOpenEdit(appt)}
+          >
+            ویرایش
+          </Button>
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="ghost"
+              startIcon={<BiSolidTrash className="size-3.5" />}
+              onClick={() => handleDeleteConfirm(appt.id)}
+              className="text-danger-600 hover:text-danger-700 hover:bg-danger-50"
+            >
+              حذف
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
 }
 
 export default Calendar;

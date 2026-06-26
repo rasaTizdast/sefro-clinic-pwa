@@ -37,3 +37,19 @@ export function RedirectIfAuth() {
 
   return <Outlet />;
 }
+
+export function RequireRole({
+  role,
+  children,
+}: {
+  role: "admin" | "employee";
+  children: React.ReactNode;
+}) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return null;
+
+  if (!user || user.role !== role) return <Navigate to="/" replace />;
+
+  return <>{children}</>;
+}
