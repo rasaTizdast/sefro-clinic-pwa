@@ -12,12 +12,16 @@ import { Pagination } from "../components/ui/Pagination";
 import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
 import { Textarea } from "../components/ui/Textarea";
+import { useAuth } from "../contexts/AuthContext";
 import {
   useCreateProduct,
   useDeleteProduct,
   useProductsList,
   useUpdateProduct,
 } from "../hooks/api";
+import { toLatinDigits } from "../lib/digits";
+import { formatPrice } from "../lib/format";
+import type { ApiError } from "../types/api";
 import type { WarehouseItem } from "../types/warehouse";
 
 const unitOptions = [
@@ -34,10 +38,12 @@ function getStatus(stock: number): { label: string; variant: "success" | "warnin
 }
 
 function Warehouse() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WarehouseItem | null>(null);
+  const [formError, setFormError] = useState("");
 
   const [formName, setFormName] = useState("");
   const [formStock, setFormStock] = useState("");
@@ -79,6 +85,7 @@ function Warehouse() {
   const openNewModal = () => {
     setEditingItem(null);
     resetForm();
+    setFormError("");
     setModalOpen(true);
   };
 
@@ -89,6 +96,7 @@ function Warehouse() {
     setFormUnit(item.unit);
     setFormUnitPrice(item.unitPrice);
     setFormDescription(item.description);
+    setFormError("");
     setModalOpen(true);
   };
 
@@ -96,32 +104,66 @@ function Warehouse() {
     deleteMutation.mutate(id);
   };
 
-  const handleSave = () => {
-    if (!formName.trim()) return;
+  async function handleSave() {
+    setFormError("");
+    if (!formName.trim()) {
+      setFormError("نام محصول الزامی است");
+      return;
+    }
+    if (!formUnit) {
+      setFormError("واحد محصول الزامی است");
+      return;
+    }
+
+    const stockNum = Number(formStock) || 0;
+    const priceNum = Number(toLatinDigits(formUnitPrice.replace(/[^\d۰-۹٠-٩]/g, ""))) || 0;
 
     const payload: Record<string, unknown> = {
-      name: formName,
-      stock: Number(formStock) || 0,
+      name: formName.trim(),
+      stock: stockNum,
       unit: formUnit,
-      unitPrice: formUnitPrice,
+      unitPrice: priceNum,
       description: formDescription,
     };
 
-    if (editingItem) {
-      updateMutation.mutate({ id: editingItem.id, data: payload });
-    } else {
-      createMutation.mutate(payload);
+    try {
+      if (editingItem) {
+        await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
+      } else {
+        await createMutation.mutateAsync(payload);
+      }
+      setModalOpen(false);
+      resetForm();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      const raw = apiErr.raw;
+      if (raw && typeof raw === "object") {
+        const msgs = Object.values(raw).flat().filter(Boolean).join("، ");
+        if (msgs) {
+          setFormError(msgs);
+          return;
+        }
+      }
+      setFormError(apiErr.message || "خطا در ذخیره محصول");
     }
-
-    setModalOpen(false);
-    resetForm();
-  };
+  }
 
   const columns: Column<WarehouseItem>[] = [
     { key: "name", header: "نام محصول" },
     { key: "stock", header: "موجودی", width: "70px", align: "center" },
     { key: "unit", header: "واحد", width: "80px", align: "center" },
-    { key: "unitPrice", header: "قیمت واحد", width: "110px", align: "center" },
+    {
+      key: "unitPrice",
+      header: "قیمت واحد (تومان)",
+      width: "130px",
+      align: "center",
+      render: (item) => (
+        <span>
+          {formatPrice(Number(item.unitPrice))}{" "}
+          <span className="text-surface-400 text-[10px]">تومان</span>
+        </span>
+      ),
+    },
     {
       key: "status",
       header: "وضعیت",
@@ -150,13 +192,15 @@ function Warehouse() {
           >
             <BiEdit className="size-4" />
           </button>
-          <button
-            onClick={() => handleDelete(item.id)}
-            className="text-surface-400 hover:text-danger-600 hover:bg-danger-50 cursor-pointer rounded-md p-1.5 transition-colors"
-            aria-label="حذف"
-          >
-            <BiTrash className="size-4" />
-          </button>
+          {user?.role === "admin" && (
+            <button
+              onClick={() => handleDelete(item.id)}
+              className="text-surface-400 hover:text-danger-600 hover:bg-danger-50 cursor-pointer rounded-md p-1.5 transition-colors"
+              aria-label="حذف"
+            >
+              <BiTrash className="size-4" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -207,6 +251,7 @@ function Warehouse() {
         onClose={() => {
           setModalOpen(false);
           resetForm();
+          setFormError("");
         }}
         title={editingItem ? "ویرایش محصول" : "محصول جدید"}
         size="lg"
@@ -217,6 +262,7 @@ function Warehouse() {
               onClick={() => {
                 setModalOpen(false);
                 resetForm();
+                setFormError("");
               }}
             >
               انصراف
@@ -228,6 +274,7 @@ function Warehouse() {
         }
       >
         <div className="flex flex-col gap-4">
+          {formError && <Alert variant="error">{formError}</Alert>}
           <Input
             label="نام محصول"
             value={formName}
@@ -243,10 +290,17 @@ function Warehouse() {
               placeholder="۰"
             />
             <Input
-              label="قیمت واحد"
-              value={formUnitPrice}
-              onChange={(e) => setFormUnitPrice(e.target.value)}
-              placeholder="قیمت را وارد کنید"
+              label="قیمت واحد (تومان)"
+              type="text"
+              inputMode="numeric"
+              value={
+                formUnitPrice && Number(formUnitPrice) > 0 ? formatPrice(Number(formUnitPrice)) : ""
+              }
+              onChange={(e) => {
+                const latin = toLatinDigits(e.target.value.replace(/[^\d۰-۹٠-٩]/g, ""));
+                setFormUnitPrice(latin || "");
+              }}
+              placeholder="مثال: ۳۵۰٬۰۰۰"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
