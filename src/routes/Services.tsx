@@ -3,6 +3,7 @@ import { BiPlus } from "react-icons/bi";
 import { CiEdit, CiTrash } from "react-icons/ci";
 
 import { SearchButton } from "../components/SearchButton";
+import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
@@ -12,12 +13,16 @@ import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
 import { Textarea } from "../components/ui/Textarea";
 import { Toggle } from "../components/ui/Toggle";
+import { useAuth } from "../contexts/AuthContext";
 import {
   useCreateService,
   useDeleteService,
   useServicesList,
   useUpdateService,
 } from "../hooks/api";
+import { toLatinDigits } from "../lib/digits";
+import { formatPrice } from "../lib/format";
+import type { ApiError } from "../types/api";
 import type { Service, ServiceFormData } from "../types/service";
 
 const initialForm: ServiceFormData = {
@@ -35,20 +40,20 @@ const statusConfig: Record<string, { label: string; variant: "success" | "warnin
   inactive: { label: "غیرفعال", variant: "warning" },
 };
 
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat("fa-IR").format(price);
-}
-
 function Services() {
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [form, setForm] = useState<ServiceFormData>(initialForm);
+  const [formError, setFormError] = useState("");
 
+  const { user } = useAuth();
   const { data: paginated, isLoading } = useServicesList({ page: currentPage, perPage: PAGE_SIZE });
   const createMutation = useCreateService();
   const updateMutation = useUpdateService();
   const deleteMutation = useDeleteService();
+
+  const isAdmin = user?.role === "admin";
 
   const services = paginated?.data ?? [];
 
@@ -59,6 +64,7 @@ function Services() {
   function openAddModal() {
     setEditingService(null);
     setForm(initialForm);
+    setFormError("");
     setModalOpen(true);
   }
 
@@ -71,19 +77,21 @@ function Services() {
       description: service.description,
       isActive: service.isActive,
     });
+    setFormError("");
     setModalOpen(true);
   }
 
   function closeModal() {
     setModalOpen(false);
     setEditingService(null);
+    setFormError("");
   }
 
-  function handleFormChange(field: keyof ServiceFormData, value: string | boolean) {
+  function handleFormChange(field: keyof ServiceFormData, value: string | number | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     const payload: Record<string, unknown> = {
       title: form.title,
       duration: Number(form.duration),
@@ -92,12 +100,25 @@ function Services() {
       isActive: form.isActive,
     };
 
-    if (editingService) {
-      updateMutation.mutate({ id: editingService.id, data: payload });
-    } else {
-      createMutation.mutate(payload);
+    try {
+      if (editingService) {
+        await updateMutation.mutateAsync({ id: editingService.id, data: payload });
+      } else {
+        await createMutation.mutateAsync(payload);
+      }
+      closeModal();
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      const raw = apiErr.raw;
+      if (raw && typeof raw === "object") {
+        const msgs = Object.values(raw).flat().filter(Boolean).join("، ");
+        if (msgs) {
+          setFormError(msgs);
+          return;
+        }
+      }
+      setFormError(apiErr.message || "خطا در ذخیره خدمت");
     }
-    closeModal();
   }
 
   function handleDelete(service: Service) {
@@ -105,19 +126,22 @@ function Services() {
   }
 
   function buildActions(service: Service) {
-    return [
+    const items: Record<string, unknown>[] = [
       {
         label: "ویرایش",
         icon: <CiEdit className="size-4" />,
         onClick: () => openEditModal(service),
       },
-      {
+    ];
+    if (isAdmin) {
+      items.push({
         label: "حذف",
         icon: <CiTrash className="size-4" />,
         danger: true,
         onClick: () => handleDelete(service),
-      },
-    ];
+      });
+    }
+    return items;
   }
 
   const columns: Column<Service>[] = [
@@ -238,6 +262,7 @@ function Services() {
         }
       >
         <div className="flex flex-col gap-4">
+          {formError && <Alert variant="error">{formError}</Alert>}
           <Input
             label="نام خدمت"
             value={form.title}
@@ -254,10 +279,14 @@ function Services() {
             />
             <Input
               label="قیمت (تومان)"
-              type="number"
-              value={form.price}
-              onChange={(e) => handleFormChange("price", e.target.value)}
-              placeholder="مثال: ۳۵۰۰۰۰"
+              type="text"
+              inputMode="numeric"
+              value={form.price ? formatPrice(Number(form.price)) : ""}
+              onChange={(e) => {
+                const latin = toLatinDigits(e.target.value.replace(/[^\d۰-۹٠-٩]/g, ""));
+                handleFormChange("price", Number(latin) || 0);
+              }}
+              placeholder="مثال: ۳۵۰٬۰۰۰"
             />
           </div>
           <Textarea
