@@ -6,8 +6,7 @@ import type { Patient } from "../types/patient";
 const paymentMethodLabels: Record<string, string> = {
   cash: "نقدی",
   card: "کارت خوان",
-  online: "آنلاین",
-  cheque: "چک",
+  transfer: "کارت به کارت",
 };
 
 const statusLabels: Record<string, string> = {

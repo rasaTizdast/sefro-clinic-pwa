@@ -14,8 +14,7 @@ interface TransactionDetailModalProps {
 const paymentMethodLabels: Record<string, string> = {
   cash: "نقدی",
   card: "کارت خوان",
-  online: "آنلاین",
-  cheque: "چک",
+  transfer: "کارت به کارت",
 };
 
 const statusConfig: Record<string, { label: string; variant: "success" | "danger" }> = {
