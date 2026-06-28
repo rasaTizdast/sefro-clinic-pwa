@@ -35,6 +35,7 @@ import {
   useVisitsList,
   useWorkTime,
 } from "../hooks/api";
+import { jalaliToGregorianISO } from "../lib/date";
 import { toLatinDigits, toPersianDigits as toPersianDigitsLib } from "../lib/digits";
 import { formatPrice } from "../lib/format";
 import type {
@@ -505,7 +506,7 @@ function Calendar() {
       {
         customer: selectedPatient.id,
         services: [selectedService.id],
-        date: form.date.replace(/\//g, "-"),
+        date: jalaliToGregorianISO(form.date),
         time: form.time,
         notes: form.notes || undefined,
       },
@@ -997,18 +998,12 @@ function Calendar() {
 
         <div className="pb-1" dir="ltr">
           <div className="flex flex-col">
-            <div className="text-surface-400 mb-1 flex text-[10px]">
-              {Array.from({ length: dayRange.endHour - dayRange.startHour }, (_, i) => (
-                <div
-                  key={i}
-                  className="shrink-0 text-start"
-                  style={{ width: `${(60 / dayRange.totalMinutes) * 100}%` }}
-                >
-                  {minutesToTimeStrPersian((dayRange.startHour + i) * 60)}
-                </div>
+            <div className="text-surface-500 mb-1 flex justify-between text-[10px]">
+              {Array.from({ length: dayRange.endHour - dayRange.startHour + 1 }, (_, i) => (
+                <div key={i}>{minutesToTimeStrPersian((dayRange.startHour + i) * 60)}</div>
               ))}
             </div>
-            <div className="bg-surface-100/50 flex h-14 w-full overflow-hidden rounded-lg">
+            <div className="bg-surface-100/50 flex h-14 w-full rounded-lg">
               {timelineBlocks.map((block, i) => {
                 const pct = ((block.endMinutes - block.startMinutes) / dayRange.totalMinutes) * 100;
                 if (block.isEmpty) {
@@ -1020,13 +1015,17 @@ function Calendar() {
                     <div
                       key={i}
                       className={`relative h-full shrink-0 ${startEdge} ${endEdge}`}
-                      style={{ width: `${pct}%` }}
-                    >
-                      <span className="text-surface-300 absolute start-1 top-1/2 -translate-y-1/2 text-[9px] font-medium select-none">
-                        {minutesToTimeStrPersian(block.startMinutes)} –{" "}
-                        {minutesToTimeStrPersian(block.endMinutes)}
-                      </span>
-                    </div>
+                      style={{
+                        width: `${pct}%`,
+                        background: `repeating-linear-gradient(
+                          45deg,
+                          transparent,
+                          transparent 10px,
+                          var(--color-surface-200) 10px,
+                          var(--color-surface-200) 20px
+                        )`,
+                      }}
+                    />
                   );
                 }
                 const apt = block.appointment!;
@@ -1324,19 +1323,32 @@ function Calendar() {
       >
         <div className="flex flex-col gap-4">
           <Card variant="outlined" padding="sm">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary-100 text-primary-700 flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold">
-                {editAppointment?.customerName?.[0] ?? "?"}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-surface-900 text-sm font-medium">
-                  {editAppointment?.customerName}
-                </p>
-                <p className="text-surface-500 mt-0.5 text-xs" dir="ltr">
-                  {editAppointment?.customerMobile ? toPersian(editAppointment.customerMobile) : ""}
-                </p>
-              </div>
-            </div>
+            {(() => {
+              const editPatient = editAppointment
+                ? patients.find((p) => p.id === editAppointment.customer)
+                : undefined;
+              const editName = editPatient
+                ? `${editPatient.firstName} ${editPatient.lastName}`
+                : (editAppointment?.customerName ?? "?");
+              const editMobile = editPatient
+                ? editPatient.mobileNumber
+                : (editAppointment?.customerMobile ?? "");
+              return (
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary-100 text-primary-700 flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold">
+                    {editName[0]}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-surface-900 text-sm font-medium">{editName}</p>
+                    {editMobile && (
+                      <p className="text-surface-500 mt-0.5 text-xs" dir="ltr">
+                        {toPersian(editMobile)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </Card>
 
           <div className="grid grid-cols-2 gap-3">
@@ -1401,6 +1413,9 @@ function Calendar() {
     const status = statusConfig[appt.status];
     const isExpanded = selectedAppointment?.id === appt.id;
     const isAdmin = user?.role === "admin";
+    const patient = patients.find((p) => p.id === appt.customer);
+    const displayName = patient ? `${patient.firstName} ${patient.lastName}` : appt.customerName;
+    const displayMobile = patient ? patient.mobileNumber : appt.customerMobile;
 
     return (
       <div key={appt.id} className="border-surface-100 rounded-lg border p-2.5">
@@ -1423,10 +1438,10 @@ function Calendar() {
             </Badge>
           </div>
           <div className="flex items-center gap-2">
-            <p className="text-surface-900 truncate text-xs font-medium">{appt.customerName}</p>
-            {appt.customerMobile && (
-              <span className="text-surface-400 shrink-0 text-[10px]" dir="ltr">
-                {toPersian(appt.customerMobile)}
+            <p className="text-surface-900 truncate text-xs font-medium">{displayName}</p>
+            {displayMobile && (
+              <span className="text-surface-500 shrink-0 text-[10px]" dir="ltr">
+                {toPersian(displayMobile)}
               </span>
             )}
           </div>
@@ -1492,9 +1507,7 @@ function Calendar() {
                       </Button>
                     </>
                   )}
-                </div>
-
-                <div className="border-surface-100 flex items-center gap-2 border-t pt-2">
+                  <div className="me-auto" />
                   <Button
                     size="sm"
                     variant="outline"
@@ -1609,9 +1622,7 @@ function Calendar() {
               </Button>
             </>
           )}
-        </div>
-
-        <div className="border-surface-100 flex items-center gap-2 border-t pt-2">
+          <div className="me-auto" />
           <Button
             size="sm"
             variant="outline"

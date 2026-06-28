@@ -16,22 +16,12 @@ import { Card, CardTitle } from "../components/ui/Card";
 import { JalaliDatePicker } from "../components/ui/JalaliDatePicker";
 import { Pagination } from "../components/ui/Pagination";
 import { type Column, Table } from "../components/ui/Table";
-import {
-  useCreatePayment,
-  useFilteredReports,
-  usePaymentsList,
-  useServicesList,
-} from "../hooks/api";
+import { useFilteredReports, usePaymentsList, useServicesList } from "../hooks/api";
 import { useQuickActions } from "../hooks/useQuickActions";
+import { jalaliToGregorianISO } from "../lib/date";
 import { exportTransactionsToExcel } from "../lib/excel";
 import { exportAllPayments } from "../services/payments";
-import type {
-  AccountingStat,
-  DailyRevenue,
-  PeriodFilter,
-  Transaction,
-  TransactionFormData,
-} from "../types/accounting";
+import type { AccountingStat, DailyRevenue, PeriodFilter, Transaction } from "../types/accounting";
 
 const transactionStatusMap: Record<
   Transaction["status"],
@@ -232,21 +222,24 @@ function Accounting() {
   const [exporting, setExporting] = useState(false);
 
   const todayStr = getPersianToday();
+  const todayISO = jalaliToGregorianISO(todayStr);
   const { from: periodFrom, to: periodTo } = getPeriodDateRange(activePeriod);
+  const periodFromISO = jalaliToGregorianISO(periodFrom);
+  const periodToISO = jalaliToGregorianISO(periodTo);
   const chartFrom = getChartLookback(activePeriod, periodTo);
+  const chartFromISO = jalaliToGregorianISO(chartFrom);
 
   const { data: paginatedPayments, isLoading: paymentsLoading } = usePaymentsList({
     page: currentPage,
     perPage: 20,
-    dateFrom: dateFrom ?? periodFrom,
-    dateTo: dateTo ?? periodTo,
+    dateFrom: dateFrom ? jalaliToGregorianISO(dateFrom) : periodFromISO,
+    dateTo: dateTo ? jalaliToGregorianISO(dateTo) : periodToISO,
   });
   const { data: servicesData } = useServicesList();
-  const { data: periodReport } = useFilteredReports(periodFrom, periodTo);
-  const { data: todayReport } = useFilteredReports(todayStr, todayStr);
-  const { data: chartReport } = useFilteredReports(chartFrom, periodTo);
+  const { data: periodReport } = useFilteredReports(periodFromISO, periodToISO);
+  const { data: todayReport } = useFilteredReports(todayISO, todayISO);
+  const { data: chartReport } = useFilteredReports(chartFromISO, periodToISO);
 
-  const { mutateAsync: createPayment } = useCreatePayment();
   const transactions = paginatedPayments?.data ?? [];
   const services = useMemo(() => servicesData?.data ?? [], [servicesData]);
 
@@ -306,18 +299,6 @@ function Accounting() {
 
   const totalPages = paginatedPayments?.totalPages ?? 1;
 
-  async function handleAddTransaction(data: TransactionFormData) {
-    await createPayment({
-      patientId: data.patientId,
-      visitId: data.visitId,
-      date: data.date,
-      amount: data.amount,
-      paymentMethod: data.paymentMethod,
-      description: data.description,
-    });
-    setAddModalOpen(false);
-  }
-
   function openDetailModal(transaction: Transaction) {
     setSelectedTransaction(transaction);
     setDetailModalOpen(true);
@@ -334,7 +315,10 @@ function Accounting() {
   async function handleExcelExport() {
     setExporting(true);
     try {
-      const allPayments = await exportAllPayments(dateFrom ?? periodFrom, dateTo ?? periodTo);
+      const allPayments = await exportAllPayments(
+        dateFrom ? jalaliToGregorianISO(dateFrom) : periodFromISO,
+        dateTo ? jalaliToGregorianISO(dateTo) : periodToISO
+      );
       exportTransactionsToExcel(allPayments);
     } finally {
       setExporting(false);
@@ -558,12 +542,7 @@ function Accounting() {
         )}
       </Card>
 
-      <AddTransactionModal
-        open={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
-        onSave={handleAddTransaction}
-        services={services}
-      />
+      <AddTransactionModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
 
       <TransactionDetailModal
         open={detailModalOpen}

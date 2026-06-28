@@ -38,3 +38,16 @@ export function jalaliToGregorian(jalaliStr: string): string {
   const { gy, gm, gd } = jalaali.toGregorian(parts[0], parts[1], parts[2]);
   return `${gy}-${String(gm).padStart(2, "0")}-${String(gd).padStart(2, "0")}`;
 }
+
+export function jalaliToGregorianISO(jalaliStr: string): string {
+  const latin = toLatinDigits(jalaliStr);
+  const parts = latin.split("/").map(Number);
+  if (parts.length !== 3) return jalaliStr;
+  const { gy, gm, gd } = jalaali.toGregorian(parts[0], parts[1], parts[2]);
+  return `${gy}-${String(gm).padStart(2, "0")}-${String(gd).padStart(2, "0")}`;
+}
+
+function toLatinDigits(str: string): string {
+  const persianDigits = "۰۱۲۳۴۵۶۷۸۹";
+  return str.replace(/[۰-۹]/g, (d) => String(persianDigits.indexOf(d)));
+}
