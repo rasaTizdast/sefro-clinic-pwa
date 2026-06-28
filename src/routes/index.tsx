@@ -1,8 +1,8 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Outlet } from "react-router";
 
 import App from "../App";
 import { ErrorFallback, NotFound } from "../components/ui";
-import { RedirectIfAuth, RequireAuth } from "./RouteGuard";
+import { RedirectIfAuth, RequireAuth, RequireRole } from "./RouteGuard";
 
 type LazyModule = { default: React.ComponentType };
 const lazyRoute =
@@ -27,6 +27,15 @@ export const router = createBrowserRouter([
           { path: "analytics", lazy: lazyRoute(() => import("./Analytics")) },
           { path: "settings", lazy: lazyRoute(() => import("./Settings")) },
           { path: "design-system", lazy: lazyRoute(() => import("./DesignSystem")) },
+          {
+            path: "logs",
+            element: (
+              <RequireRole role="admin">
+                <Outlet />
+              </RequireRole>
+            ),
+            children: [{ index: true, lazy: lazyRoute(() => import("./Logs")) }],
+          },
           { path: "*", element: <NotFound /> },
         ],
       },

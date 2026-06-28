@@ -53,4 +53,8 @@ export const endpoints = {
     list: "/work-time/",
     detail: (id: number) => `/work-time/${id}/`,
   },
+  logs: {
+    list: "/logs/",
+    detail: (id: number) => `/logs/${id}/`,
+  },
 } as const;

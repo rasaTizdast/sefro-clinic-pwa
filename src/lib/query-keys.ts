@@ -46,4 +46,9 @@ export const queryKeys = {
   workTime: {
     all: ["workTime"] as const,
   },
+  logs: {
+    all: ["logs"] as const,
+    list: (params?: Record<string, unknown>) => ["logs", "list", params] as const,
+    detail: (id: number) => ["logs", id] as const,
+  },
 } as const;

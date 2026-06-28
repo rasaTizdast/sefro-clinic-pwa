@@ -3,7 +3,7 @@ import { CiMoneyBill, CiSettings } from "react-icons/ci";
 import { FaWarehouse } from "react-icons/fa";
 import { FcServices } from "react-icons/fc";
 import { IoAnalytics } from "react-icons/io5";
-import { MdPalette } from "react-icons/md";
+import { MdHistory, MdPalette } from "react-icons/md";
 import { PiChartPieSliceDuotone } from "react-icons/pi";
 import { Outlet } from "react-router";
 
@@ -12,6 +12,7 @@ import { PwaUpdater } from "./components/PwaUpdater";
 import { QuickActionProvider } from "./components/QuickActionProvider";
 import Sidebar from "./components/Sidebar";
 import { LoadingBar } from "./components/ui/LoadingBar";
+import { useAuth } from "./contexts/AuthContext";
 import { CommandPaletteContext } from "./contexts/commandPalette";
 import { useCommandPalette } from "./hooks/useCommandPalette";
 import type { SidebarItem } from "./types/sidebar";
@@ -26,17 +27,20 @@ const items: SidebarItem[] = [
   { label: "مدیریت انبار", icon: <FaWarehouse />, path: "/warehouse", group: "secondary" },
   { label: "تنظیمات", icon: <CiSettings />, path: "/settings", group: "secondary" },
   { label: "سیستم طراحی", icon: <MdPalette />, path: "/design-system", group: "secondary" },
+  { label: "لاگ سیستم", icon: <MdHistory />, path: "/logs", group: "secondary" },
 ];
 
 function AppContent() {
   const { open, setOpen } = useCommandPalette();
+  const { user } = useAuth();
+  const visibleItems = user?.role === "admin" ? items : items.filter((i) => i.path !== "/logs");
 
   return (
     <CommandPaletteContext.Provider value={{ open, setOpen }}>
       <div className="flex h-screen gap-3 overflow-hidden p-2 pb-24 md:p-3 md:pb-3">
         <PwaUpdater />
         <LoadingBar />
-        <Sidebar items={items} />
+        <Sidebar items={visibleItems} />
         <main className="scrollable-content flex-1 p-1 md:p-3">
           <Outlet />
         </main>
