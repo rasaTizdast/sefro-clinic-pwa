@@ -359,7 +359,7 @@ export default function DesignSystem() {
           items={dropdownItems}
         />
         <Select
-          align="end"
+          align="start"
           trigger={
             <Button variant="secondary" endIcon={<BiChevronDown />}>
               گزینه‌ها

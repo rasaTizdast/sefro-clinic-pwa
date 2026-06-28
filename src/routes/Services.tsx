@@ -182,7 +182,7 @@ function Services() {
       width: "80px",
       render: (item) => (
         <Select
-          align="end"
+          align="start"
           trigger={
             <Button variant="ghost" size="sm">
               <svg
