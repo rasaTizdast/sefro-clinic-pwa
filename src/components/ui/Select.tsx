@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import {
   type ChangeEvent,
   type KeyboardEvent,
@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 
 interface SelectOption {
   value: string;
@@ -44,6 +45,12 @@ interface SelectProps {
   searchable?: boolean;
 }
 
+interface MenuPosition {
+  top: number;
+  left?: number;
+  right?: number;
+}
+
 export function Select({
   label,
   error,
@@ -65,7 +72,7 @@ export function Select({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [internalValue, setInternalValue] = useState(defaultValue);
   const [searchQuery, setSearchQuery] = useState("");
-  const [effectiveAlign, setEffectiveAlign] = useState<"start" | "end">(align);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
 
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -91,8 +98,8 @@ export function Select({
     setIsOpen(false);
     setActiveIndex(-1);
     setSearchQuery("");
-    setEffectiveAlign(align);
-  }, [align]);
+    setMenuPosition(null);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -120,6 +127,21 @@ export function Select({
       searchInputRef.current?.focus();
     }
   }, [isOpen, searchable]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleResize = () => close();
+    const handleScroll = () => close();
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("scroll", handleScroll, true);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [isOpen, close]);
 
   const enabledItems = isActionMenu
     ? ((items ?? [])
@@ -165,48 +187,34 @@ export function Select({
     });
   }
 
-  function estimateMenuWidth(): number {
-    if (isActionMenu && items) {
-      if (items.length === 0) return 160;
-      const avgCharWidth = 9;
-      const iconWidth = 16;
-      const gapWidth = 10;
-      const paddingWidth = 24;
-      const buffer = 20;
-      const maxTextWidth = items.reduce((max, item) => {
-        const labelLen = item.label?.length ?? 0;
-        const descLen = item.description?.length ?? 0;
-        const shortcutLen = item.shortcut?.length ?? 0;
-        return Math.max(max, (labelLen + descLen + shortcutLen) * avgCharWidth);
-      }, 0);
-      return maxTextWidth + iconWidth + gapWidth + paddingWidth + buffer;
-    }
-    if (options) {
-      const avgCharWidth = 9;
-      const paddingWidth = 24;
-      const checkWidth = 16;
-      const gapWidth = 8;
-      const buffer = 20;
-      const maxTextWidth = options.reduce(
-        (max, o) => Math.max(max, o.label.length * avgCharWidth),
-        0
-      );
-      return maxTextWidth + checkWidth + gapWidth + paddingWidth + buffer;
-    }
-    return 160;
-  }
-
   function openMenu() {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      const menuWidth = estimateMenuWidth();
-      const spaceLeft = rect.left;
-      const spaceRight = window.innerWidth - rect.right;
+
+      const marginTop = 6;
+      const top = rect.bottom + marginTop;
+      const spaceBelow = window.innerHeight - top;
+      const estimatedMenuHeight = Math.min(
+        300,
+        (isActionMenu ? (items?.length ?? 0) : (displayedOptions?.length ?? 0)) * 40 +
+          (hasSearch ? 50 : 0) +
+          10
+      );
+      const openAbove = spaceBelow < estimatedMenuHeight && rect.top > estimatedMenuHeight;
+
+      let left: number | undefined;
+      let right: number | undefined;
 
       if (align === "end") {
-        setEffectiveAlign(spaceRight >= menuWidth ? "end" : "start");
+        right = window.innerWidth - rect.right;
       } else {
-        setEffectiveAlign(spaceLeft >= menuWidth ? "start" : "end");
+        left = rect.left;
+      }
+
+      if (openAbove) {
+        setMenuPosition({ top: rect.top - marginTop - estimatedMenuHeight, left, right });
+      } else {
+        setMenuPosition({ top, left, right });
       }
     }
     setIsOpen(true);
@@ -309,6 +317,150 @@ export function Select({
 
   const hasSearch = searchable && !!options;
 
+  const renderMenuContent = () => {
+    if (isActionMenu && items) {
+      return items.map((item, index) => {
+        if (item.divider) {
+          return (
+            <div
+              key={`divider-${index}`}
+              className="border-surface-100 my-1 border-t"
+              role="separator"
+            />
+          );
+        }
+
+        return (
+          <button
+            key={index}
+            ref={(el) => {
+              optionRefs.current[index] = el;
+            }}
+            role="menuitem"
+            tabIndex={activeIndex === index ? 0 : -1}
+            disabled={item.disabled}
+            onClick={() => triggerItem(index)}
+            onMouseEnter={() => setActiveIndex(index)}
+            className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-sm focus-visible:outline-none ${
+              item.disabled
+                ? "text-surface-400 cursor-not-allowed"
+                : item.danger
+                  ? "text-danger-600 hover:bg-danger-50 focus-visible:bg-danger-100"
+                  : "text-surface-700 hover:bg-surface-100 focus-visible:bg-primary-50 focus-visible:text-primary-700"
+            } ${activeIndex === index && !item.disabled ? "bg-primary-50/30" : ""}`}
+            aria-disabled={item.disabled || undefined}
+          >
+            {item.icon && (
+              <span className="flex size-4 shrink-0 items-center justify-center [&>svg]:size-4">
+                {item.icon}
+              </span>
+            )}
+            <span className="flex flex-1 flex-col text-start">
+              <span className="truncate">{item.label}</span>
+              {item.description && (
+                <span className="text-surface-400 truncate text-[11px] leading-tight">
+                  {item.description}
+                </span>
+              )}
+            </span>
+            {item.shortcut && (
+              <span className="text-surface-400 ms-auto text-[11px] leading-none" dir="ltr">
+                {item.shortcut}
+              </span>
+            )}
+          </button>
+        );
+      });
+    }
+
+    if ((displayedOptions ?? []).length > 0) {
+      return (displayedOptions ?? []).map((option, index) => {
+        const isSelected = option.value === currentValue;
+
+        return (
+          <button
+            key={option.value}
+            ref={(el) => {
+              optionRefs.current[index] = el;
+            }}
+            role="option"
+            aria-selected={isSelected}
+            tabIndex={activeIndex === index ? 0 : -1}
+            onClick={() => selectOption(index)}
+            onMouseEnter={() => setActiveIndex(index)}
+            className={`flex w-full items-center px-3 py-2.5 text-sm focus-visible:outline-none ${"text-surface-700 hover:bg-surface-100"} ${isSelected ? "bg-primary-100 text-primary-800 font-medium" : ""} focus-visible:bg-primary-50/20`}
+          >
+            <span className="truncate">{option.label}</span>
+            {isSelected && (
+              <svg
+                className="text-primary-600 ms-auto size-4 shrink-0"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            )}
+          </button>
+        );
+      });
+    }
+
+    if (!isActionMenu && searchQuery) {
+      return <div className="text-surface-400 px-3 py-4 text-center text-sm">موردی یافت نشد</div>;
+    }
+
+    return null;
+  };
+
+  const menuContent =
+    isOpen && menuPosition ? (
+      <motion.div
+        ref={menuRef}
+        id={listboxId}
+        role={isActionMenu ? "menu" : "listbox"}
+        aria-label={label}
+        onKeyDown={handleMenuKeyDown}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        style={{
+          position: "fixed",
+          top: menuPosition.top,
+          left: menuPosition.left,
+          right: menuPosition.right,
+          zIndex: 50,
+          maxHeight: "300px",
+          maxWidth: isActionMenu ? "none" : "100%",
+        }}
+        className={`border-surface-200 rounded-xl border bg-white shadow-lg ring-1 ring-black/5 ${
+          isActionMenu ? "min-w-max" : "w-full"
+        } overflow-hidden overflow-y-auto`}
+      >
+        {hasSearch && (
+          <div className="px-3 pb-1.5">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setActiveIndex(-1);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="جستجو..."
+              className="border-surface-300 focus:border-primary-500 focus:ring-primary-500/30 w-full rounded-md border px-2.5 py-1.5 text-sm transition-colors duration-150 outline-none focus:ring-1"
+              dir="auto"
+            />
+          </div>
+        )}
+        {renderMenuContent()}
+      </motion.div>
+    ) : null;
+
   return (
     <div className={`relative flex flex-col gap-1.5 ${className}`}>
       {label && !isActionMenu && (
@@ -368,139 +520,7 @@ export function Select({
           </button>
         )}
 
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              ref={menuRef}
-              id={listboxId}
-              role={isActionMenu ? "menu" : "listbox"}
-              aria-label={label}
-              onKeyDown={handleMenuKeyDown}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className={`border-surface-200 absolute top-full z-50 mt-1.5 max-h-[300px] overflow-hidden overflow-y-auto rounded-xl border bg-white shadow-lg ring-1 ring-black/5 ${
-                isActionMenu ? "min-w-max" : "w-full"
-              } ${effectiveAlign === "end" ? "end-0" : "start-0"}`}
-            >
-              {hasSearch && (
-                <div className="px-3 pb-1.5">
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setActiveIndex(-1);
-                    }}
-                    onKeyDown={handleSearchKeyDown}
-                    placeholder="جستجو..."
-                    className="border-surface-300 focus:border-primary-500 focus:ring-primary-500/30 w-full rounded-md border px-2.5 py-1.5 text-sm transition-colors duration-150 outline-none focus:ring-1"
-                    dir="auto"
-                  />
-                </div>
-              )}
-
-              {isActionMenu && items ? (
-                items.map((item, index) => {
-                  if (item.divider) {
-                    return (
-                      <div
-                        key={`divider-${index}`}
-                        className="border-surface-100 my-1 border-t"
-                        role="separator"
-                      />
-                    );
-                  }
-
-                  return (
-                    <button
-                      key={index}
-                      ref={(el) => {
-                        optionRefs.current[index] = el;
-                      }}
-                      role="menuitem"
-                      tabIndex={activeIndex === index ? 0 : -1}
-                      disabled={item.disabled}
-                      onClick={() => triggerItem(index)}
-                      onMouseEnter={() => setActiveIndex(index)}
-                      className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-sm focus-visible:outline-none ${
-                        item.disabled
-                          ? "text-surface-400 cursor-not-allowed"
-                          : item.danger
-                            ? "text-danger-600 hover:bg-danger-50 focus-visible:bg-danger-100"
-                            : "text-surface-700 hover:bg-surface-100 focus-visible:bg-primary-50 focus-visible:text-primary-700"
-                      } ${activeIndex === index && !item.disabled ? "bg-primary-50/30" : ""}`}
-                      aria-disabled={item.disabled || undefined}
-                    >
-                      {item.icon && (
-                        <span className="flex size-4 shrink-0 items-center justify-center [&>svg]:size-4">
-                          {item.icon}
-                        </span>
-                      )}
-                      <span className="flex flex-1 flex-col text-start">
-                        <span className="truncate">{item.label}</span>
-                        {item.description && (
-                          <span className="text-surface-400 truncate text-[11px] leading-tight">
-                            {item.description}
-                          </span>
-                        )}
-                      </span>
-                      {item.shortcut && (
-                        <span
-                          className="text-surface-400 ms-auto text-[11px] leading-none"
-                          dir="ltr"
-                        >
-                          {item.shortcut}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })
-              ) : (displayedOptions ?? []).length > 0 ? (
-                (displayedOptions ?? []).map((option, index) => {
-                  const isSelected = option.value === currentValue;
-
-                  return (
-                    <button
-                      key={option.value}
-                      ref={(el) => {
-                        optionRefs.current[index] = el;
-                      }}
-                      role="option"
-                      aria-selected={isSelected}
-                      tabIndex={activeIndex === index ? 0 : -1}
-                      onClick={() => selectOption(index)}
-                      onMouseEnter={() => setActiveIndex(index)}
-                      className={`flex w-full items-center px-3 py-2.5 text-sm focus-visible:outline-none ${"text-surface-700 hover:bg-surface-100"} ${isSelected ? "bg-primary-100 text-primary-800 font-medium" : ""} focus-visible:bg-primary-50/20`}
-                    >
-                      <span className="truncate">{option.label}</span>
-                      {isSelected && (
-                        <svg
-                          className="text-primary-600 ms-auto size-4 shrink-0"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2}
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M4.5 12.75l6 6 9-13.5"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })
-              ) : !isActionMenu && searchQuery ? (
-                <div className="text-surface-400 px-3 py-4 text-center text-sm">موردی یافت نشد</div>
-              ) : null}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {isOpen && menuPosition && menuContent && createPortal(menuContent, document.body)}
       </div>
 
       {error && (
