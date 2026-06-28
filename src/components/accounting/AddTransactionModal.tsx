@@ -1,23 +1,23 @@
+import { useQueries } from "@tanstack/react-query";
 import jalaali from "jalaali-js";
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useRef, useState } from "react";
-import { BiCheck, BiPlus, BiSearch } from "react-icons/bi";
+import { useMemo, useState } from "react";
+import { BiCheck, BiCheckCircle } from "react-icons/bi";
+import { IoCallOutline } from "react-icons/io5";
 
-import { useVisitsList } from "../../hooks/api";
-import { toPersianDigits } from "../../lib/digits";
-import type { PaymentMethod, TransactionFormData } from "../../types/accounting";
-import type { Service } from "../../types/service";
+import { useCreatePayment, useServicesList, useVisitsList } from "../../hooks/api";
+import { jalaliToGregorianISO } from "../../lib/date";
+import { queryKeys } from "../../lib/query-keys";
+import * as customersService from "../../services/customers";
+import type { PaymentMethod } from "../../types/accounting";
+import type { Appointment } from "../../types/appointment";
+import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
+import { JalaliDatePicker } from "../ui/JalaliDatePicker";
 import { Modal } from "../ui/Modal";
 import { Select } from "../ui/Select";
-
-type WizardStep = "visit" | "payment";
-
-const STEP_LABELS: { key: WizardStep; label: string }[] = [
-  { key: "visit", label: "ویزیت" },
-  { key: "payment", label: "پرداخت" },
-];
+import { Spinner } from "../ui/Spinner";
 
 const paymentOptions = [
   { value: "cash", label: "نقدی" },
@@ -25,12 +25,7 @@ const paymentOptions = [
   { value: "transfer", label: "کارت به کارت" },
 ];
 
-interface AddTransactionModalProps {
-  open: boolean;
-  onClose: () => void;
-  onSave: (data: TransactionFormData) => void;
-  services: Service[];
-}
+const formatPrice = (amount: number) => amount.toLocaleString("fa-IR");
 
 function getDefaultJalaliDate(): string {
   const now = new Date();
@@ -38,34 +33,78 @@ function getDefaultJalaliDate(): string {
   return `${jy}/${String(jm).padStart(2, "0")}/${String(jd).padStart(2, "0")}`;
 }
 
-const defaultDate = getDefaultJalaliDate();
+interface CustomerInfo {
+  name: string;
+  mobile: string;
+}
 
-export function AddTransactionModal({ open, onClose, onSave, services }: AddTransactionModalProps) {
+function getDisplayName(visit: Appointment, customerMap: Map<number, CustomerInfo>): string {
+  if (visit.customerName) return visit.customerName;
+  const info = customerMap.get(visit.customer);
+  if (info?.name) return info.name;
+  return `بیمار شماره ${visit.customer}`;
+}
+
+function getDisplayMobile(visit: Appointment, customerMap: Map<number, CustomerInfo>): string {
+  if (visit.customerMobile) return visit.customerMobile;
+  const info = customerMap.get(visit.customer);
+  return info?.mobile ?? "";
+}
+
+type WizardStep = "visit" | "payment";
+
+interface AddTransactionModalProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export function AddTransactionModal({ open, onClose }: AddTransactionModalProps) {
+  const [selectedDate, setSelectedDate] = useState(getDefaultJalaliDate());
   const [wizardStep, setWizardStep] = useState<WizardStep>("visit");
-  const [date, setDate] = useState<string>(defaultDate);
-  const [visitSearch, setVisitSearch] = useState("");
   const [selectedVisitId, setSelectedVisitId] = useState<number | null>(null);
-  const [showVisitDropdown, setShowVisitDropdown] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [description, setDescription] = useState("");
-  const visitRef = useRef<HTMLDivElement>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  const { data: paginatedVisits } = useVisitsList({ perPage: 200 });
-  const visits = useMemo(() => paginatedVisits?.data ?? [], [paginatedVisits]);
+  const isoDate = useMemo(() => jalaliToGregorianISO(selectedDate), [selectedDate]);
 
-  const stepIndex = STEP_LABELS.findIndex((s) => s.key === wizardStep);
+  const { data: paginatedVisits, isLoading: visitsLoading } = useVisitsList({
+    dateFrom: isoDate,
+    dateTo: isoDate,
+    perPage: 200,
+  });
+  const { data: servicesData } = useServicesList();
+  const { mutateAsync: createPayment, isPending } = useCreatePayment();
 
-  const filteredVisits = useMemo(
-    () =>
-      visitSearch
-        ? visits.filter((v) =>
-            `${v.customerName}${v.date}${v.serviceNames.join(" ")}`
-              .toLowerCase()
-              .includes(visitSearch.toLowerCase())
-          )
-        : [],
-    [visits, visitSearch]
-  );
+  const services = useMemo(() => servicesData?.data ?? [], [servicesData]);
+  const allVisits = useMemo(() => paginatedVisits?.data ?? [], [paginatedVisits]);
+  const visits = useMemo(() => allVisits.filter((v) => v.status !== "canceled"), [allVisits]);
+
+  const missingCustomerIds = useMemo(() => {
+    const ids = visits.filter((v) => !v.customerName && v.customer > 0).map((v) => v.customer);
+    return [...new Set(ids)];
+  }, [visits]);
+
+  const customerQueries = useQueries({
+    queries: missingCustomerIds.map((id) => ({
+      queryKey: queryKeys.customers.detail(id),
+      queryFn: () => customersService.getCustomer(id),
+      enabled: id > 0,
+    })),
+  });
+
+  const customerMap = useMemo(() => {
+    const map = new Map<number, CustomerInfo>();
+    customerQueries.forEach((query, i) => {
+      if (query.data) {
+        map.set(missingCustomerIds[i], {
+          name: `${query.data.firstName} ${query.data.lastName}`.trim(),
+          mobile: query.data.mobileNumber,
+        });
+      }
+    });
+    return map;
+  }, [customerQueries, missingCustomerIds]);
 
   const selectedVisit = useMemo(
     () => visits.find((v) => v.id === selectedVisitId),
@@ -73,81 +112,49 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
   );
 
   const amount = useMemo(() => {
-    if (!selectedVisit) return "";
-    const total = services
+    if (!selectedVisit) return 0;
+    return services
       .filter((s) => selectedVisit.services.includes(s.id))
       .reduce((sum, s) => sum + s.price, 0);
-    return total > 0 ? String(total) : "";
   }, [selectedVisit, services]);
+
+  const selectedPaymentLabel = paymentOptions.find((o) => o.value === paymentMethod)?.label ?? "";
+
+  const stepIndex = wizardStep === "visit" ? 0 : 1;
 
   function selectVisit(visitId: number) {
     setSelectedVisitId(visitId);
-    const v = visits.find((vi) => vi.id === visitId);
-    if (v) {
-      setVisitSearch(`${v.customerName} — ${v.date} ${v.time}`);
-    }
-    setShowVisitDropdown(false);
-  }
-
-  function handleVisitInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setVisitSearch(e.target.value);
-    setSelectedVisitId(null);
-    setShowVisitDropdown(true);
-  }
-
-  function handleVisitInputBlur() {
-    setTimeout(() => setShowVisitDropdown(false), 200);
-  }
-
-  function handleVisitInputFocus() {
-    if (!selectedVisitId) {
-      setShowVisitDropdown(true);
-    }
-  }
-
-  function handleVisitKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if ((e.key === "Backspace" || e.key === "Delete") && selectedVisitId) {
-      setVisitSearch("");
-      setSelectedVisitId(null);
-    }
-  }
-
-  function handleWizardNext() {
-    if (wizardStep === "visit" && selectedVisitId) {
-      setWizardStep("payment");
-    }
+    setWizardStep("payment");
   }
 
   function handleWizardBack() {
-    if (wizardStep === "payment") {
-      setWizardStep("visit");
+    setWizardStep("visit");
+  }
+
+  async function handleSave() {
+    if (!selectedVisit || !selectedDate) return;
+    try {
+      await createPayment({
+        patientId: selectedVisit.customer,
+        visitId: selectedVisit.id,
+        date: jalaliToGregorianISO(selectedDate),
+        amount,
+        paymentMethod,
+        description: description.trim(),
+      });
+      setShowSuccess(true);
+    } catch {
+      /* error toast handled by hook */
     }
   }
 
   function resetForm() {
+    setSelectedDate(getDefaultJalaliDate());
     setWizardStep("visit");
-    setDate(defaultDate);
-    setVisitSearch("");
     setSelectedVisitId(null);
     setPaymentMethod("cash");
     setDescription("");
-  }
-
-  function handleSave() {
-    if (!date || !selectedVisitId || !amount || !paymentMethod) return;
-
-    const data: TransactionFormData = {
-      date,
-      patientId: selectedVisit!.customer,
-      patientName: selectedVisit!.customerName,
-      visitId: selectedVisitId,
-      amount: Number(amount),
-      paymentMethod,
-      description: description.trim(),
-    };
-
-    onSave(data);
-    resetForm();
+    setShowSuccess(false);
   }
 
   function handleClose() {
@@ -155,12 +162,14 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
     onClose();
   }
 
-  const isValid = date && selectedVisitId && amount && Number(amount) > 0 && paymentMethod;
-
   function renderStepIndicator() {
+    const steps = [
+      { key: "visit" as const, label: "ویزیت" },
+      { key: "payment" as const, label: "پرداخت" },
+    ];
     return (
       <div className="mb-6 flex items-center justify-center gap-0">
-        {STEP_LABELS.map((s, i) => {
+        {steps.map((s, i) => {
           const isActive = i === stepIndex;
           const isDone = i < stepIndex;
           return (
@@ -175,7 +184,7 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
                         : "border-surface-300 text-surface-400 border"
                   }`}
                 >
-                  {isDone ? <BiCheck className="size-4" /> : toPersianDigits(String(i + 1))}
+                  {isDone ? <BiCheck className="size-4" /> : String(i + 1)}
                 </span>
                 <span
                   className={`text-[11px] ${
@@ -185,7 +194,7 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
                   {s.label}
                 </span>
               </div>
-              {i < STEP_LABELS.length - 1 && (
+              {i < steps.length - 1 && (
                 <div
                   className={`mobile:mx-2 mobile:w-10 mx-1 mt-0 h-0.5 w-6 ${i < stepIndex ? "bg-success-500" : "bg-surface-200"}`}
                 />
@@ -200,57 +209,72 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
   function renderVisitStep() {
     return (
       <div className="flex flex-col gap-4">
-        <div ref={visitRef} className="relative">
-          <Input
-            label="جستجوی ویزیت"
-            placeholder="نام بیمار یا تاریخ را وارد کنید..."
-            value={visitSearch}
-            onChange={handleVisitInputChange}
-            onFocus={handleVisitInputFocus}
-            onBlur={handleVisitInputBlur}
-            onKeyDown={handleVisitKeyDown}
-            startIcon={<BiSearch className="size-4" />}
+        <div className="w-full sm:w-56">
+          <JalaliDatePicker
+            label="تاریخ"
+            value={selectedDate}
+            onChange={(d) => {
+              if (d) {
+                setSelectedDate(d);
+                setSelectedVisitId(null);
+              }
+            }}
           />
-          {showVisitDropdown && visitSearch && (
-            <div className="border-surface-200 absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border bg-white shadow-lg">
-              {filteredVisits.length === 0 ? (
-                <div className="p-3 text-center text-sm text-gray-400">ویزیتی یافت نشد</div>
-              ) : (
-                filteredVisits.map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    className="hover:bg-primary-50 w-full px-3 py-2 text-right text-sm transition-colors"
-                    onMouseDown={() => selectVisit(v.id)}
-                  >
-                    <span className="font-medium">{v.customerName}</span>
-                    <span className="text-surface-400 mr-2 text-xs">
-                      {v.date} {v.time}
-                    </span>
-                    <span className="text-surface-400 mr-1 text-xs">
-                      {v.serviceNames.join("، ")}
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
         </div>
-        {selectedVisit && (
-          <div className="bg-surface-50 border-surface-200 rounded-lg border p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-surface-700 text-sm font-medium">
-                  {selectedVisit.customerName}
-                </span>
-                <span className="text-surface-500 text-xs">
-                  {selectedVisit.date} ساعت {selectedVisit.time}
-                </span>
-              </div>
-              <div className="text-surface-500 text-xs">
-                {selectedVisit.serviceNames.join("، ")}
-              </div>
-            </div>
+
+        {visitsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Spinner />
+          </div>
+        ) : visits.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-8 text-sm text-gray-400">
+            <span>визиتی در این تاریخ یافت نشد</span>
+          </div>
+        ) : (
+          <div className="flex max-h-80 flex-col gap-2 overflow-y-auto">
+            {visits.map((visit) => {
+              const visitAmount = services
+                .filter((s) => visit.services.includes(s.id))
+                .reduce((sum, s) => sum + s.price, 0);
+              const mobile = getDisplayMobile(visit, customerMap);
+              return (
+                <div
+                  key={visit.id}
+                  className={`border-surface-200 hover:border-primary-300 flex cursor-pointer items-center justify-between rounded-lg border bg-white p-3 shadow-sm transition-all hover:shadow-md ${
+                    selectedVisitId === visit.id ? "border-primary-500 bg-primary-50/30" : ""
+                  }`}
+                  onClick={() => selectVisit(visit.id)}
+                >
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-surface-900 text-sm font-semibold">
+                      {getDisplayName(visit, customerMap)}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {visit.serviceNames.map((name, i) => (
+                        <Badge key={i} variant="info" size="sm">
+                          {name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="text-surface-600 text-xs" dir="ltr">
+                      {visit.time}
+                    </span>
+                    {mobile && (
+                      <span className="text-surface-600 flex items-center gap-1 text-xs" dir="ltr">
+                        <IoCallOutline className="size-3" />
+                        {mobile}
+                      </span>
+                    )}
+                    <span className="text-primary-700 text-sm font-bold">
+                      {formatPrice(visitAmount)}{" "}
+                      <span className="text-primary-500 text-xs">تومان</span>
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -258,32 +282,38 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
   }
 
   function renderPaymentStep() {
+    const mobile = selectedVisit ? getDisplayMobile(selectedVisit, customerMap) : "";
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         {selectedVisit && (
-          <div className="bg-primary-50 border-primary-200 rounded-lg border p-3">
+          <div className="bg-primary-50/60 border-primary-200 rounded-xl border p-4">
             <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-primary-700 text-sm font-medium">
-                  {selectedVisit.customerName}
+              <div className="flex flex-col gap-1">
+                <span className="text-primary-800 text-base font-semibold">
+                  {getDisplayName(selectedVisit, customerMap)}
                 </span>
+                {mobile && (
+                  <span className="text-primary-600 flex items-center gap-1 text-sm" dir="ltr">
+                    <IoCallOutline className="size-3.5" />
+                    {mobile}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="text-primary-600 text-sm">{selectedVisit.time}</span>
                 <span className="text-primary-500 text-xs">
-                  {selectedVisit.date} ساعت {selectedVisit.time}
+                  {selectedVisit.serviceNames.join("، ")}
                 </span>
               </div>
-              <span className="text-primary-600 text-xs">
-                {selectedVisit.serviceNames.join("، ")}
-              </span>
+            </div>
+            <div className="mt-3 rounded-xl bg-white p-3 text-center shadow-sm">
+              <span className="text-surface-500 text-xs">مبلغ قابل پرداخت</span>
+              <div className="text-primary-700 mt-0.5 text-lg font-bold">
+                {formatPrice(amount)} تومان
+              </div>
             </div>
           </div>
         )}
-        <Input
-          label="مبلغ (تومان)"
-          type="number"
-          value={amount}
-          readOnly
-          placeholder="مبلغ تراکنش"
-        />
         <Select
           label="روش پرداخت"
           options={paymentOptions}
@@ -300,52 +330,72 @@ export function AddTransactionModal({ open, onClose, onSave, services }: AddTran
     );
   }
 
+  function renderSuccessView() {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-6">
+        <div className="bg-success-100 rounded-full p-4">
+          <BiCheckCircle className="text-success-600 size-16" />
+        </div>
+        <h3 className="text-surface-900 text-xl font-bold">پرداخت با موفقیت ثبت شد</h3>
+        <p className="text-surface-500 max-w-xs text-center text-sm leading-relaxed">
+          مبلغ <span className="text-success-600 font-bold">{formatPrice(amount)}</span> تومان برای{" "}
+          <span className="font-bold">
+            {selectedVisit ? getDisplayName(selectedVisit, customerMap) : ""}
+          </span>{" "}
+          با روش <span className="font-bold">{selectedPaymentLabel}</span> ثبت گردید.
+        </p>
+      </div>
+    );
+  }
+
+  const isValid = !!selectedVisit && amount > 0 && !!paymentMethod;
+
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      title="ثبت تراکنش جدید"
-      size="lg"
+      title={showSuccess ? "نتیجه پرداخت" : wizardStep === "visit" ? "انتخاب ویزیت" : "پرداخت"}
+      size={wizardStep === "payment" ? "xl" : "lg"}
       footer={
-        wizardStep === "payment" ? (
+        showSuccess ? (
+          <Button variant="primary" onClick={handleClose}>
+            بستن
+          </Button>
+        ) : wizardStep === "payment" ? (
           <>
             <Button variant="ghost" onClick={handleWizardBack}>
               قبلی
             </Button>
-            <Button
-              variant="primary"
-              startIcon={<BiPlus className="size-5" />}
-              onClick={handleSave}
-              disabled={!isValid}
-            >
-              ثبت تراکنش
+            <Button variant="primary" onClick={handleSave} disabled={!isValid || isPending}>
+              {isPending ? "در حال ثبت..." : "ثبت پرداخت"}
             </Button>
           </>
         ) : (
-          <>
-            <Button variant="ghost" onClick={handleClose}>
-              انصراف
-            </Button>
-            <Button variant="primary" onClick={handleWizardNext} disabled={!selectedVisitId}>
-              بعدی
-            </Button>
-          </>
+          <Button variant="ghost" onClick={handleClose}>
+            انصراف
+          </Button>
         )
       }
     >
-      {renderStepIndicator()}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={wizardStep}
-          initial={{ opacity: 0, x: 15 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -15 }}
-          transition={{ duration: 0.15 }}
-        >
-          {wizardStep === "visit" && renderVisitStep()}
-          {wizardStep === "payment" && renderPaymentStep()}
-        </motion.div>
-      </AnimatePresence>
+      {showSuccess ? (
+        renderSuccessView()
+      ) : (
+        <>
+          {renderStepIndicator()}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={wizardStep}
+              initial={{ opacity: 0, x: 15 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -15 }}
+              transition={{ duration: 0.15 }}
+            >
+              {wizardStep === "visit" && renderVisitStep()}
+              {wizardStep === "payment" && renderPaymentStep()}
+            </motion.div>
+          </AnimatePresence>
+        </>
+      )}
     </Modal>
   );
 }
