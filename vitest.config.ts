@@ -9,6 +9,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     css: true,
+    exclude: ["e2e/**", ".opencode/**", "backend/**", "**/node_modules/**"],
+    include: ["src/**/*.test.{ts,tsx}"],
   },
   resolve: {
     alias: {
