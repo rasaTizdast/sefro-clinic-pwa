@@ -26,7 +26,9 @@ export const router = createBrowserRouter([
           { path: "accounting", lazy: lazyRoute(() => import("./Accounting")) },
           { path: "analytics", lazy: lazyRoute(() => import("./Analytics")) },
           { path: "settings", lazy: lazyRoute(() => import("./Settings")) },
-          { path: "design-system", lazy: lazyRoute(() => import("./DesignSystem")) },
+          ...(import.meta.env.DEV
+            ? [{ path: "design-system", lazy: lazyRoute(() => import("./DesignSystem")) }]
+            : []),
           {
             path: "logs",
             element: (
