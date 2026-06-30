@@ -39,6 +39,7 @@ describe("api-client", () => {
     expect(mockCreate).toHaveBeenCalledWith({
       baseURL: "http://localhost:8000/api",
       withCredentials: true,
+      timeout: 10_000,
       headers: { "Content-Type": "application/json" },
     });
   });

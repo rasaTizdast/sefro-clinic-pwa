@@ -1,8 +1,9 @@
 import jalaali from "jalaali-js";
 
 function isAlreadyJalali(dateStr: string): boolean {
+  if (/[TZ]/.test(dateStr) || /[+-]\d{2}:\d{2}$/.test(dateStr)) return false;
   const yearMatch = dateStr.match(/^(\d{4})/);
-  return !!yearMatch && parseInt(yearMatch[1]) > 1300;
+  return !!yearMatch && parseInt(yearMatch[1]) >= 1300 && parseInt(yearMatch[1]) <= 1500;
 }
 
 function formatJalaliParts(jy: number, jm: number, jd: number): string {
