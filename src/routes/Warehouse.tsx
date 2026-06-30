@@ -19,9 +19,9 @@ import {
   useProductsList,
   useUpdateProduct,
 } from "../hooks/api";
+import { extractApiError } from "../lib/api-error";
 import { toLatinDigits } from "../lib/digits";
 import { formatPrice } from "../lib/format";
-import type { ApiError } from "../types/api";
 import type { WarehouseItem } from "../types/warehouse";
 
 const unitOptions = [
@@ -135,16 +135,7 @@ function Warehouse() {
       setModalOpen(false);
       resetForm();
     } catch (err: unknown) {
-      const apiErr = err as ApiError;
-      const raw = apiErr.raw;
-      if (raw && typeof raw === "object") {
-        const msgs = Object.values(raw).flat().filter(Boolean).join("، ");
-        if (msgs) {
-          setFormError(msgs);
-          return;
-        }
-      }
-      setFormError(apiErr.message || "خطا در ذخیره محصول");
+      setFormError(extractApiError(err));
     }
   }
 

@@ -32,9 +32,6 @@ export function useCreateCustomer() {
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
       toast.success("بیمار با موفقیت افزوده شد.");
     },
-    onError: () => {
-      toast.error("خطا در افزودن بیمار");
-    },
   });
 }
 
@@ -48,9 +45,6 @@ export function useUpdateCustomer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
       toast.success("اطلاعات بیمار به‌روزرسانی شد.");
-    },
-    onError: () => {
-      toast.error("خطا در به‌روزرسانی بیمار");
     },
   });
 }

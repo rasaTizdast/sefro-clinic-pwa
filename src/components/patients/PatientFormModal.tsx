@@ -1,7 +1,9 @@
 import { useCallback, useState } from "react";
 
+import { extractApiError } from "../../lib/api-error";
 import { patientFormSchema } from "../../lib/validations";
 import type { PatientFormData } from "../../types/patient";
+import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
@@ -31,6 +33,7 @@ function PatientFormModal({
 }: PatientFormModalProps) {
   const [values, setValues] = useState<PatientFormData>(initialData ?? initialValues);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange = useCallback(
@@ -66,6 +69,7 @@ function PatientFormModal({
     }
 
     setSubmitting(true);
+    setFormError("");
     try {
       await onSave({
         ...result.data,
@@ -73,6 +77,8 @@ function PatientFormModal({
         notes: result.data.notes ?? "",
       });
       onClose();
+    } catch (err: unknown) {
+      setFormError(extractApiError(err));
     } finally {
       setSubmitting(false);
     }
@@ -112,6 +118,7 @@ function PatientFormModal({
       }
     >
       <div className="flex flex-col gap-4">
+        {formError && <Alert variant="error">{formError}</Alert>}
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             label="نام"

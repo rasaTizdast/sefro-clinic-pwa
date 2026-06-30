@@ -6,11 +6,13 @@ import { BiCheck, BiCheckCircle } from "react-icons/bi";
 import { IoCallOutline } from "react-icons/io5";
 
 import { useCreatePayment, useServicesList, useVisitsList } from "../../hooks/api";
+import { extractApiError } from "../../lib/api-error";
 import { jalaliToGregorianISO } from "../../lib/date";
 import { queryKeys } from "../../lib/query-keys";
 import * as customersService from "../../services/customers";
 import type { PaymentMethod } from "../../types/accounting";
 import type { Appointment } from "../../types/appointment";
+import { Alert } from "../ui/Alert";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
@@ -64,6 +66,7 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
   const [selectedVisitId, setSelectedVisitId] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [description, setDescription] = useState("");
+  const [formError, setFormError] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
   const isoDate = useMemo(() => jalaliToGregorianISO(selectedDate), [selectedDate]);
@@ -133,6 +136,7 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
 
   async function handleSave() {
     if (!selectedVisit || !selectedDate) return;
+    setFormError("");
     try {
       await createPayment({
         patientId: selectedVisit.customer,
@@ -143,8 +147,8 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
         description: description.trim(),
       });
       setShowSuccess(true);
-    } catch {
-      /* error toast handled by hook */
+    } catch (err: unknown) {
+      setFormError(extractApiError(err));
     }
   }
 
@@ -154,6 +158,7 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
     setSelectedVisitId(null);
     setPaymentMethod("cash");
     setDescription("");
+    setFormError("");
     setShowSuccess(false);
   }
 
@@ -381,6 +386,11 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
         renderSuccessView()
       ) : (
         <>
+          {formError && (
+            <Alert variant="error" className="mb-4">
+              {formError}
+            </Alert>
+          )}
           {renderStepIndicator()}
           <AnimatePresence mode="wait">
             <motion.div

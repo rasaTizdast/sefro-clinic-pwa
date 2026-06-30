@@ -31,7 +31,8 @@ export function useReserveVisit() {
       queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
       toast.success("نوبت رزرو شد.");
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("[useReserveVisit] Error reserving visit:", error);
       toast.error("خطا در رزرو نوبت");
     },
   });

@@ -30,9 +30,6 @@ export function useCreatePayment() {
       queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
       toast.success("تراکنش با موفقیت ثبت شد.");
     },
-    onError: () => {
-      toast.error("خطا در ثبت تراکنش");
-    },
   });
 }
 

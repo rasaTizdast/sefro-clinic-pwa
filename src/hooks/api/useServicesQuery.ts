@@ -45,9 +45,6 @@ export function useUpdateService() {
       queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
       toast.success("خدمت به‌روزرسانی شد.");
     },
-    onError: () => {
-      toast.error("خطا در به‌روزرسانی خدمت");
-    },
   });
 }
 
