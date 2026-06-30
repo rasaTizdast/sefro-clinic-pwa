@@ -28,3 +28,33 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:unit
       - run: pnpm build
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      backend:
+        image: python:3.12-slim
+        ports:
+          - 8000:8000
+        options: >-
+          --health-cmd "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/api/auth/me/\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:e2e:install
+      - name: Start dev server
+        run: pnpm dev &
+      - name: Wait for dev server
+        run: npx wait-on http://localhost:5173
+      - run: pnpm test:e2e
