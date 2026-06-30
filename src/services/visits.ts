@@ -67,8 +67,9 @@ export const listVisits = async (
 ): Promise<PaginatedResponse<Appointment>> => {
   const page = params?.page ?? 1;
   const perPage = params?.perPage ?? 50;
+  const requestParams = { page, per_page: perPage, ...params };
   const { data } = await apiClient.get(endpoints.visits.list, {
-    params: { page, per_page: perPage, ...params },
+    params: requestParams,
   });
   const paginated = toPaginatedResponse<RawAppointment>(data as never, page, perPage);
   return {
@@ -88,8 +89,11 @@ export const completeVisit = (id: number) => apiClient.post(endpoints.visits.com
 
 export const cancelVisit = (id: number) => apiClient.post(endpoints.visits.cancel(id));
 
-export const reserveVisit = (data: ReserveVisitPayload) =>
-  apiClient.post(endpoints.visits.reserve, data);
+export const reserveVisit = (data: ReserveVisitPayload) => {
+  return apiClient.post(endpoints.visits.reserve, data).then((res) => {
+    return res;
+  });
+};
 
 export const updateVisit = (id: number, data: UpdateVisitPayload) =>
   apiClient.patch(endpoints.visits.detail(id), data);
