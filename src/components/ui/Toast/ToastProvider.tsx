@@ -37,6 +37,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
         dir="rtl"
         className="font-inherit"
         toastOptions={{ classNames: { toast: "font-inherit" } }}
+        style={{ zIndex: 9999 }}
       />
     </ToastContext.Provider>
   );
