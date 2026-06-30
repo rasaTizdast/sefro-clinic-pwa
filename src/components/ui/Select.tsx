@@ -4,12 +4,15 @@ import {
   type KeyboardEvent,
   type ReactNode,
   useCallback,
+  useContext,
   useEffect,
   useId,
   useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+
+import { PortalTargetContext } from "./PortalTargetContext";
 
 interface SelectOption {
   value: string;
@@ -43,6 +46,7 @@ interface SelectProps {
   id?: string;
   name?: string;
   searchable?: boolean;
+  portalTarget?: HTMLElement | null;
 }
 
 interface MenuPosition {
@@ -67,7 +71,11 @@ export function Select({
   id: idProp,
   name,
   searchable = false,
+  portalTarget: portalTargetProp,
 }: SelectProps) {
+  const modalPortalTarget = useContext(PortalTargetContext);
+  const portalTarget = portalTargetProp ?? modalPortalTarget ?? document.body;
+
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [internalValue, setInternalValue] = useState(defaultValue);
@@ -520,7 +528,7 @@ export function Select({
           </button>
         )}
 
-        {isOpen && menuPosition && menuContent && createPortal(menuContent, document.body)}
+        {isOpen && menuPosition && menuContent && createPortal(menuContent, portalTarget)}
       </div>
 
       {error && (
