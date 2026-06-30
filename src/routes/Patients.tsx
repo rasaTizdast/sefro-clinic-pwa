@@ -197,7 +197,9 @@ function Patients() {
       align: "center",
       width: "90px",
       render: (item) => (
-        <span className="text-surface-500 text-xs">{formatJalaliDate(item.createdAt)}</span>
+        <span className={item.createdAt ? "text-surface-700" : "text-surface-400"}>
+          {formatJalaliDate(item.createdAt)}
+        </span>
       ),
     },
     {
