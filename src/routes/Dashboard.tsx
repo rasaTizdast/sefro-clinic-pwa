@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { BiCalendar, BiMinus, BiPlus, BiTrendingDown, BiTrendingUp } from "react-icons/bi";
 import {
   MdEventAvailable,
@@ -19,7 +19,7 @@ import { Card, CardTitle } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Skeleton } from "../components/ui/Skeleton";
 import { type Column, Table } from "../components/ui/Table";
-import { useCreateCustomer, useVisitsList } from "../hooks/api";
+import { useCreateCustomer, useCustomersList, useVisitsList } from "../hooks/api";
 import { useDashboardStats } from "../hooks/api/useDashboardQuery";
 import { toPersianDigits } from "../lib/digits";
 import type { Appointment } from "../types/appointment";
@@ -105,8 +105,26 @@ function Dashboard() {
     dateTo: todayStr,
     perPage: 50,
   });
+  const { data: customersData } = useCustomersList({ perPage: 200 });
 
-  const appointments = todayVisits?.data ?? [];
+  const customerNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+    if (customersData?.data) {
+      for (const c of customersData.data) {
+        map.set(c.id, `${c.firstName} ${c.lastName}`.trim());
+      }
+    }
+    return map;
+  }, [customersData]);
+
+  const appointments = useMemo(
+    () =>
+      (todayVisits?.data ?? []).map((a) => ({
+        ...a,
+        customerName: a.customerName || (customerNameMap.get(a.customer) ?? ""),
+      })),
+    [todayVisits, customerNameMap]
+  );
 
   const isLoading = statsLoading || visitsLoading;
   const hasError = statsError;
