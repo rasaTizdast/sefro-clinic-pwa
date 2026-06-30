@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BiCalendar,
   BiCheck,
@@ -35,7 +35,6 @@ import {
   useVisitsList,
   useWorkTime,
 } from "../hooks/api";
-import { jalaliToGregorianISO } from "../lib/date";
 import { toLatinDigits, toPersianDigits as toPersianDigitsLib } from "../lib/digits";
 import { formatPrice } from "../lib/format";
 import type {
@@ -369,6 +368,19 @@ function Calendar() {
     [selectedDayAppointments, dayRange.startHour, dayRange.endHour]
   );
 
+  const [nowMinutes, setNowMinutes] = useState(() => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      setNowMinutes(now.getHours() * 60 + now.getMinutes());
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
   const selectedPatient = form.patientId
     ? (patients.find((p) => p.id === form.patientId) ?? null)
     : null;
@@ -502,16 +514,21 @@ function Calendar() {
   function handleSubmitForm() {
     if (!selectedPatient || !selectedService || !form.date || !form.time) return;
     if (staffBlocked(form.date)) return;
-    reserveVisit(
-      {
-        customer: selectedPatient.id,
-        services: [selectedService.id],
-        date: jalaliToGregorianISO(form.date),
-        time: form.time,
-        notes: form.notes || undefined,
+    const payload = {
+      customer: selectedPatient.id,
+      services: [selectedService.id],
+      date: form.date.replace(/\//g, "-"),
+      time: form.time,
+      notes: form.notes || undefined,
+    };
+    reserveVisit(payload, {
+      onSuccess: () => {
+        handleCloseModal();
       },
-      { onSuccess: () => handleCloseModal() }
-    );
+      onError: (err) => {
+        console.error("[Calendar] Visit reservation failed:", err);
+      },
+    });
   }
 
   function handleOpenEdit(appt: Appointment) {
@@ -998,62 +1015,154 @@ function Calendar() {
 
         <div className="pb-1" dir="ltr">
           <div className="flex flex-col">
-            <div className="text-surface-500 mb-1 flex justify-between text-[10px]">
-              {Array.from({ length: dayRange.endHour - dayRange.startHour + 1 }, (_, i) => (
-                <div key={i}>{minutesToTimeStrPersian((dayRange.startHour + i) * 60)}</div>
-              ))}
+            <div className="relative mb-1 flex text-[10px]">
+              {Array.from({ length: dayRange.endHour - dayRange.startHour + 1 }, (_, i) => {
+                const hour = dayRange.startHour + i;
+                return (
+                  <div key={i} className="flex-1 text-center">
+                    <span className="text-surface-400 font-medium select-none">
+                      {minutesToTimeStrPersian(hour * 60)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-            <div className="bg-surface-100/50 flex h-14 w-full rounded-lg">
+
+            <div className="bg-surface-100/50 relative h-22 w-full overflow-hidden rounded-xl">
+              {Array.from({ length: dayRange.endHour - dayRange.startHour + 1 }, (_, i) => {
+                if (i === 0) return null;
+                const leftPct = (i / (dayRange.endHour - dayRange.startHour)) * 100;
+                return (
+                  <div
+                    key={`grid-${i}`}
+                    className="border-surface-200/60 absolute top-0 h-full border-l border-dashed"
+                    style={{ left: `${leftPct}%` }}
+                  />
+                );
+              })}
+
+              {selectedDate === todayStr &&
+                nowMinutes >= dayRange.startMinutes &&
+                nowMinutes < dayRange.endMinutes && (
+                  <div
+                    className="pointer-events-none absolute top-0 z-20 h-full"
+                    style={{
+                      left: `${((nowMinutes - dayRange.startMinutes) / dayRange.totalMinutes) * 100}%`,
+                    }}
+                  >
+                    <div className="bg-danger-500 absolute top-0 h-full w-0.5 shadow-sm" />
+                    <div className="bg-danger-500 absolute -top-1 left-1/2 size-2 -translate-x-1/2 rounded-full shadow-sm" />
+                    <span className="bg-danger-500 absolute top-1 left-1/2 -translate-x-1/2 rounded px-1 py-0.5 text-[9px] font-semibold whitespace-nowrap text-white shadow-sm">
+                      {minutesToTimeStrPersian(nowMinutes)}
+                    </span>
+                  </div>
+                )}
+
               {timelineBlocks.map((block, i) => {
-                const pct = ((block.endMinutes - block.startMinutes) / dayRange.totalMinutes) * 100;
+                const blockPct =
+                  ((block.endMinutes - block.startMinutes) / dayRange.totalMinutes) * 100;
+                const leftPct =
+                  ((block.startMinutes - dayRange.startMinutes) / dayRange.totalMinutes) * 100;
+
                 if (block.isEmpty) {
-                  const isFirst = i === 0;
-                  const isLast = i === timelineBlocks.length - 1;
-                  const startEdge = isFirst ? "" : "border-l border-dashed border-surface-300";
-                  const endEdge = isLast ? "" : "border-e border-dashed border-surface-300";
+                  const labelWide = blockPct > 4;
                   return (
                     <div
                       key={i}
-                      className={`relative h-full shrink-0 ${startEdge} ${endEdge}`}
+                      className={`absolute top-0.5 h-[calc(100%-4px)] overflow-hidden rounded-md ${labelWide ? "" : ""}`}
                       style={{
-                        width: `${pct}%`,
+                        left: `${leftPct}%`,
+                        width: `${blockPct}%`,
                         background: `repeating-linear-gradient(
                           45deg,
                           transparent,
-                          transparent 10px,
-                          var(--color-surface-200) 10px,
-                          var(--color-surface-200) 20px
+                          transparent 8px,
+                          var(--color-surface-100) 8px,
+                          var(--color-surface-100) 16px
                         )`,
                       }}
-                    />
+                    >
+                      {labelWide && (
+                        <span className="text-surface-300 flex h-full items-center justify-center text-[10px] select-none">
+                          {minutesToTimeStrPersian(block.startMinutes)}
+                        </span>
+                      )}
+                    </div>
                   );
                 }
+
                 const apt = block.appointment!;
                 const status = statusConfig[apt.status];
-                const colorMap: Record<StatusVariant, string> = {
-                  success: "bg-success-200 border-success-400 text-success-900",
-                  warning: "bg-warning-200 border-warning-400 text-warning-900",
-                  danger: "bg-danger-200 border-danger-400 text-danger-900",
-                  info: "bg-info-200 border-info-400 text-info-900",
+                const isSelected = selectedAppointment?.id === apt.id;
+
+                const variantStyles: Record<
+                  StatusVariant,
+                  { bg: string; border: string; text: string; accent: string; ring: string }
+                > = {
+                  success: {
+                    bg: "bg-success-50",
+                    border: "border-success-300",
+                    text: "text-success-800",
+                    accent: "bg-success-500",
+                    ring: "ring-success-400",
+                  },
+                  warning: {
+                    bg: "bg-warning-50",
+                    border: "border-warning-300",
+                    text: "text-warning-800",
+                    accent: "bg-warning-500",
+                    ring: "ring-warning-400",
+                  },
+                  danger: {
+                    bg: "bg-danger-50",
+                    border: "border-danger-300",
+                    text: "text-danger-800",
+                    accent: "bg-danger-500",
+                    ring: "ring-danger-400",
+                  },
+                  info: {
+                    bg: "bg-info-50",
+                    border: "border-info-300",
+                    text: "text-info-800",
+                    accent: "bg-info-500",
+                    ring: "ring-info-400",
+                  },
                 };
+                const vs = variantStyles[status.variant];
+
                 return (
                   <button
                     key={i}
-                    onClick={() =>
-                      setSelectedAppointment(selectedAppointment?.id === apt.id ? null : apt)
-                    }
-                    className={`shrink-0 cursor-pointer overflow-hidden rounded-md border text-right text-xs font-medium transition-all hover:shadow-md ${
-                      colorMap[status.variant]
-                    } ${selectedAppointment?.id === apt.id ? "ring-primary-500 z-10 scale-[1.02] shadow-md ring-2" : ""}`}
-                    style={{ width: `${Math.max(pct, 2)}%` }}
+                    onClick={() => setSelectedAppointment(isSelected ? null : apt)}
+                    className={`absolute top-0.5 h-[calc(100%-4px)] cursor-pointer overflow-hidden rounded-lg border text-right text-xs font-medium transition-all duration-150 hover:z-10 hover:shadow-md ${vs.bg} ${vs.border} ${vs.text} ${
+                      isSelected ? `z-10 scale-[1.02] shadow-lg ${vs.ring} ring-2` : ""
+                    }`}
+                    style={{
+                      left: `${leftPct}%`,
+                      width: `${Math.max(blockPct, 1.8)}%`,
+                    }}
                     title={`${apt.customerName} - ${apt.serviceNames?.[0] ?? ""}`}
                   >
-                    <span className="block truncate px-1.5 pt-1 leading-tight">
-                      {apt.customerName}
-                    </span>
-                    <span className="block truncate px-1.5 text-[9px] leading-tight opacity-80">
-                      {apt.time} {apt.serviceNames?.[0] ? `• ${apt.serviceNames[0]}` : ""}
-                    </span>
+                    <div
+                      className={`absolute top-1 right-0 h-[calc(100%-8px)] w-[3px] rounded-r-full ${vs.accent}`}
+                    />
+
+                    <div className="flex h-full flex-col justify-center gap-px px-2 py-1 ltr:pl-1.5 rtl:pr-1.5">
+                      <span className="block truncate leading-tight font-semibold">
+                        {apt.customerName}
+                      </span>
+                      <span className="block truncate leading-tight opacity-70">
+                        {apt.time}
+                        {blockPct > 6 && apt.duration > 0 && (
+                          <> ({toPersianDigits(apt.duration)} دقیقه)</>
+                        )}
+                      </span>
+                      {blockPct > 10 && apt.serviceNames?.[0] && (
+                        <span className="block truncate text-[9px] leading-tight opacity-50">
+                          {apt.serviceNames[0]}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}
