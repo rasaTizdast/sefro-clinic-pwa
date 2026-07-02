@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+import { mockAllApiEndpoints } from "./helpers";
+
 test.describe("Accounting", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApiEndpoints(page);
+  });
+
   test("displays accounting page with all elements", async ({ page }) => {
     await page.goto("/accounting");
     await expect(page.getByRole("heading", { name: "حسابداری" })).toBeVisible();

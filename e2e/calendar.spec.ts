@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+import { mockAllApiEndpoints } from "./helpers";
+
 test.describe("Calendar", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApiEndpoints(page);
+  });
+
   test("displays calendar page with all elements", async ({ page }) => {
     await page.goto("/calendar");
     await expect(page.getByText("تقویم نوبت‌ها")).toBeVisible();

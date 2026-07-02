@@ -233,7 +233,7 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
           </div>
         ) : visits.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-8 text-sm text-gray-400">
-            <span>визиتی در این تاریخ یافت نشد</span>
+            <span>ویزیتی در این تاریخ یافت نشد</span>
           </div>
         ) : (
           <div className="flex max-h-80 flex-col gap-2 overflow-y-auto">

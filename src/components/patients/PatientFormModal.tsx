@@ -25,7 +25,7 @@ const initialValues: PatientFormData = {
   notes: "",
 };
 
-function PatientFormModal({
+export function PatientFormModal({
   onClose,
   onSave,
   initialData,
@@ -178,5 +178,3 @@ function PatientFormModal({
     </Modal>
   );
 }
-
-export default PatientFormModal;

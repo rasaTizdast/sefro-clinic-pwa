@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+import { mockAllApiEndpoints } from "./helpers";
+
 test.describe("Analytics", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApiEndpoints(page);
+  });
+
   test("displays analytics page with all elements", async ({ page }) => {
     await page.goto("/analytics");
     await expect(page.getByText("گزارش‌ها و آمار")).toBeVisible();

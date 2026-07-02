@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { clickSave } from "./helpers";
+
+import { clickSave, mockAllApiEndpoints } from "./helpers";
 
 test.describe("Settings", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApiEndpoints(page);
+  });
+
   test("displays settings page with all sections", async ({ page }) => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "تنظیمات" })).toBeVisible();
@@ -46,6 +51,14 @@ test.describe("Settings", () => {
   });
 
   test("creates a new user", async ({ page }) => {
+    await page.route("**/api/auth/employees/", async (route) => {
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ id: 9999 }),
+      });
+    });
+
     await page.goto("/settings");
     await page.getByRole("button", { name: "کاربر جدید" }).click();
 

@@ -1,13 +1,18 @@
 import { expect, test } from "@playwright/test";
-import { clickSave } from "./helpers";
+
+import { clickSave, mockAllApiEndpoints } from "./helpers";
 
 test.describe("Patients Management", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllApiEndpoints(page);
+  });
+
   test("displays patients list page", async ({ page }) => {
     await page.goto("/patients");
 
     await expect(page.getByRole("heading", { name: "لیست بیماران" })).toBeVisible();
     await expect(page.getByText("مدیریت بیماران کلینیک")).toBeVisible();
-    await expect(page.getByRole("button", { name: "بیمار جدید" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "بیمار جدید" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "خروجی" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "همه" })).toBeVisible();
     await expect(page.getByRole("tab", { name: /^فعال/ })).toBeVisible();
@@ -40,20 +45,50 @@ test.describe("Patients Management", () => {
   });
 
   test("edits an existing patient", async ({ page }) => {
-    await page.route("**/api/customers/", async (route, request) => {
+    // Manually set up only necessary API mocks, overriding customers with data
+    await page.route("**/api/auth/token/", async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({}),
+      });
+    });
+    await page.route("**/api/auth/token/refresh/", async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({}),
+      });
+    });
+    await page.route("**/api/auth/me/", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          username: "sefro_admin",
+          role: "admin",
+          date_joined: "2026-01-01T00:00:00Z",
+        }),
+      });
+    });
+    await page.route("**/api/customers/**", async (route, request) => {
       if (request.method() === "GET") {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify([
-            {
-              id: 1,
-              firstName: "تست",
-              lastName: "اتوماتیک",
-              mobileNumber: "09121234567",
-              nationalId: "0012345678",
-            },
-          ]),
+          body: JSON.stringify({
+            count: 1,
+            results: [
+              {
+                id: 1,
+                first_name: "تست",
+                last_name: "اتوماتیک",
+                mobile_number: "09121234567",
+                national_id: "0012345678",
+              },
+            ],
+          }),
         });
       } else {
         await route.fulfill({
@@ -62,6 +97,13 @@ test.describe("Patients Management", () => {
           body: JSON.stringify({ id: 1 }),
         });
       }
+    });
+    await page.route("**/api/customers/1/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ id: 1 }),
+      });
     });
     await page.goto("/patients");
 

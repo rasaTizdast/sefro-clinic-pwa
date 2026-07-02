@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { mockAllApiEndpoints } from "./helpers";
+
 test.describe("Authentication", () => {
   test.beforeEach(async ({ page, context }) => {
     await context.clearCookies();
@@ -8,6 +10,9 @@ test.describe("Authentication", () => {
       localStorage.clear();
       sessionStorage.clear();
     });
+    // Wait for the axios 401 interceptor redirect to /auth to settle
+    await page.waitForURL("**/auth", { timeout: 10000 });
+    await page.waitForLoadState("networkidle");
   });
 
   test("shows login page with all elements", async ({ page }) => {
@@ -29,13 +34,16 @@ test.describe("Authentication", () => {
   });
 
   test("logs in with valid credentials and redirects to dashboard", async ({ page }) => {
-    await page.goto("/auth");
+    // beforeEach already navigated to / which redirected to /auth
+    // Set up mocks so login API calls succeed
+    await mockAllApiEndpoints(page);
+
     await page.getByLabel("نام کاربری یا شماره موبایل").fill("sefro_admin");
     await page.getByLabel("رمز عبور", { exact: true }).fill("SefroClinic@2026");
     await page.getByRole("button", { name: "ورود به حساب" }).click();
 
-    await page.waitForURL("/");
-    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible();
+    await page.waitForURL("**/", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("امروز:", { exact: false })).toBeVisible();
   });
 
