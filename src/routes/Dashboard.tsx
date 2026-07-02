@@ -10,7 +10,7 @@ import {
 } from "react-icons/md";
 import { useNavigate } from "react-router";
 
-import PatientFormModal from "../components/patients/PatientFormModal";
+import { PatientFormModal } from "../components/patients/PatientFormModal";
 import { SearchButton } from "../components/SearchButton";
 import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
@@ -251,13 +251,15 @@ function Dashboard() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-surface-900 text-2xl font-bold">داشبورد</h1>
+          <h1 className="text-surface-900 text-2xl font-bold" data-tour="dash-title">
+            داشبورد
+          </h1>
           <p className="text-surface-500 mt-1 text-sm">امروز: {today}</p>
         </div>
         <SearchButton />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" data-tour="dash-stats">
         {stats.map((stat) => (
           <Card key={stat.title} variant="outlined" padding="lg">
             <div className="flex items-start justify-between">
@@ -279,7 +281,7 @@ function Dashboard() {
         ))}
       </div>
 
-      <Card variant="outlined" padding="lg">
+      <Card variant="outlined" padding="lg" data-tour="dash-quick-actions">
         <CardTitle>اقدامات سریع</CardTitle>
         <div className="mt-4 flex flex-wrap gap-3">
           {quickActions.map((action) => (
@@ -296,7 +298,7 @@ function Dashboard() {
         </div>
       </Card>
 
-      <Card variant="outlined" padding="none">
+      <Card variant="outlined" padding="none" data-tour="dash-appointments">
         <div className="border-surface-200 flex items-center justify-between border-b px-5 py-4">
           <CardTitle>نوبت‌های امروز</CardTitle>
           <Badge variant="info" size="sm" dot>

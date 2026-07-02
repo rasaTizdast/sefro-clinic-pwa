@@ -12,6 +12,7 @@ import { PwaUpdater } from "./components/PwaUpdater";
 import { QuickActionProvider } from "./components/QuickActionProvider";
 import Sidebar from "./components/Sidebar";
 import { LoadingBar } from "./components/ui/LoadingBar";
+import { WalkthroughButton } from "./components/walkthrough/WalkthroughButton";
 import { useAuth } from "./contexts/AuthContext";
 import { CommandPaletteContext } from "./contexts/commandPalette";
 import { useCommandPalette } from "./hooks/useCommandPalette";
@@ -45,6 +46,7 @@ function AppContent() {
           <Outlet />
         </main>
         <CommandPalette open={open} onClose={() => setOpen(false)} />
+        <WalkthroughButton />
       </div>
     </CommandPaletteContext.Provider>
   );

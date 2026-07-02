@@ -149,7 +149,9 @@ function Analytics() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-surface-900 text-2xl font-bold">گزارش‌ها و آمار</h1>
+          <h1 className="text-surface-900 text-2xl font-bold" data-tour="anl-header">
+            گزارش‌ها و آمار
+          </h1>
         </div>
         <div className="mt-3 flex items-center gap-3 sm:mt-0">
           <Button variant="outline" startIcon={<BiDownload className="size-5" />}>
@@ -162,7 +164,7 @@ function Analytics() {
         </div>
       </div>
 
-      <div className="w-full sm:w-64">
+      <div className="w-full sm:w-64" data-tour="anl-filter">
         <Select
           options={dateRangeOptions}
           value={dateRange}
@@ -170,7 +172,7 @@ function Analytics() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" data-tour="anl-kpis">
         {kpiStats.map((stat) => (
           <Card key={stat.title} variant="outlined" padding="lg">
             <div className="flex items-start justify-between">
@@ -192,7 +194,7 @@ function Analytics() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-5">
-        <Card variant="outlined" padding="lg" className="xl:col-span-3">
+        <Card variant="outlined" padding="lg" className="xl:col-span-3" data-tour="anl-revenue">
           <CardTitle>روند درآمد ماهانه</CardTitle>
           <div className="mt-4" dir="ltr">
             <ResponsiveContainer width="100%" height={320}>
@@ -217,7 +219,7 @@ function Analytics() {
           </div>
         </Card>
 
-        <Card variant="outlined" padding="lg" className="xl:col-span-2">
+        <Card variant="outlined" padding="lg" className="xl:col-span-2" data-tour="anl-status">
           <CardTitle>وضعیت نوبت‌ها</CardTitle>
           <div className="mt-4" dir="ltr">
             <ResponsiveContainer width="100%" height={320}>
@@ -261,7 +263,7 @@ function Analytics() {
         </Card>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2" data-tour="anl-charts">
         <Card variant="outlined" padding="lg">
           <CardTitle>مراجعه بیماران به صورت ماهانه</CardTitle>
           <div className="mt-4" dir="ltr">

@@ -187,13 +187,15 @@ function Settings() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-surface-900 text-2xl font-bold">تنظیمات</h1>
+          <h1 className="text-surface-900 text-2xl font-bold" data-tour="set-header">
+            تنظیمات
+          </h1>
           <p className="text-surface-500 mt-1 text-sm">تنظیمات حساب کاربری و سیستم</p>
         </div>
         <SearchButton />
       </div>
 
-      <Card variant="outlined" padding="lg">
+      <Card variant="outlined" padding="lg" data-tour="set-password">
         <CardTitle className="mb-4">تغییر رمز عبور</CardTitle>
         <div className="grid gap-4 sm:grid-cols-3">
           <Input
@@ -224,7 +226,7 @@ function Settings() {
         </div>
       </Card>
 
-      <Card variant="outlined" padding="lg">
+      <Card variant="outlined" padding="lg" data-tour="set-hours">
         <div className="mb-4 flex items-center justify-between">
           <CardTitle>ساعات کاری هفتگی</CardTitle>
           <Button
@@ -278,29 +280,31 @@ function Settings() {
         </div>
       </Card>
 
-      {isAdmin && (
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-surface-900 text-lg font-semibold">مدیریت کاربران</h2>
-            <Button
-              variant="primary"
-              startIcon={<BiPlus className="size-5" />}
-              onClick={handleOpenUserModal}
-            >
-              کاربر جدید
-            </Button>
-          </div>
+      <div className="flex flex-col gap-4" data-tour="set-users">
+        {isAdmin && (
+          <>
+            <div className="flex items-center justify-between">
+              <h2 className="text-surface-900 text-lg font-semibold">مدیریت کاربران</h2>
+              <Button
+                variant="primary"
+                startIcon={<BiPlus className="size-5" />}
+                onClick={handleOpenUserModal}
+              >
+                کاربر جدید
+              </Button>
+            </div>
 
-          <Card variant="outlined" padding="none">
-            <Table
-              columns={userColumns}
-              data={users}
-              rowKey={(user) => user.id}
-              loading={employeesLoading}
-            />
-          </Card>
-        </div>
-      )}
+            <Card variant="outlined" padding="none">
+              <Table
+                columns={userColumns}
+                data={users}
+                rowKey={(user) => user.id}
+                loading={employeesLoading}
+              />
+            </Card>
+          </>
+        )}
+      </div>
 
       <Modal
         open={userModalOpen}

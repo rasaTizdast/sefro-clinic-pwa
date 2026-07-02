@@ -986,11 +986,11 @@ function Calendar() {
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div data-tour="cal-header">
           <h1 className="text-surface-900 text-2xl font-bold">تقویم نوبت‌ها</h1>
           <p className="text-surface-500 mt-0.5 text-sm">مدیریت و مشاهده نوبت‌ها</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" data-tour="cal-wizard">
           <Button
             variant="primary"
             startIcon={<BiPlus className="size-5" />}
@@ -1002,7 +1002,7 @@ function Calendar() {
         </div>
       </div>
 
-      <Card variant="outlined" padding="md">
+      <Card variant="outlined" padding="md" data-tour="cal-timeline">
         <div className="mb-3 flex items-center gap-2">
           <BiCalendar className="text-primary-600 size-4" />
           <h3 className="text-surface-900 text-xs font-semibold">{selectedDateDisplay}</h3>
@@ -1174,7 +1174,10 @@ function Calendar() {
       <div className="grid gap-6 xl:grid-cols-5">
         <div className="xl:col-span-3">
           <Card variant="outlined" padding="none">
-            <div className="border-surface-200 flex items-center justify-between gap-2 border-b px-4 py-3">
+            <div
+              className="border-surface-200 flex items-center justify-between gap-2 border-b px-4 py-3"
+              data-tour="cal-nav"
+            >
               <div className="flex items-center gap-1">
                 <button
                   onClick={handlePrevMonth}
@@ -1202,7 +1205,7 @@ function Calendar() {
               </button>
             </div>
 
-            <div className="p-3">
+            <div className="p-3" data-tour="cal-grid">
               <div className="mb-1 grid grid-cols-7">
                 {WEEKDAYS.map((wd) => (
                   <div
@@ -1258,7 +1261,7 @@ function Calendar() {
           </Card>
         </div>
 
-        <div className="flex flex-col gap-4 xl:col-span-2">
+        <div className="flex flex-col gap-4 xl:col-span-2" data-tour="cal-detail">
           <div className="hidden max-sm:block">
             <div className="border-surface-200 mb-3 flex overflow-hidden rounded-lg border">
               <button

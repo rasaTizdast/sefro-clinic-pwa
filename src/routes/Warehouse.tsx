@@ -200,7 +200,9 @@ function Warehouse() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-surface-900 text-2xl font-bold">مدیریت انبار</h1>
+        <h1 className="text-surface-900 text-2xl font-bold" data-tour="wh-header">
+          مدیریت انبار
+        </h1>
         <div className="mt-3 flex items-center gap-3 sm:mt-0">
           <Button
             variant="primary"
@@ -213,15 +215,17 @@ function Warehouse() {
         </div>
       </div>
 
-      {lowStockCount > 0 && (
-        <Alert variant="warning" title="هشدار موجودی">
-          {lowStockCount} محصول در انبار دارای موجودی کم یا صفر هستند. لطفاً نسبت به تامین آنها
-          اقدام کنید.
-        </Alert>
-      )}
+      <div data-tour="wh-alert">
+        {lowStockCount > 0 && (
+          <Alert variant="warning" title="هشدار موجودی">
+            {lowStockCount} محصول در انبار دارای موجودی کم یا صفر هستند. لطفاً نسبت به تامین آنها
+            اقدام کنید.
+          </Alert>
+        )}
+      </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="w-full shrink-0 sm:w-64">
+        <div className="w-full shrink-0 sm:w-64" data-tour="wh-search">
           <Input
             placeholder="جستجوی محصول..."
             startIcon={<BiSearch className="size-4" />}
@@ -231,7 +235,7 @@ function Warehouse() {
         </div>
       </div>
 
-      <Card variant="outlined" padding="none">
+      <Card variant="outlined" padding="none" data-tour="wh-table">
         <Table columns={columns} data={pagedData} rowKey={(item) => item.id} loading={isLoading} />
       </Card>
 

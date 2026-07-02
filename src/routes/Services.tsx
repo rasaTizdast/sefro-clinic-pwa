@@ -201,9 +201,11 @@ function Services() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-surface-900 text-2xl font-bold">خدمات کلینیک</h1>
+          <h1 className="text-surface-900 text-2xl font-bold" data-tour="srv-header">
+            خدمات کلینیک
+          </h1>
         </div>
-        <div className="mt-3 flex items-center gap-3 sm:mt-0">
+        <div className="mt-3 flex items-center gap-3 sm:mt-0" data-tour="srv-add">
           <Button
             variant="primary"
             startIcon={<BiPlus className="size-5" />}
@@ -215,7 +217,7 @@ function Services() {
         </div>
       </div>
 
-      <Card variant="outlined" padding="none">
+      <Card variant="outlined" padding="none" data-tour="srv-table">
         <Table
           columns={columns}
           data={paginatedServices}

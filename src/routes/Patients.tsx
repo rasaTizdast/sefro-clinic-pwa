@@ -4,7 +4,7 @@ import { MdPersonAdd } from "react-icons/md";
 import { MdOutlinePeople } from "react-icons/md";
 import { PiDotsThreeVertical } from "react-icons/pi";
 
-import PatientFormModal from "../components/patients/PatientFormModal";
+import { PatientFormModal } from "../components/patients/PatientFormModal";
 import { SearchButton } from "../components/SearchButton";
 import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
@@ -268,10 +268,12 @@ function Patients() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-surface-900 text-2xl font-bold">لیست بیماران</h1>
+          <h1 className="text-surface-900 text-2xl font-bold" data-tour="pat-header">
+            لیست بیماران
+          </h1>
           <p className="text-surface-500 mt-1 text-sm">مدیریت بیماران کلینیک</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-tour="pat-actions">
           <Button
             variant="outline"
             startIcon={<BiDownload className="size-4" />}
@@ -293,8 +295,8 @@ function Patients() {
         </div>
       </div>
 
-      <Card variant="outlined" padding="none">
-        <div className="p-4 pb-3">
+      <Card variant="outlined" padding="none" data-tour="pat-table">
+        <div className="p-4 pb-3" data-tour="pat-search">
           <Input
             placeholder="جستجوی نام، تلفن یا کد ملی..."
             startIcon={<BiSearch className="size-4" />}
@@ -306,14 +308,16 @@ function Patients() {
           />
         </div>
 
-        <Tabs
-          tabs={tabsWithBadges}
-          activeTab={activeTab}
-          onChange={(id) => {
-            setActiveTab(id);
-            setCurrentPage(1);
-          }}
-        />
+        <div data-tour="pat-tabs">
+          <Tabs
+            tabs={tabsWithBadges}
+            activeTab={activeTab}
+            onChange={(id) => {
+              setActiveTab(id);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
 
         <div className="p-4">
           {isLoading ? (
@@ -339,7 +343,7 @@ function Patients() {
               }
             />
           ) : (
-            <>
+            <div>
               <Table columns={columns} data={filteredPatients} rowKey={(item) => item.id} />
               <Pagination
                 currentPage={currentPage}
@@ -347,7 +351,7 @@ function Patients() {
                 onPageChange={setCurrentPage}
                 className="mt-4"
               />
-            </>
+            </div>
           )}
         </div>
       </Card>

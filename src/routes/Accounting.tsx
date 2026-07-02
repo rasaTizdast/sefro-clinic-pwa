@@ -391,7 +391,9 @@ function Accounting() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-surface-900 text-2xl font-bold">حسابداری</h1>
+          <h1 className="text-surface-900 text-2xl font-bold" data-tour="acc-header">
+            حسابداری
+          </h1>
         </div>
         <div className="mt-3 flex items-center gap-3 sm:mt-0">
           <Button
@@ -402,18 +404,20 @@ function Accounting() {
           >
             {exporting ? "در حال خروجی..." : "گزارش اکسل"}
           </Button>
-          <Button
-            variant="primary"
-            startIcon={<BiPlus className="size-5" />}
-            onClick={() => setAddModalOpen(true)}
-          >
-            ثبت تراکنش
-          </Button>
+          <div data-tour="acc-add">
+            <Button
+              variant="primary"
+              startIcon={<BiPlus className="size-5" />}
+              onClick={() => setAddModalOpen(true)}
+            >
+              ثبت تراکنش
+            </Button>
+          </div>
           <SearchButton />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2" data-tour="acc-periods">
         {periodKeys.map((key) => (
           <button
             key={key}
@@ -433,7 +437,7 @@ function Accounting() {
         ))}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" data-tour="acc-stats">
         {stats.map((stat) => (
           <Card key={stat.title} variant="outlined" padding="lg">
             <div className="flex items-start justify-between">
@@ -456,7 +460,7 @@ function Accounting() {
         ))}
       </div>
 
-      <Card variant="outlined" padding="lg">
+      <Card variant="outlined" padding="lg" data-tour="acc-chart">
         <CardTitle>{chartTitleMap[activePeriod]}</CardTitle>
         <div className="mt-4" dir="ltr">
           <ResponsiveContainer width="100%" height={260}>
@@ -490,7 +494,7 @@ function Accounting() {
         </div>
       </Card>
 
-      <Card variant="outlined" padding="none">
+      <Card variant="outlined" padding="none" data-tour="acc-table">
         <div className="border-surface-200 flex flex-col gap-4 border-b px-5 py-4 sm:flex-row sm:items-end">
           <div className="flex items-center gap-2">
             <span className="text-surface-600 text-sm font-medium">فیلترها:</span>

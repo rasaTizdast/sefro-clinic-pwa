@@ -66,7 +66,7 @@ export default function Auth() {
   return (
     <main dir="rtl" className="from-surface-50 to-surface-100 min-h-dvh bg-linear-to-br">
       <section className="mx-auto grid min-h-dvh w-full max-w-6xl items-center gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_1fr] lg:px-8">
-        <div className="hidden lg:block">
+        <div className="hidden lg:block" data-tour="auth-brand">
           <div className="border-surface-200/60 rounded-2xl border bg-white p-10 shadow-[0_8px_40px_rgba(15,23,42,0.06)]">
             <div className="from-primary-50 to-primary-100/50 mb-10 inline-flex items-center gap-3 rounded-xl bg-linear-to-l px-5 py-3">
               <span className="bg-primary-600 shadow-primary-600/30 grid size-12 place-items-center rounded-xl text-xl font-bold text-white shadow-sm">
@@ -141,35 +141,39 @@ export default function Auth() {
 
             <form action={formAction} noValidate>
               <div className="space-y-5">
-                <Input
-                  label="نام کاربری یا شماره موبایل"
-                  name="identifier"
-                  error={state.errors.identifier}
-                  placeholder="مثلا 09123456789"
-                  autoComplete="username"
-                  startIcon={<BiUser className="text-lg" />}
-                  disabled={isPending}
-                />
+                <div data-tour="auth-username">
+                  <Input
+                    label="نام کاربری یا شماره موبایل"
+                    name="identifier"
+                    error={state.errors.identifier}
+                    placeholder="مثلا 09123456789"
+                    autoComplete="username"
+                    startIcon={<BiUser className="text-lg" />}
+                    disabled={isPending}
+                  />
+                </div>
 
-                <Input
-                  label="رمز عبور"
-                  name="password"
-                  error={state.errors.password}
-                  placeholder="رمز عبور"
-                  type={isPasswordVisible ? "text" : "password"}
-                  autoComplete="current-password"
-                  startIcon={<BiLockAlt className="text-lg" />}
-                  endIcon={
-                    <PasswordToggle
-                      visible={isPasswordVisible}
-                      onToggle={() => setIsPasswordVisible((v) => !v)}
-                    />
-                  }
-                  disabled={isPending}
-                />
+                <div data-tour="auth-password">
+                  <Input
+                    label="رمز عبور"
+                    name="password"
+                    error={state.errors.password}
+                    placeholder="رمز عبور"
+                    type={isPasswordVisible ? "text" : "password"}
+                    autoComplete="current-password"
+                    startIcon={<BiLockAlt className="text-lg" />}
+                    endIcon={
+                      <PasswordToggle
+                        visible={isPasswordVisible}
+                        onToggle={() => setIsPasswordVisible((v) => !v)}
+                      />
+                    }
+                    disabled={isPending}
+                  />
+                </div>
               </div>
 
-              <div className="mt-5">
+              <div className="mt-5" data-tour="auth-remember">
                 <label className="text-surface-600 flex cursor-pointer items-center gap-2 text-sm font-medium select-none">
                   <input
                     name="rememberMe"
@@ -182,7 +186,9 @@ export default function Auth() {
                 </label>
               </div>
 
-              <SubmitButton />
+              <div data-tour="auth-submit">
+                <SubmitButton />
+              </div>
             </form>
           </div>
 
