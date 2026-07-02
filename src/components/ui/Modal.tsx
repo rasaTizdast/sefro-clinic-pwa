@@ -1,4 +1,5 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useEffectEvent, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { PortalTargetContext } from "./PortalTargetContext";
 
@@ -21,43 +22,52 @@ const sizeStyles: Record<ModalSize, string> = {
   "2xl": "max-w-2xl",
 };
 
+let openModalCount = 0;
+
 export function Modal({ open, onClose, title, children, footer, size = "md" }: ModalProps) {
-  const internalDialogRef = useRef<HTMLDialogElement>(null);
+  const hasLockedScrollRef = useRef(false);
   const [dialogEl, setDialogEl] = useState<HTMLDialogElement | null>(null);
-
-  const setDialogRef = useCallback((el: HTMLDialogElement | null) => {
-    internalDialogRef.current = el;
-    setDialogEl(el);
-  }, []);
-
-  const handleClose = useCallback(() => {
+  const titleId = useId();
+  const closeFromDialogEvent = useEffectEvent(() => {
     onClose();
-  }, [onClose]);
+  });
 
   useEffect(() => {
-    if (open) {
+    if (open && !hasLockedScrollRef.current) {
+      openModalCount = openModalCount + 1;
+      hasLockedScrollRef.current = true;
       document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+    } else if (!open && hasLockedScrollRef.current) {
+      openModalCount = Math.max(0, openModalCount - 1);
+      hasLockedScrollRef.current = false;
+      if (openModalCount === 0) {
+        document.body.style.overflow = "";
+      }
     }
     return () => {
-      document.body.style.overflow = "";
+      if (!hasLockedScrollRef.current) return;
+
+      openModalCount = Math.max(0, openModalCount - 1);
+      hasLockedScrollRef.current = false;
+      if (openModalCount === 0) {
+        document.body.style.overflow = "";
+      }
     };
   }, [open]);
 
   useEffect(() => {
-    const el = internalDialogRef.current;
+    const el = dialogEl;
     if (!el) return;
 
     const handleCancel = (e: Event) => {
       e.preventDefault();
-      handleClose();
+      closeFromDialogEvent();
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        handleClose();
+        closeFromDialogEvent();
       }
     };
 
@@ -67,10 +77,10 @@ export function Modal({ open, onClose, title, children, footer, size = "md" }: M
       el.removeEventListener("cancel", handleCancel);
       el.removeEventListener("keydown", handleKeyDown);
     };
-  }, [handleClose]);
+  }, [dialogEl]);
 
   useEffect(() => {
-    const el = internalDialogRef.current;
+    const el = dialogEl;
     if (!el || !open) return;
 
     const focusableSelector =
@@ -81,28 +91,28 @@ export function Modal({ open, onClose, title, children, footer, size = "md" }: M
     } else {
       el.focus();
     }
-  }, [open]);
-
-  const handleBackdrop = useCallback(() => {
-    handleClose();
-  }, [handleClose]);
+  }, [dialogEl, open]);
 
   if (!open) return null;
 
-  return (
-    <PortalTargetContext.Provider value={dialogEl}>
-      <div className="fixed inset-0 z-30 bg-black/50" onClick={handleBackdrop} aria-hidden="true" />
+  return createPortal(
+    <PortalTargetContext.Provider value={null}>
+      <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} aria-hidden="true" />
       <dialog
-        ref={setDialogRef}
+        ref={setDialogEl}
         open
-        onClick={(e) => e.stopPropagation()}
-        className={`fixed top-1/2 left-1/2 z-40 w-full -translate-x-1/2 -translate-y-1/2 ${sizeStyles[size]} max-h-[90vh] rounded-xl bg-white shadow-xl`}
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        className={`fixed top-1/2 right-auto bottom-auto left-1/2 z-50 m-0 flex max-h-[90dvh] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-visible rounded-xl border-none bg-white p-0 shadow-xl ${sizeStyles[size]}`}
       >
         {title && (
           <div className="border-surface-200 flex shrink-0 items-center justify-between gap-4 border-b px-6 py-4">
-            <h2 className="text-surface-900 text-lg font-semibold">{title}</h2>
+            <h2 id={titleId} className="text-surface-900 text-lg font-semibold">
+              {title}
+            </h2>
             <button
-              onClick={handleClose}
+              type="button"
+              onClick={onClose}
               className="text-surface-400 hover:text-surface-600 hover:bg-surface-100 cursor-pointer rounded-md p-1 transition-colors"
               aria-label="بستن"
             >
@@ -125,6 +135,7 @@ export function Modal({ open, onClose, title, children, footer, size = "md" }: M
           </div>
         )}
       </dialog>
-    </PortalTargetContext.Provider>
+    </PortalTargetContext.Provider>,
+    document.body
   );
 }
