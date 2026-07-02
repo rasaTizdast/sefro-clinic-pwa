@@ -7,6 +7,7 @@ export interface SidebarItem {
   icon: ReactNode;
   path: string;
   group?: SidebarItemGroup;
+  isWalkthrough?: boolean;
 }
 
 export interface SidebarSection {

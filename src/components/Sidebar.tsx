@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router";
 
 import { useAuth } from "../contexts/AuthContext";
 import { useLogout } from "../hooks/api/useAuthQuery";
+import { useWalkthrough } from "../hooks/useWalkthrough";
 import type { SidebarItem, SidebarItemGroup, SidebarSection } from "../types/sidebar";
 import { Avatar } from "./ui/Avatar";
 
@@ -99,27 +100,15 @@ const DesktopNavItem = ({
   item,
   isActive,
   isCollapsed,
+  onWalkthrough,
 }: {
   item: SidebarItem;
   isActive: boolean;
   isCollapsed: boolean;
-}) => (
-  <motion.div
-    layout
-    whileHover={isCollapsed ? undefined : { scale: 1.03 }}
-    whileTap={isCollapsed ? undefined : { scale: 0.97 }}
-    transition={{ type: "spring", stiffness: 400, damping: 20 }}
-  >
-    <Link
-      to={item.path}
-      className={`group focus-visible:ring-primary-600/80 relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-        isActive
-          ? "bg-primary-200 text-primary-900 hover:bg-primary-300 shadow-sm"
-          : "text-surface-500 hover:bg-primary-100 hover:text-primary-800"
-      } ${isCollapsed ? "justify-center" : ""}`}
-      aria-current={isActive ? "page" : undefined}
-      aria-label={isCollapsed ? item.label : undefined}
-    >
+  onWalkthrough?: () => void;
+}) => {
+  const content = (
+    <>
       <span className="grid size-6 shrink-0 place-items-center text-xl">{item.icon}</span>
 
       <AnimatePresence mode="wait">
@@ -136,48 +125,106 @@ const DesktopNavItem = ({
         )}
       </AnimatePresence>
 
-      {isActive && isCollapsed && (
-        <motion.span
-          layoutId="activeIndicator"
-          className="bg-primary-600 absolute inset-s-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-e-full"
-        />
-      )}
-
       {isCollapsed && (
         <span className="bg-surface-900 pointer-events-none absolute inset-s-[calc(100%+0.75rem)] top-1/2 z-30 -translate-y-1/2 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
           {item.label}
         </span>
       )}
-    </Link>
-  </motion.div>
-);
+    </>
+  );
+
+  if (item.isWalkthrough) {
+    return (
+      <motion.div
+        layout
+        whileHover={isCollapsed ? undefined : { scale: 1.03 }}
+        whileTap={isCollapsed ? undefined : { scale: 0.97 }}
+        transition={{ type: "spring", stiffness: 400, damping: 20 }}
+      >
+        <button
+          type="button"
+          onClick={onWalkthrough}
+          className={`group focus-visible:ring-primary-600/80 relative flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+            isActive
+              ? "bg-primary-200 text-primary-900 hover:bg-primary-300 shadow-sm"
+              : "text-surface-500 hover:bg-primary-100 hover:text-primary-800"
+          } ${isCollapsed ? "justify-center" : ""}`}
+          aria-label={isCollapsed ? item.label : undefined}
+        >
+          {content}
+        </button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      layout
+      whileHover={isCollapsed ? undefined : { scale: 1.03 }}
+      whileTap={isCollapsed ? undefined : { scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+    >
+      <Link
+        to={item.path}
+        className={`group focus-visible:ring-primary-600/80 relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+          isActive
+            ? "bg-primary-200 text-primary-900 hover:bg-primary-300 shadow-sm"
+            : "text-surface-500 hover:bg-primary-100 hover:text-primary-800"
+        } ${isCollapsed ? "justify-center" : ""}`}
+        aria-current={isActive ? "page" : undefined}
+        aria-label={isCollapsed ? item.label : undefined}
+      >
+        {content}
+      </Link>
+    </motion.div>
+  );
+};
 
 const SheetNavItem = ({
   item,
   isActive,
   onNavigate,
+  onWalkthrough,
 }: {
   item: SidebarItem;
   isActive: boolean;
   onNavigate: () => void;
-}) => (
-  <motion.div
-    whileTap={{ scale: 0.97 }}
-    transition={{ type: "spring", stiffness: 400, damping: 20 }}
-  >
-    <Link
-      to={item.path}
-      onClick={onNavigate}
-      className={`focus-visible:ring-primary-600/40 flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 ${
-        isActive ? "bg-primary-600/10 text-primary-700" : "text-surface-600 hover:bg-primary-50"
-      }`}
-      aria-current={isActive ? "page" : undefined}
+  onWalkthrough?: () => void;
+}) => {
+  const handleClick = item.isWalkthrough ? onWalkthrough : onNavigate;
+
+  return (
+    <motion.div
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 400, damping: 20 }}
     >
-      <span className="grid size-7 shrink-0 place-items-center text-xl">{item.icon}</span>
-      <span>{item.label}</span>
-    </Link>
-  </motion.div>
-);
+      {item.isWalkthrough ? (
+        <button
+          type="button"
+          onClick={handleClick}
+          className={`focus-visible:ring-primary-600/40 flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 ${
+            isActive ? "bg-primary-600/10 text-primary-700" : "text-surface-600 hover:bg-primary-50"
+          }`}
+        >
+          <span className="grid size-7 shrink-0 place-items-center text-xl">{item.icon}</span>
+          <span>{item.label}</span>
+        </button>
+      ) : (
+        <Link
+          to={item.path}
+          onClick={onNavigate}
+          className={`focus-visible:ring-primary-600/40 flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 ${
+            isActive ? "bg-primary-600/10 text-primary-700" : "text-surface-600 hover:bg-primary-50"
+          }`}
+          aria-current={isActive ? "page" : undefined}
+        >
+          <span className="grid size-7 shrink-0 place-items-center text-xl">{item.icon}</span>
+          <span>{item.label}</span>
+        </Link>
+      )}
+    </motion.div>
+  );
+};
 
 const DesktopSidebar = ({
   sections,
@@ -205,6 +252,7 @@ const DesktopSidebar = ({
 
   const { user } = useAuth();
   const logoutMutation = useLogout();
+  const { startWalkthrough } = useWalkthrough();
 
   const displayName = user?.username ?? "کاربر";
   const subtitle =
@@ -257,7 +305,11 @@ const DesktopSidebar = ({
         </button>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-4 overflow-visible" aria-label="منوی اصلی">
+      <nav
+        className="flex flex-1 flex-col gap-4 overflow-visible"
+        aria-label="منوی اصلی"
+        data-tour="sidebar-nav"
+      >
         {sections.map((section, index) => (
           <div
             key={section.group}
@@ -282,8 +334,9 @@ const DesktopSidebar = ({
               <DesktopNavItem
                 key={item.path}
                 item={item}
-                isActive={location.pathname === item.path}
+                isActive={!item.isWalkthrough && location.pathname === item.path}
                 isCollapsed={isCollapsed}
+                onWalkthrough={startWalkthrough}
               />
             ))}
           </div>
@@ -388,6 +441,7 @@ const MobileMoreSheet = ({
   const dragStartYRef = useRef<number | null>(null);
   const dragOffsetRef = useRef(0);
   const logoutMutation = useLogout();
+  const { startWalkthrough: startMobileWalkthrough } = useWalkthrough();
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -497,8 +551,9 @@ const MobileMoreSheet = ({
                   <SheetNavItem
                     key={item.path}
                     item={item}
-                    isActive={location.pathname === item.path}
+                    isActive={!item.isWalkthrough && location.pathname === item.path}
                     onNavigate={onClose}
+                    onWalkthrough={startMobileWalkthrough}
                   />
                 ))}
               </div>
