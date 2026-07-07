@@ -27,6 +27,7 @@ let openModalCount = 0;
 export function Modal({ open, onClose, title, children, footer, size = "md" }: ModalProps) {
   const hasLockedScrollRef = useRef(false);
   const [dialogEl, setDialogEl] = useState<HTMLDialogElement | null>(null);
+  const [portalEl, setPortalEl] = useState<HTMLDivElement | null>(null);
   const titleId = useId();
   const closeFromDialogEvent = useEffectEvent(() => {
     onClose();
@@ -96,7 +97,7 @@ export function Modal({ open, onClose, title, children, footer, size = "md" }: M
   if (!open) return null;
 
   return createPortal(
-    <PortalTargetContext.Provider value={null}>
+    <PortalTargetContext.Provider value={portalEl}>
       <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} aria-hidden="true" />
       <dialog
         ref={setDialogEl}
@@ -135,6 +136,7 @@ export function Modal({ open, onClose, title, children, footer, size = "md" }: M
           </div>
         )}
       </dialog>
+      <div ref={setPortalEl} className="pointer-events-none fixed inset-0 z-[51]" />
     </PortalTargetContext.Provider>,
     document.body
   );
