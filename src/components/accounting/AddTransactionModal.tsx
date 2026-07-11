@@ -7,7 +7,7 @@ import { IoCallOutline } from "react-icons/io5";
 
 import { useCreatePayment, useServicesList, useVisitsList } from "../../hooks/api";
 import { extractApiError } from "../../lib/api-error";
-import { jalaliToGregorianISO } from "../../lib/date";
+import { jalaliToGregorianISO, jalaliToShamsiApiDate } from "../../lib/date";
 import { queryKeys } from "../../lib/query-keys";
 import * as customersService from "../../services/customers";
 import type { PaymentMethod } from "../../types/accounting";
@@ -69,7 +69,7 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
   const [formError, setFormError] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const isoDate = useMemo(() => jalaliToGregorianISO(selectedDate), [selectedDate]);
+  const isoDate = useMemo(() => jalaliToShamsiApiDate(selectedDate), [selectedDate]);
 
   const { data: paginatedVisits, isLoading: visitsLoading } = useVisitsList({
     dateFrom: isoDate,

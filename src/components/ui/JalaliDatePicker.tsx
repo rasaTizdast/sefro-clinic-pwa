@@ -5,6 +5,8 @@ import { useId, useMemo } from "react";
 import { DtPicker } from "react-calendar-datetime-picker";
 import { BiCalendar } from "react-icons/bi";
 
+import { CalendarOverlay } from "./CalendarOverlay";
+
 interface JalaliDatePickerProps {
   value: string | null;
   onChange: (jalaliDate: string | null) => void;
@@ -71,6 +73,7 @@ export function JalaliDatePicker({
           {label}
         </label>
       )}
+      <CalendarOverlay />
       <DtPicker
         initValue={initValue}
         onChange={handleChange}

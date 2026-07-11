@@ -225,3 +225,21 @@ body {
   --calendar-header-bg: var(--color-primary-600);
   --calendar-border-focus: var(--color-primary-500);
 }
+
+/* Center calendar popup when inside a modal dialog.
+   The dialog's CSS transform (translate) creates a new containing block,
+   trapping position:fixed children. Center within the dialog instead. */
+dialog .calendar-blue-theme.calendar-picker-modal {
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+/* Dark overlay covering the entire page when the calendar is open */
+.calendar-page-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}

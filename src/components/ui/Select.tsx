@@ -53,6 +53,7 @@ interface MenuPosition {
   top: number;
   left?: number;
   right?: number;
+  width: number;
 }
 
 export function Select({
@@ -198,6 +199,7 @@ export function Select({
   function openMenu() {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
+      const isRtl = document.documentElement.dir === "rtl";
 
       const marginTop = 6;
       const top = rect.bottom + marginTop;
@@ -213,16 +215,24 @@ export function Select({
       let left: number | undefined;
       let right: number | undefined;
 
-      if (align === "end") {
+      // In RTL, swap alignment: "start" means align right edges, "end" means align left edges
+      const effectiveAlign = isRtl ? (align === "start" ? "end" : "start") : align;
+
+      if (effectiveAlign === "end") {
         right = window.innerWidth - rect.right;
       } else {
         left = rect.left;
       }
 
       if (openAbove) {
-        setMenuPosition({ top: rect.top - marginTop - estimatedMenuHeight, left, right });
+        setMenuPosition({
+          top: rect.top - marginTop - estimatedMenuHeight,
+          left,
+          right,
+          width: rect.width,
+        });
       } else {
-        setMenuPosition({ top, left, right });
+        setMenuPosition({ top, left, right, width: rect.width });
       }
     }
     setIsOpen(true);
@@ -440,12 +450,13 @@ export function Select({
           top: menuPosition.top,
           left: menuPosition.left,
           right: menuPosition.right,
+          width: menuPosition.width,
           zIndex: 50,
           maxHeight: "300px",
-          maxWidth: isActionMenu ? "none" : "100%",
+          maxWidth: isActionMenu ? "none" : undefined,
         }}
         className={`border-surface-200 rounded-xl border bg-white shadow-lg ring-1 ring-black/5 ${
-          isActionMenu ? "min-w-max" : "w-full"
+          isActionMenu ? "min-w-max" : ""
         } overflow-hidden overflow-y-auto`}
       >
         {hasSearch && (

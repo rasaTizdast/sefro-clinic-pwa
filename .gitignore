@@ -26,3 +26,9 @@ test-results
 *.njsproj
 *.sln
 *.sw?
+
+# Backend (separate repo)
+backend/
+
+# AI tooling
+.mimocode/

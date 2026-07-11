@@ -48,6 +48,11 @@ export function jalaliToGregorianISO(jalaliStr: string): string {
   return `${gy}-${String(gm).padStart(2, "0")}-${String(gd).padStart(2, "0")}`;
 }
 
+export function jalaliToShamsiApiDate(jalaliStr: string): string {
+  const latin = toLatinDigits(jalaliStr);
+  return latin.replace(/\//g, "-");
+}
+
 function toLatinDigits(str: string): string {
   const persianDigits = "۰۱۲۳۴۵۶۷۸۹";
   return str.replace(/[۰-۹]/g, (d) => String(persianDigits.indexOf(d)));
