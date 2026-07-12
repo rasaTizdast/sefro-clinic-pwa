@@ -246,19 +246,19 @@ describe("Modal", () => {
     );
   });
 
-  it("provides PortalTargetContext with dialog element", () => {
-    let captured: HTMLDialogElement | null = null;
+  it("provides PortalTargetContext with portal element", () => {
+    let captured: HTMLElement | null = null;
     render(
       <Modal open onClose={() => {}}>
         <PortalTargetContext.Consumer>
           {(value) => {
-            captured = value as HTMLDialogElement | null;
+            captured = value as HTMLElement | null;
             return null;
           }}
         </PortalTargetContext.Consumer>
       </Modal>
     );
-    expect(captured).toBeInstanceOf(HTMLDialogElement);
+    expect(captured).toBeInstanceOf(HTMLDivElement);
   });
 
   it("focuses first focusable element on open (close button when title given)", () => {
