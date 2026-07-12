@@ -455,7 +455,7 @@ export function Select({
           maxHeight: "300px",
           maxWidth: isActionMenu ? "none" : undefined,
         }}
-        className={`border-surface-200 rounded-xl border bg-white shadow-lg ring-1 ring-black/5 ${
+        className={`border-surface-200 pointer-events-auto rounded-xl border bg-white shadow-lg ring-1 ring-black/5 ${
           isActionMenu ? "min-w-max" : ""
         } overflow-hidden overflow-y-auto`}
       >
