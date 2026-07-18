@@ -54,33 +54,8 @@ test.describe("Services", () => {
   });
 
   test("edits an existing service", async ({ page }) => {
-    // Manually set up only necessary API mocks, overriding services with data
-    await page.route("**/api/auth/token/", async (route) => {
-      await route.fulfill({
-        status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({}),
-      });
-    });
-    await page.route("**/api/auth/token/refresh/", async (route) => {
-      await route.fulfill({
-        status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({}),
-      });
-    });
-    await page.route("**/api/auth/me/", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: 1,
-          username: "sefro_admin",
-          role: "admin",
-          date_joined: "2026-01-01T00:00:00Z",
-        }),
-      });
-    });
+    await mockAllApiEndpoints(page);
+    // Override services endpoint to return data
     await page.route("**/api/services/**", async (route) => {
       await route.fulfill({
         status: 200,
@@ -89,13 +64,6 @@ test.describe("Services", () => {
           count: 1,
           results: [{ id: 1, name: "testsvc", time: 30, price: "500000", is_active: true }],
         }),
-      });
-    });
-    await page.route("**/api/services/1/**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ id: 1 }),
       });
     });
 

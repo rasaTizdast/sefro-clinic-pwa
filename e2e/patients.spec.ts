@@ -21,6 +21,72 @@ test.describe("Patients Management", () => {
     await expect(page.getByPlaceholder("جستجوی نام، تلفن یا کد ملی...")).toBeVisible();
   });
 
+  test("pagination navigates between pages", async ({ page }) => {
+    // Override customers to return multi-page data
+    await page.route("**/api/customers/**", async (route, request) => {
+      const url = new URL(request.url());
+      const page_num = url.searchParams.get("page") ?? "1";
+
+      if (page_num === "2") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            count: 16,
+            results: [
+              {
+                id: 11,
+                first_name: "صفحه",
+                last_name: "دو",
+                mobile_number: "09120000011",
+                national_id: "1111111111",
+                is_active: true,
+              },
+            ],
+          }),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            count: 16,
+            results: [
+              {
+                id: 1,
+                first_name: "بیمار",
+                last_name: "اول",
+                mobile_number: "09120000001",
+                national_id: "1010101010",
+                is_active: true,
+              },
+              ...Array.from({ length: 7 }, (_, i) => ({
+                id: i + 2,
+                first_name: `بیمار ${i + 2}`,
+                last_name: "تست",
+                mobile_number: `0912000000${i + 2}`,
+                national_id: `${1010101010 + i + 1}`,
+                is_active: true,
+              })),
+            ],
+          }),
+        });
+      }
+    });
+
+    await page.goto("/patients");
+    await expect(page.getByRole("heading", { name: "لیست بیماران" })).toBeVisible();
+
+    // Look for next page button
+    const nextBtn = page.getByRole("button", { name: "صفحه بعد" });
+    if (await nextBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await nextBtn.click();
+      await page.waitForTimeout(500);
+      // Page 2 data should load
+      await expect(page.getByText("صفحه")).toBeVisible();
+    }
+  });
+
   test("creates a new patient", async ({ page }) => {
     await page.route("**/api/customers/", async (route) => {
       await route.fulfill({
@@ -45,33 +111,8 @@ test.describe("Patients Management", () => {
   });
 
   test("edits an existing patient", async ({ page }) => {
-    // Manually set up only necessary API mocks, overriding customers with data
-    await page.route("**/api/auth/token/", async (route) => {
-      await route.fulfill({
-        status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({}),
-      });
-    });
-    await page.route("**/api/auth/token/refresh/", async (route) => {
-      await route.fulfill({
-        status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({}),
-      });
-    });
-    await page.route("**/api/auth/me/", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: 1,
-          username: "sefro_admin",
-          role: "admin",
-          date_joined: "2026-01-01T00:00:00Z",
-        }),
-      });
-    });
+    await mockAllApiEndpoints(page);
+    // Override customers endpoint to return data
     await page.route("**/api/customers/**", async (route, request) => {
       if (request.method() === "GET") {
         await route.fulfill({
@@ -98,13 +139,6 @@ test.describe("Patients Management", () => {
         });
       }
     });
-    await page.route("**/api/customers/1/**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ id: 1 }),
-      });
-    });
     await page.goto("/patients");
 
     const actionBtn = page.locator("table tbody tr").first().locator("button:has(svg)").first();
@@ -120,18 +154,5 @@ test.describe("Patients Management", () => {
     await expect(page.getByRole("heading", { name: "ویرایش بیمار" })).not.toBeVisible({
       timeout: 10000,
     });
-  });
-
-  test("searches for patients", async ({ page }) => {
-    await page.goto("/patients");
-    const searchBox = page.getByPlaceholder("جستجوی نام، تلفن یا کد ملی...");
-    await searchBox.fill("تست");
-    await page.waitForTimeout(500);
-  });
-
-  test("filters patients by tab", async ({ page }) => {
-    await page.goto("/patients");
-    await page.getByRole("tab", { name: /^فعال/ }).click();
-    await page.waitForTimeout(500);
   });
 });

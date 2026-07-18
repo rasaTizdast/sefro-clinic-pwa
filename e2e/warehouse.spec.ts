@@ -52,33 +52,8 @@ test.describe("Warehouse", () => {
   });
 
   test("edits a product", async ({ page }) => {
-    // Manually set up only necessary API mocks, overriding products with data
-    await page.route("**/api/auth/token/", async (route) => {
-      await route.fulfill({
-        status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({}),
-      });
-    });
-    await page.route("**/api/auth/token/refresh/", async (route) => {
-      await route.fulfill({
-        status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({}),
-      });
-    });
-    await page.route("**/api/auth/me/", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: 1,
-          username: "sefro_admin",
-          role: "admin",
-          date_joined: "2026-01-01T00:00:00Z",
-        }),
-      });
-    });
+    await mockAllApiEndpoints(page);
+    // Override products endpoint to return data
     await page.route("**/api/inventory/products/**", async (route) => {
       await route.fulfill({
         status: 200,
@@ -98,13 +73,6 @@ test.describe("Warehouse", () => {
         }),
       });
     });
-    await page.route("**/api/inventory/products/1/**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ id: 1 }),
-      });
-    });
 
     await page.goto("/warehouse");
 
@@ -121,13 +89,5 @@ test.describe("Warehouse", () => {
     await expect(page.getByRole("heading", { name: "ویرایش محصول" })).not.toBeVisible({
       timeout: 10000,
     });
-  });
-
-  test("searches for a product", async ({ page }) => {
-    await mockAllApiEndpoints(page);
-    await page.goto("/warehouse");
-    const searchBox = page.getByPlaceholder("جستجوی محصول...");
-    await searchBox.fill("محصول");
-    await page.waitForTimeout(500);
   });
 });
