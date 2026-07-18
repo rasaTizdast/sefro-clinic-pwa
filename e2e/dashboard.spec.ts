@@ -38,4 +38,26 @@ test.describe("Dashboard", () => {
     await page.getByRole("button", { name: "بیمار جدید" }).click();
     await expect(page.getByRole("heading", { name: "بیمار جدید" })).toBeVisible();
   });
+
+  test("sidebar navigation links work for all routes", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible();
+
+    const routes = [
+      { label: "مراجعین", heading: "لیست بیماران" },
+      { label: "حسابداری", heading: "حسابداری" },
+      { label: "تقویم کلینیک", heading: "تقویم نوبت‌ها" },
+      { label: "خدمات", heading: "خدمات کلینیک" },
+      { label: "گزارش‌ها", heading: "گزارش‌ها و آمار" },
+      { label: "مدیریت انبار", heading: "مدیریت انبار" },
+      { label: "تنظیمات", heading: "تنظیمات" },
+    ];
+
+    for (const route of routes) {
+      await page.getByRole("link", { name: route.label }).first().click();
+      await expect(page.getByRole("heading", { name: route.heading })).toBeVisible({
+        timeout: 10000,
+      });
+    }
+  });
 });

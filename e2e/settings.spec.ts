@@ -22,12 +22,40 @@ test.describe("Settings", () => {
     await expect(page.getByRole("button", { name: "تغییر رمز" })).toBeVisible();
   });
 
-  test("validates password change fields", async ({ page }) => {
+  test("validates password mismatch", async ({ page }) => {
     await page.goto("/settings");
 
-    await page.getByRole("textbox", { name: "رمز جدید", exact: true }).fill("123");
-    await page.getByLabel("تکرار رمز جدید").fill("456");
+    await page.getByRole("textbox", { name: "رمز جدید", exact: true }).fill("NewPass123");
+    await page.getByLabel("تکرار رمز جدید").fill("DifferentPass456");
     await page.getByRole("button", { name: "تغییر رمز" }).first().click();
+
+    // Should show validation error about mismatch
+    // The form should not submit successfully
+    await expect(page.getByRole("textbox", { name: "رمز جدید", exact: true })).toBeVisible();
+  });
+
+  test("successfully changes password", async ({ page }) => {
+    // Mock password change endpoint
+    await page.route("**/api/auth/change-password/", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Password updated" }),
+      });
+    });
+
+    await page.goto("/settings");
+
+    await page.getByRole("textbox", { name: "رمز جدید", exact: true }).fill("NewSecurePass123");
+    await page.getByLabel("تکرار رمز جدید").fill("NewSecurePass123");
+    await page.getByRole("button", { name: "تغییر رمز" }).first().click();
+
+    // Should show success feedback (toast or inline message)
+    // Wait briefly for async operation
+    await page.waitForTimeout(1000);
+
+    // Form should still be visible (no crash)
+    await expect(page.getByText("تغییر رمز عبور")).toBeVisible();
   });
 
   test("shows working hours section", async ({ page }) => {

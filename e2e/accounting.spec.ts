@@ -38,4 +38,16 @@ test.describe("Accounting", () => {
     await expect(page.getByRole("columnheader", { name: "روش پرداخت" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "وضعیت" })).toBeVisible();
   });
+
+  test("Excel export button triggers download", async ({ page }) => {
+    await page.goto("/accounting");
+
+    // Set up download listener before clicking
+    const downloadPromise = page.waitForEvent("download", { timeout: 10000 });
+
+    await page.getByRole("button", { name: "گزارش اکسل" }).click();
+
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.xlsx$/);
+  });
 });
