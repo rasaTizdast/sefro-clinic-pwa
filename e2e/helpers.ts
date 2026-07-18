@@ -1,18 +1,18 @@
 import type { Locator, Page } from "@playwright/test";
 
-export async function login(page: Page, username = "sefro_admin", password = "SefroClinic@2026") {
+export async function login(page: Page, username?: string, password?: string) {
+  const user = username ?? process.env.E2E_USERNAME ?? "";
+  const pass = password ?? process.env.E2E_PASSWORD ?? "";
   await page.goto("/auth");
-  await page.getByLabel("نام کاربری یا شماره موبایل").fill(username);
-  await page.getByLabel("رمز عبور", { exact: true }).fill(password);
+  await page.getByLabel("نام کاربری یا شماره موبایل").fill(user);
+  await page.getByLabel("رمز عبور", { exact: true }).fill(pass);
   await page.getByRole("button", { name: "ورود به حساب" }).click();
   await page.waitForURL("/");
 }
 
 export async function clickSave(page: Page, locator?: Locator) {
   const btn = locator ?? page.getByRole("button", { name: "ذخیره" });
-  await btn.evaluate((el) => {
-    el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-  });
+  await btn.click({ force: true });
 }
 
 function fulfill(page: Page, urlPattern: string, status: number, body: unknown) {

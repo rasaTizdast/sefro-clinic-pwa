@@ -19,6 +19,9 @@ export default defineConfig({
     url: "http://localhost:5173",
     reuseExistingServer: true,
     timeout: 30_000,
+    env: {
+      VITE_API_URL: process.env.VITE_API_URL ?? "http://localhost:8000",
+    },
   },
   projects: [
     {

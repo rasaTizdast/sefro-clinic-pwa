@@ -4,8 +4,12 @@ import { mockAllApiEndpoints } from "./helpers";
 
 const authFile = "e2e/.auth/user.json";
 
-const ADMIN_USERNAME = process.env.E2E_USERNAME ?? "sefro_admin";
-const ADMIN_PASSWORD = process.env.E2E_PASSWORD ?? "SefroClinic@2026";
+const ADMIN_USERNAME = process.env.E2E_USERNAME;
+const ADMIN_PASSWORD = process.env.E2E_PASSWORD;
+
+if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
+  throw new Error("E2E_USERNAME and E2E_PASSWORD env vars are required");
+}
 
 const MOCK_USER = {
   id: 1,
