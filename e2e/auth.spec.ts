@@ -55,4 +55,90 @@ test.describe("Authentication", () => {
 
     await expect(page.getByText("خطا در اطلاعات")).toBeVisible();
   });
+
+  test("logs out and redirects to auth page", async ({ page }) => {
+    await mockAllApiEndpoints(page);
+
+    // Mock logout endpoint
+    await page.route("**/api/auth/logout/", async (route) => {
+      await route.fulfill({ status: 204, body: "" });
+    });
+
+    // Start logged in
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible();
+
+    // Click logout button in sidebar
+    await page.getByRole("button", { name: "خروج از سیستم" }).click();
+
+    // Should redirect to /auth
+    await page.waitForURL("**/auth", { timeout: 10000 });
+    await expect(page.getByRole("button", { name: "ورود به حساب" })).toBeVisible();
+  });
+
+  test("non-admin user is redirected away from /logs", async ({ page }) => {
+    // Mock auth to return employee role
+    await page.route("**/api/auth/token/refresh/", async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({}),
+      });
+    });
+    await page.route("**/api/auth/token/", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ access: "mock-at", refresh: "mock-rt" }),
+      });
+    });
+    await mockAllApiEndpoints(page);
+    // Re-override auth/me since mockAllApiEndpoints was called last
+    await page.route("**/api/auth/me/", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 2,
+          username: "employee_user",
+          role: "employee",
+          date_joined: "2026-01-01T00:00:00Z",
+        }),
+      });
+    });
+
+    await page.goto("/logs");
+
+    // RequireRole redirects to / when role doesn't match
+    await page.waitForURL("**/", { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible();
+  });
+
+  test("session expiry redirects to auth page", async ({ page }) => {
+    // Start with valid auth
+    await mockAllApiEndpoints(page);
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible();
+
+    // Simulate token expiry: override auth/me to return 401
+    await page.route("**/api/auth/me/", async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Token is invalid or expired" }),
+      });
+    });
+
+    // Do a full page navigation to /patients — the RequireAuth guard re-checks auth on load
+    // The app detects 401 and redirects to /auth via hard navigation
+    // This causes a frame detach, so we catch the error and then wait for the new page
+    const navigation = page.waitForNavigation({ timeout: 10000 }).catch(() => null);
+    await page.goto("/patients");
+    await navigation;
+
+    // After redirect, the page should be on /auth
+    await expect(page.getByRole("button", { name: "ورود به حساب" })).toBeVisible({
+      timeout: 10000,
+    });
+  });
 });
