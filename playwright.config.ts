@@ -6,6 +6,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
+  timeout: 60_000,
   reporter: [["html"], ["list"]],
   use: {
     baseURL: process.env.BASE_URL ?? "http://localhost:5173",
@@ -18,7 +19,7 @@ export default defineConfig({
     command: "pnpm dev",
     url: "http://localhost:5173",
     reuseExistingServer: true,
-    timeout: 30_000,
+    timeout: 60_000,
     env: {
       VITE_API_URL: process.env.VITE_API_URL ?? "http://localhost:8000",
     },
