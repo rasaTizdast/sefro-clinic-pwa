@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
-import { RedirectIfAuth,RequireAuth } from "../RouteGuard";
+import { RedirectIfAuth, RequireAuth, RequireRole } from "../RouteGuard";
 
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: vi.fn(),
@@ -10,6 +10,15 @@ vi.mock("../../contexts/AuthContext", () => ({
 
 import { useAuth } from "../../contexts/AuthContext";
 const mockUseAuth = vi.mocked(useAuth);
+
+vi.mock("../../components/ui/Toast", () => ({
+  useToast: vi.fn(() => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+  })),
+}));
 
 describe("RequireAuth", () => {
   it("shows loading spinner when isLoading is true", () => {
@@ -40,7 +49,10 @@ describe("RequireAuth", () => {
       <MemoryRouter initialEntries={["/protected"]}>
         <Routes>
           <Route element={<RequireAuth />}>
-            <Route path="protected" element={<div data-testid="protected-content">Protected</div>} />
+            <Route
+              path="protected"
+              element={<div data-testid="protected-content">Protected</div>}
+            />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -126,5 +138,75 @@ describe("RedirectIfAuth", () => {
       </MemoryRouter>
     );
     expect(screen.getByTestId("auth-content")).toBeInTheDocument();
+  });
+});
+
+describe("RequireRole", () => {
+  it("renders children when user role is allowed", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      user: { id: 1, username: "admin", role: "admin", dateJoined: "" },
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <RequireRole allowedRoles={["admin"]}>
+          <div data-testid="protected-content">Protected</div>
+        </RequireRole>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("protected-content")).toBeInTheDocument();
+  });
+
+  it("redirects to / when user role is not allowed", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      user: { id: 2, username: "doctor", role: "employee", dateJoined: "" },
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/logs"]}>
+        <Routes>
+          <Route
+            path="/logs"
+            element={
+              <RequireRole allowedRoles={["admin"]}>
+                <div>Logs</div>
+              </RequireRole>
+            }
+          />
+          <Route path="/" element={<div data-testid="home-page">Home</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("home-page")).toBeInTheDocument();
+  });
+
+  it("shows loading spinner when isLoading", () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: true,
+      user: null,
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+
+    const { container } = render(
+      <MemoryRouter>
+        <RequireRole allowedRoles={["admin"]}>
+          <div>Content</div>
+        </RequireRole>
+      </MemoryRouter>
+    );
+
+    expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
 });

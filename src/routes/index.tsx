@@ -32,7 +32,7 @@ export const router = createBrowserRouter([
           {
             path: "logs",
             element: (
-              <RequireRole role="admin">
+              <RequireRole allowedRoles={["admin"]}>
                 <Outlet />
               </RequireRole>
             ),
