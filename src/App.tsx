@@ -13,9 +13,9 @@ import { QuickActionProvider } from "./components/QuickActionProvider";
 import Sidebar from "./components/Sidebar";
 import { LoadingBar } from "./components/ui/LoadingBar";
 import { WalkthroughButton } from "./components/walkthrough/WalkthroughButton";
-import { useAuth } from "./contexts/AuthContext";
 import { CommandPaletteContext } from "./contexts/commandPalette";
 import { useCommandPalette } from "./hooks/useCommandPalette";
+import { usePermissions } from "./hooks/usePermissions";
 import type { SidebarItem } from "./types/sidebar";
 
 const items: SidebarItem[] = [
@@ -33,8 +33,8 @@ const items: SidebarItem[] = [
 
 function AppContent() {
   const { open, setOpen } = useCommandPalette();
-  const { user } = useAuth();
-  const visibleItems = user?.role === "admin" ? items : items.filter((i) => i.path !== "/logs");
+  const { canViewLogs } = usePermissions();
+  const visibleItems = canViewLogs ? items : items.filter((i) => i.path !== "/logs");
 
   return (
     <CommandPaletteContext.Provider value={{ open, setOpen }}>
