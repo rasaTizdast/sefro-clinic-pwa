@@ -1,3 +1,5 @@
+export type { Role } from "../config/roles";
+
 export interface LoginState {
   status: "idle" | "success" | "error";
   errors: Partial<Record<"identifier" | "password", string>>;
