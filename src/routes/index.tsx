@@ -2,6 +2,7 @@ import { createBrowserRouter, Outlet } from "react-router";
 
 import App from "../App";
 import { ErrorFallback, NotFound } from "../components/ui";
+import { routePermissions } from "../config/roles";
 import { RedirectIfAuth, RequireAuth, RequireRole } from "./RouteGuard";
 
 type LazyModule = { default: React.ComponentType };
@@ -32,7 +33,7 @@ export const router = createBrowserRouter([
           {
             path: "logs",
             element: (
-              <RequireRole allowedRoles={["admin"]}>
+              <RequireRole allowedRoles={routePermissions["/logs"]}>
                 <Outlet />
               </RequireRole>
             ),
