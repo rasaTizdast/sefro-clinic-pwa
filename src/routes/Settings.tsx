@@ -19,6 +19,7 @@ import {
   useUpdateEmployee,
   useWorkTime,
 } from "../hooks/api";
+import { usePermissions } from "../hooks/usePermissions";
 import type { ClinicUser, UserRole } from "../types/settings";
 
 const roleBadgeVariant: Record<UserRole, "success" | "info" | "warning"> = {
@@ -60,7 +61,7 @@ function Settings() {
   const [editingUser, setEditingUser] = useState<ClinicUser | null>(null);
   const [userForm, setUserForm] = useState({ username: "", password: "" });
 
-  const isAdmin = currentUser?.role === "admin";
+  const { canManageUsers } = usePermissions();
 
   const users: ClinicUser[] = Array.isArray(employees)
     ? employees.map((emp) => ({
@@ -281,7 +282,7 @@ function Settings() {
       </Card>
 
       <div className="flex flex-col gap-4" data-tour="set-users">
-        {isAdmin && (
+        {canManageUsers && (
           <>
             <div className="flex items-center justify-between">
               <h2 className="text-surface-900 text-lg font-semibold">مدیریت کاربران</h2>
