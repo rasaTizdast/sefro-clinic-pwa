@@ -18,7 +18,7 @@ import { Pagination } from "../components/ui/Pagination";
 import { type Column, Table } from "../components/ui/Table";
 import { useFilteredReports, usePaymentsList, useServicesList } from "../hooks/api";
 import { useQuickActions } from "../hooks/useQuickActions";
-import { jalaliToGregorianISO } from "../lib/date";
+import { jalaliToShamsiApiDate } from "../lib/date";
 import { exportTransactionsToExcel } from "../lib/excel";
 import { exportAllPayments } from "../services/payments";
 import type { AccountingStat, DailyRevenue, PeriodFilter, Transaction } from "../types/accounting";
@@ -222,18 +222,18 @@ function Accounting() {
   const [exporting, setExporting] = useState(false);
 
   const todayStr = getPersianToday();
-  const todayISO = jalaliToGregorianISO(todayStr);
+  const todayISO = jalaliToShamsiApiDate(todayStr);
   const { from: periodFrom, to: periodTo } = getPeriodDateRange(activePeriod);
-  const periodFromISO = jalaliToGregorianISO(periodFrom);
-  const periodToISO = jalaliToGregorianISO(periodTo);
+  const periodFromISO = jalaliToShamsiApiDate(periodFrom);
+  const periodToISO = jalaliToShamsiApiDate(periodTo);
   const chartFrom = getChartLookback(activePeriod, periodTo);
-  const chartFromISO = jalaliToGregorianISO(chartFrom);
+  const chartFromISO = jalaliToShamsiApiDate(chartFrom);
 
   const { data: paginatedPayments, isLoading: paymentsLoading } = usePaymentsList({
     page: currentPage,
     perPage: 20,
-    dateFrom: dateFrom ? jalaliToGregorianISO(dateFrom) : periodFromISO,
-    dateTo: dateTo ? jalaliToGregorianISO(dateTo) : periodToISO,
+    dateFrom: dateFrom ? jalaliToShamsiApiDate(dateFrom) : periodFromISO,
+    dateTo: dateTo ? jalaliToShamsiApiDate(dateTo) : periodToISO,
   });
   const { data: servicesData } = useServicesList();
   const { data: periodReport } = useFilteredReports(periodFromISO, periodToISO);
@@ -316,8 +316,8 @@ function Accounting() {
     setExporting(true);
     try {
       const allPayments = await exportAllPayments(
-        dateFrom ? jalaliToGregorianISO(dateFrom) : periodFromISO,
-        dateTo ? jalaliToGregorianISO(dateTo) : periodToISO
+        dateFrom ? jalaliToShamsiApiDate(dateFrom) : periodFromISO,
+        dateTo ? jalaliToShamsiApiDate(dateTo) : periodToISO
       );
       exportTransactionsToExcel(allPayments);
     } finally {
@@ -327,8 +327,8 @@ function Accounting() {
 
   const columns: Column<Transaction>[] = [
     { key: "date", header: "تاریخ", width: "110px", align: "center" },
-    { key: "description", header: "توضیحات" },
     { key: "patient", header: "بیمار" },
+    { key: "description", header: "توضیحات" },
     {
       key: "amount",
       header: "مبلغ (تومان)",

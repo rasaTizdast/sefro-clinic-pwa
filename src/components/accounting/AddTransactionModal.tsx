@@ -7,7 +7,7 @@ import { IoCallOutline } from "react-icons/io5";
 
 import { useCreatePayment, useServicesList, useVisitsList } from "../../hooks/api";
 import { extractApiError } from "../../lib/api-error";
-import { jalaliToGregorianISO, jalaliToShamsiApiDate } from "../../lib/date";
+import { jalaliToShamsiApiDate } from "../../lib/date";
 import { queryKeys } from "../../lib/query-keys";
 import * as customersService from "../../services/customers";
 import type { PaymentMethod } from "../../types/accounting";
@@ -141,7 +141,7 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
       await createPayment({
         patientId: selectedVisit.customer,
         visitId: selectedVisit.id,
-        date: jalaliToGregorianISO(selectedDate),
+        date: `${jalaliToShamsiApiDate(selectedDate)} ${selectedVisit.time}`,
         amount,
         paymentMethod,
         description: description.trim(),

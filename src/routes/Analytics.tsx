@@ -1,3 +1,4 @@
+import jalaali from "jalaali-js";
 import { useMemo, useState } from "react";
 import { BiDollar, BiDownload, BiHeart, BiUser } from "react-icons/bi";
 import { IoDocumentTextOutline } from "react-icons/io5";
@@ -46,26 +47,31 @@ function formatCurrency(value: number): string {
   return value.toLocaleString("fa-IR");
 }
 
+function toShamsiISO(date: Date): string {
+  const { jy, jm, jd } = jalaali.toJalaali(date);
+  return `${jy}-${String(jm).padStart(2, "0")}-${String(jd).padStart(2, "0")}`;
+}
+
 function Analytics() {
   const [dateRange, setDateRange] = useState("year");
   const { data: allReports, isLoading: allLoading } = useAllReports();
 
   const dateParams = useMemo(() => {
     const now = new Date();
-    const to = now.toISOString().split("T")[0];
+    const to = toShamsiISO(now);
     const from = new Date();
     switch (dateRange) {
       case "today":
         return { dateFrom: to, dateTo: to };
       case "week":
         from.setDate(from.getDate() - 7);
-        return { dateFrom: from.toISOString().split("T")[0], dateTo: to };
+        return { dateFrom: toShamsiISO(from), dateTo: to };
       case "month":
         from.setMonth(from.getMonth() - 1);
-        return { dateFrom: from.toISOString().split("T")[0], dateTo: to };
+        return { dateFrom: toShamsiISO(from), dateTo: to };
       case "quarter":
         from.setMonth(from.getMonth() - 3);
-        return { dateFrom: from.toISOString().split("T")[0], dateTo: to };
+        return { dateFrom: toShamsiISO(from), dateTo: to };
       case "year":
       default:
         return { dateFrom: "", dateTo: "" };

@@ -23,7 +23,7 @@ describe("payments service", () => {
         visitId: 5,
         amount: 200000,
         paymentMethod: "card",
-        date: "2026-06-15",
+        date: "1405-03-26 00:00",
         description: "پرداخت کارتی",
       });
       expect(mock.post).toHaveBeenCalledWith("/payments/", {
@@ -31,7 +31,7 @@ describe("payments service", () => {
         visit: 5,
         amount: 200000,
         payment_method: "card",
-        paid_at: "2026-06-15",
+        paid_at: "1405-03-26 00:00",
         notes: "پرداخت کارتی",
       });
     });
