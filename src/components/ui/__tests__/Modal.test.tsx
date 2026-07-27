@@ -105,7 +105,7 @@ describe("Modal", () => {
         <p>محتوا</p>
       </Modal>
     );
-    const backdrop = document.querySelector(".fixed.inset-0.z-40");
+    const backdrop = document.querySelector('[aria-hidden="true"]');
     expect(backdrop).toBeInTheDocument();
     await user.click(backdrop!);
     expect(onClose).toHaveBeenCalledOnce();
@@ -187,40 +187,40 @@ describe("Modal", () => {
     expect(screen.getByRole("dialog")).not.toHaveAttribute("aria-labelledby");
   });
 
-  it("applies size class for sm", () => {
+  it("applies size for sm", () => {
     render(
       <Modal open onClose={() => {}} size="sm">
         <p>محتوا</p>
       </Modal>
     );
-    expect(screen.getByRole("dialog")).toHaveClass("max-w-sm");
+    expect(screen.getByRole("dialog")).toHaveStyle({ maxWidth: "24rem" });
   });
 
-  it("applies size class for lg", () => {
+  it("applies size for lg", () => {
     render(
       <Modal open onClose={() => {}} size="lg">
         <p>محتوا</p>
       </Modal>
     );
-    expect(screen.getByRole("dialog")).toHaveClass("max-w-lg");
+    expect(screen.getByRole("dialog")).toHaveStyle({ maxWidth: "32rem" });
   });
 
-  it("applies size class for xl", () => {
+  it("applies size for xl", () => {
     render(
       <Modal open onClose={() => {}} size="xl">
         <p>محتوا</p>
       </Modal>
     );
-    expect(screen.getByRole("dialog")).toHaveClass("max-w-xl");
+    expect(screen.getByRole("dialog")).toHaveStyle({ maxWidth: "36rem" });
   });
 
-  it("applies size class for 2xl", () => {
+  it("applies size for 2xl", () => {
     render(
       <Modal open onClose={() => {}} size="2xl">
         <p>محتوا</p>
       </Modal>
     );
-    expect(screen.getByRole("dialog")).toHaveClass("max-w-2xl");
+    expect(screen.getByRole("dialog")).toHaveStyle({ maxWidth: "42rem" });
   });
 
   it("applies default md size", () => {
@@ -229,21 +229,18 @@ describe("Modal", () => {
         <p>محتوا</p>
       </Modal>
     );
-    expect(screen.getByRole("dialog")).toHaveClass("max-w-md");
+    expect(screen.getByRole("dialog")).toHaveStyle({ maxWidth: "28rem" });
   });
 
-  it("unsets native dialog opposing insets for RTL centering", () => {
+  it("centers dialog via flexbox for RTL", () => {
     render(
       <Modal open onClose={() => {}}>
         <p>محتوا</p>
       </Modal>
     );
-    expect(screen.getByRole("dialog")).toHaveClass(
-      "left-1/2",
-      "right-auto",
-      "bottom-auto",
-      "-translate-x-1/2"
-    );
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveStyle({ position: "relative" });
+    expect(dialog.closest('[style*="display: flex"]')).toBeTruthy();
   });
 
   it("provides PortalTargetContext with portal element", () => {

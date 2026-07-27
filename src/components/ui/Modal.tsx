@@ -1,4 +1,12 @@
-import { type ReactNode, useEffect, useEffectEvent, useId, useRef, useState } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { PortalTargetContext } from "./PortalTargetContext";
@@ -14,23 +22,24 @@ interface ModalProps {
   size?: ModalSize;
 }
 
-const sizeStyles: Record<ModalSize, string> = {
-  sm: "max-w-sm",
-  md: "max-w-md",
-  lg: "max-w-lg",
-  xl: "max-w-xl",
-  "2xl": "max-w-2xl",
-};
-
 let openModalCount = 0;
+
+const SIZE_MAP: Record<ModalSize, string> = {
+  sm: "24rem",
+  md: "28rem",
+  lg: "32rem",
+  xl: "36rem",
+  "2xl": "42rem",
+};
 
 export function Modal({ open, onClose, title, children, footer, size = "md" }: ModalProps) {
   const hasLockedScrollRef = useRef(false);
-  const [dialogEl, setDialogEl] = useState<HTMLDialogElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [portalEl, setPortalEl] = useState<HTMLDivElement | null>(null);
   const titleId = useId();
-  const closeFromDialogEvent = useEffectEvent(() => {
-    onClose();
+  const closeRef: RefObject<() => void> = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
   });
 
   useEffect(() => {
@@ -56,32 +65,25 @@ export function Modal({ open, onClose, title, children, footer, size = "md" }: M
     };
   }, [open]);
 
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeRef.current?.();
+    }
+  }, []);
+
   useEffect(() => {
-    const el = dialogEl;
+    const el = dialogRef.current;
     if (!el) return;
 
-    const handleCancel = (e: Event) => {
-      e.preventDefault();
-      closeFromDialogEvent();
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        closeFromDialogEvent();
-      }
-    };
-
-    el.addEventListener("cancel", handleCancel);
     el.addEventListener("keydown", handleKeyDown);
     return () => {
-      el.removeEventListener("cancel", handleCancel);
       el.removeEventListener("keydown", handleKeyDown);
     };
-  }, [dialogEl]);
+  }, [open, handleKeyDown]);
 
   useEffect(() => {
-    const el = dialogEl;
+    const el = dialogRef.current;
     if (!el || !open) return;
 
     const focusableSelector =
@@ -92,51 +94,84 @@ export function Modal({ open, onClose, title, children, footer, size = "md" }: M
     } else {
       el.focus();
     }
-  }, [dialogEl, open]);
+  }, [dialogRef, open]);
 
   if (!open) return null;
 
+  const maxWidth = SIZE_MAP[size];
+
   return createPortal(
     <PortalTargetContext.Provider value={portalEl}>
-      <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} aria-hidden="true" />
-      <dialog
-        ref={setDialogEl}
-        open
-        aria-modal="true"
-        aria-labelledby={title ? titleId : undefined}
-        className={`fixed top-1/2 right-auto bottom-auto left-1/2 z-50 m-0 flex max-h-[90dvh] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-visible rounded-xl border-none bg-white p-0 shadow-xl ${sizeStyles[size]}`}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
       >
-        {title && (
-          <div className="border-surface-200 flex shrink-0 items-center justify-between gap-4 border-b px-6 py-4">
-            <h2 id={titleId} className="text-surface-900 text-lg font-semibold">
-              {title}
-            </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-surface-400 hover:text-surface-600 hover:bg-surface-100 cursor-pointer rounded-md p-1 transition-colors"
-              aria-label="بستن"
-            >
-              <svg
-                className="size-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+        <div
+          onClick={onClose}
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+          }}
+        />
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={title ? titleId : undefined}
+          style={{
+            position: "relative",
+            maxHeight: "90dvh",
+            width: "calc(100vw - 2rem)",
+            maxWidth,
+            display: "flex",
+            flexDirection: "column",
+          }}
+          className="m-0 overflow-visible rounded-xl border-none bg-white p-0 shadow-xl"
+        >
+          {title && (
+            <div className="border-surface-200 flex shrink-0 items-center justify-between gap-4 border-b px-6 py-4">
+              <h2 id={titleId} className="text-surface-900 text-lg font-semibold">
+                {title}
+              </h2>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-surface-400 hover:text-surface-600 hover:bg-surface-100 cursor-pointer rounded-md p-1 transition-colors"
+                aria-label="بستن"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        )}
-        <div className="grow overflow-y-auto px-6 py-4">{children}</div>
-        {footer && (
-          <div className="border-surface-200 flex shrink-0 items-center justify-end gap-3 border-t px-6 py-4">
-            {footer}
-          </div>
-        )}
-      </dialog>
-      <div ref={setPortalEl} className="pointer-events-none fixed inset-0 z-[51]" />
+                <svg
+                  className="size-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+          <div className="grow overflow-y-auto px-6 py-4">{children}</div>
+          {footer && (
+            <div className="border-surface-200 flex shrink-0 items-center justify-end gap-3 border-t px-6 py-4">
+              {footer}
+            </div>
+          )}
+        </div>
+      </div>
+      <div
+        ref={setPortalEl}
+        className="pointer-events-none fixed inset-0"
+        style={{ zIndex: 10001 }}
+      />
     </PortalTargetContext.Provider>,
     document.body
   );
