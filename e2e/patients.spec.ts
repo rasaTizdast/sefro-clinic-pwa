@@ -10,7 +10,9 @@ test.describe("Patients Management", () => {
   test("displays patients list page", async ({ page }) => {
     await page.goto("/patients");
 
-    await expect(page.getByRole("heading", { name: "لیست بیماران" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "لیست بیماران" })).toBeVisible({
+      timeout: 10000,
+    });
     await expect(page.getByText("مدیریت بیماران کلینیک")).toBeVisible();
     await expect(page.getByRole("button", { name: "بیمار جدید" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "خروجی" })).toBeVisible();

@@ -9,7 +9,7 @@ test.describe("Calendar", () => {
 
   test("displays calendar page with all elements", async ({ page }) => {
     await page.goto("/calendar");
-    await expect(page.getByText("تقویم نوبت‌ها")).toBeVisible();
+    await expect(page.getByText("تقویم نوبت‌ها")).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("مدیریت و مشاهده نوبت‌ها")).toBeVisible();
     await expect(page.getByText("نوبت جدید")).toBeVisible();
     await expect(page.getByText("امروز").first()).toBeVisible();

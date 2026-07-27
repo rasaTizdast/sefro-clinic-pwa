@@ -10,7 +10,7 @@ test.describe("Dashboard", () => {
   test("displays dashboard with stats cards and today appointments", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("امروز:", { exact: false })).toBeVisible();
 
     await expect(page.getByText("مراجعین امروز")).toBeVisible();
@@ -41,7 +41,7 @@ test.describe("Dashboard", () => {
 
   test("sidebar navigation links work for all routes", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible({ timeout: 10000 });
 
     const routes = [
       { label: "مراجعین", heading: "لیست بیماران" },

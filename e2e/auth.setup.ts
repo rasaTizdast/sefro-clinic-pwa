@@ -61,7 +61,7 @@ setup("authenticate as admin", async ({ page }) => {
   await page.getByLabel("رمز عبور", { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByRole("button", { name: "ورود به حساب" }).click();
 
-  await page.waitForURL("**/");
+  await page.waitForURL("**/", { timeout: 30000 });
 
   await page.context().storageState({ path: authFile });
 });

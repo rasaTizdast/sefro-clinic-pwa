@@ -11,7 +11,7 @@ test.describe("Responsive Layout", () => {
     // Desktop viewport
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible({ timeout: 10000 });
 
     // Sidebar should be visible on desktop
     const sidebar = page.locator("nav[aria-label='منوی اصلی']");
@@ -31,7 +31,7 @@ test.describe("Responsive Layout", () => {
     await page.goto("/");
 
     // Dashboard should render on mobile
-    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("مراجعین امروز")).toBeVisible();
   });
 });

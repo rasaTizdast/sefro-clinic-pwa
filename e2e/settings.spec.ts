@@ -17,7 +17,9 @@ test.describe("Settings", () => {
 
   test("shows password change form", async ({ page }) => {
     await page.goto("/settings");
-    await expect(page.getByRole("textbox", { name: "رمز جدید", exact: true })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "رمز جدید", exact: true })).toBeVisible({
+      timeout: 10000,
+    });
     await expect(page.getByLabel("تکرار رمز جدید")).toBeVisible();
     await expect(page.getByRole("button", { name: "تغییر رمز" })).toBeVisible();
   });

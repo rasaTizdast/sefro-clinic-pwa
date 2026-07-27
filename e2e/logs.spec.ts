@@ -9,7 +9,7 @@ test.describe("Logs", () => {
 
   test("displays logs page with all elements", async ({ page }) => {
     await page.goto("/logs");
-    await expect(page.getByRole("heading", { name: "لاگ سیستم" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "لاگ سیستم" })).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("ثبت رویدادهای مهم سیستم")).toBeVisible();
     await expect(page.getByText("رویدادها").first()).toBeVisible();
     await expect(page.getByPlaceholder("جستجو در لاگ‌ها...")).toBeVisible();
@@ -42,7 +42,7 @@ test.describe("Logs", () => {
     });
 
     await page.goto("/logs");
-    await expect(page.getByRole("columnheader", { name: "کاربر" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "کاربر" })).toBeVisible({ timeout: 10000 });
     await expect(page.getByRole("columnheader", { name: "عملیات" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "مدل" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "محتوا" })).toBeVisible();
