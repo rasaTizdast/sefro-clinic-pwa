@@ -14,6 +14,7 @@ import {
 } from "react-icons/bi";
 
 import { SearchButton } from "../components/SearchButton";
+import { useToast } from "../components/ui";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -231,6 +232,7 @@ function buildDayTimeline(
 
 function Calendar() {
   const { user } = useAuth();
+  const toast = useToast();
   const [todayInfo] = useState(() => getPersianDate(new Date()));
   const [viewDate, setViewDate] = useState(() => getFirstOfPersianMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<string>(
@@ -400,18 +402,38 @@ function Calendar() {
 
   const availableStartTimes = useMemo(() => {
     if (!availableBlocks.length || !selectedService) return [];
-    const slots: string[] = [];
+    const slots: { time: string; isPast: boolean }[] = [];
+    const dateParts = form.date ? form.date.split("/").map(Number) : [];
+    const dateIsPast =
+      dateParts.length === 3 &&
+      (dateParts[0] < todayInfo.year ||
+        (dateParts[0] === todayInfo.year && dateParts[1] < todayInfo.month) ||
+        (dateParts[0] === todayInfo.year &&
+          dateParts[1] === todayInfo.month &&
+          dateParts[2] < todayInfo.day));
+    const isToday =
+      dateParts.length === 3 &&
+      dateParts[0] === todayInfo.year &&
+      dateParts[1] === todayInfo.month &&
+      dateParts[2] === todayInfo.day;
     for (const block of availableBlocks) {
       let t = block.start;
       while (t + selectedService.duration <= block.end) {
-        slots.push(minutesToTimeStr(t));
+        const timeStr = minutesToTimeStr(t);
+        const isPast = dateIsPast || (isToday && t <= nowMinutes);
+        slots.push({ time: timeStr, isPast });
         t += selectedService.duration;
       }
     }
     return slots;
-  }, [availableBlocks, selectedService]);
+  }, [availableBlocks, selectedService, form.date, todayInfo, nowMinutes]);
 
   function isBeforeToday(dateStr: string): boolean {
+    return isDateInPast(dateStr);
+  }
+
+  function isDateInPast(dateStr: string): boolean {
+    if (!dateStr) return false;
     const parts = dateStr.split("/").map(Number);
     if (parts.length !== 3) return false;
     const d = { year: parts[0], month: parts[1], day: parts[2] };
@@ -420,6 +442,19 @@ function Calendar() {
     if (d.year === todayInfo.year && d.month === todayInfo.month && d.day < todayInfo.day)
       return true;
     return false;
+  }
+
+  function isTimeInPast(dateStr: string, timeStr: string): boolean {
+    if (!dateStr || !timeStr) return false;
+    if (isDateInPast(dateStr)) return true;
+    const parts = dateStr.split("/").map(Number);
+    if (parts.length !== 3) return false;
+    const d = { year: parts[0], month: parts[1], day: parts[2] };
+    const isToday =
+      d.year === todayInfo.year && d.month === todayInfo.month && d.day === todayInfo.day;
+    if (!isToday) return false;
+    const timeMinutes = parseTimeToMinutes(timeStr);
+    return timeMinutes <= nowMinutes;
   }
 
   const staffBlocked = (dateStr: string) => user?.role !== "admin" && isBeforeToday(dateStr);
@@ -431,7 +466,6 @@ function Calendar() {
     const wtEnd = workTime?.endTime ? parseTimeToMinutes(workTime.endTime) / 60 : DEFAULT_END_HOUR;
 
     function blocked(dateStr: string) {
-      if (user?.role === "admin") return false;
       const parts = dateStr.split("/").map(Number);
       if (parts.length !== 3) return false;
       if (parts[0] < todayInfo.year) return true;
@@ -459,7 +493,7 @@ function Calendar() {
       days[dateStr] = getFreeBlocks(dayApps, selectedService.duration, wtStart, wtEnd).length > 0;
     }
     return days;
-  }, [persian.year, persian.month, allAppointments, selectedService, user, todayInfo, workTime]);
+  }, [persian.year, persian.month, allAppointments, selectedService, todayInfo, workTime]);
 
   function handlePrevMonth() {
     setViewDate((prev) => navigateMonth(prev, -1));
@@ -513,7 +547,14 @@ function Calendar() {
 
   function handleSubmitForm() {
     if (!selectedPatient || !selectedService || !form.date || !form.time) return;
-    if (staffBlocked(form.date)) return;
+    if (staffBlocked(form.date)) {
+      toast.warning("تاریخ انتخاب شده مربوط به گذشته است", "لطفاً تاریخ آینده را انتخاب کنید");
+      return;
+    }
+    if (isTimeInPast(form.date, form.time)) {
+      toast.warning("ساعت وارد شده مربوط به گذشته است", "لطفاً ساعت آینده را انتخاب کنید");
+      return;
+    }
     const payload = {
       customer: selectedPatient.id,
       services: [selectedService.id],
@@ -930,18 +971,25 @@ function Calendar() {
                   value={form.time}
                   onChange={handleTimeInput}
                   containerClassName="w-full"
+                  disabled={isDateInPast(form.date)}
                 />
               </div>
             </div>
+
+            {form.time && isTimeInPast(form.date, form.time) && (
+              <p className="text-danger-600 bg-danger-50 rounded-lg px-3 py-2 text-xs font-medium">
+                ساعت انتخابی مربوط به گذشته است. لطفاً ساعت آینده را انتخاب کنید.
+              </p>
+            )}
 
             {availableStartTimes.length > 0 && (
               <div>
                 <p className="text-surface-500 mb-2 text-xs">ساعت‌های پیشنهادی:</p>
                 <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
-                  {availableStartTimes.map((slot) => {
+                  {availableStartTimes.map(({ time: slot, isPast }) => {
                     const isOccupied = occupiedTimes.includes(slot);
                     const isActive = form.time === slot;
-                    const disabled = isOccupied;
+                    const disabled = isOccupied || isPast;
                     return (
                       <button
                         key={slot}
