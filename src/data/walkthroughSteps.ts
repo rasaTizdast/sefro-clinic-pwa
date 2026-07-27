@@ -87,6 +87,24 @@ export const walkthroughSteps: Record<string, DriveStep[]> = {
         align: "start",
       },
     },
+    {
+      element: "[data-tour='dash-empty-appointment']",
+      popover: {
+        title: "ثبت اولین نوبت",
+        description: "هنوز نوبتی ثبت نشده است. با کلیک روی این دکمه اولین نوبت خود را ثبت کنید.",
+        side: "top",
+        align: "center",
+      },
+    },
+    {
+      element: "[data-tour='dash-empty-action']",
+      popover: {
+        title: "شروع کنید",
+        description: "داشبورد شما خالی است. با ثبت اولین مراجعه، اطلاعات اینجا نمایش داده می‌شود.",
+        side: "top",
+        align: "center",
+      },
+    },
   ],
 
   "/patients": [
@@ -135,6 +153,16 @@ export const walkthroughSteps: Record<string, DriveStep[]> = {
           "با استفاده از این دکمه‌ها می‌توانید بیمار جدید اضافه کنید یا خروجی Excel بگیرید.",
         side: "bottom",
         align: "start",
+      },
+    },
+    {
+      element: "[data-tour='pat-empty-add']",
+      popover: {
+        title: "ثبت اولین بیمار",
+        description:
+          "هنوز بیماری ثبت نشده است. با کلیک روی این دکمه، اولین بیمار خود را اضافه کنید.",
+        side: "top",
+        align: "center",
       },
     },
   ],

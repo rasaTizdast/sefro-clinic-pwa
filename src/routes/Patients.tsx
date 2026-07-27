@@ -333,6 +333,7 @@ function Patients() {
                 <Button
                   variant="primary"
                   startIcon={<BiPlus className="size-5" />}
+                  data-tour="pat-empty-add"
                   onClick={() => {
                     setEditingPatient(null);
                     setModalOpen(true);

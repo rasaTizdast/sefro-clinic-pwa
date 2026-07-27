@@ -40,8 +40,26 @@ export function useWalkthrough() {
     const steps = walkthroughSteps[location.pathname];
     if (!steps || steps.length === 0) return;
 
+    const visibleSteps = steps.filter((step) => {
+      if (!step.element) return true;
+      if (typeof step.element === "string") {
+        return document.querySelector(step.element) !== null;
+      }
+      if (typeof step.element === "function") {
+        try {
+          const el = step.element();
+          return el !== null;
+        } catch {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    if (visibleSteps.length === 0) return;
+
     const d = getDriver();
-    d.setSteps(steps);
+    d.setSteps(visibleSteps);
     d.drive();
   }, [location.pathname, getDriver]);
 

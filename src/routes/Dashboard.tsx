@@ -238,7 +238,11 @@ function Dashboard() {
           title="داشبورد خالی است"
           description="هنوز هیچ داده‌ای برای نمایش وجود ندارد. با ثبت اولین مراجعه، داشبورد شما فعال می‌شود."
           action={
-            <Button variant="primary" startIcon={<BiPlus className="size-5" />}>
+            <Button
+              variant="primary"
+              startIcon={<BiPlus className="size-5" />}
+              data-tour="dash-empty-action"
+            >
               ثبت اولین مراجعه
             </Button>
           }
@@ -327,6 +331,7 @@ function Dashboard() {
             <Button
               variant="primary"
               startIcon={<BiCalendar />}
+              data-tour="dash-empty-appointment"
               onClick={() => navigate("/calendar")}
             >
               ثبت نوبت جدید
