@@ -37,7 +37,7 @@ describe("api-client", () => {
     mockCreate.mockClear();
     await import("../api-client");
     expect(mockCreate).toHaveBeenCalledWith({
-      baseURL: "http://localhost:8000/api",
+      baseURL: "/api",
       withCredentials: true,
       timeout: 10_000,
       headers: { "Content-Type": "application/json" },
