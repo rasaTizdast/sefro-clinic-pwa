@@ -25,41 +25,47 @@ interface ReportsData {
   };
 }
 
-type RawAllReports = Record<string, unknown> & {
-  totalCustomers?: number;
-  totalSales?: number;
-  totalVisits?: number;
-  salesChart?: {
-    daily?: { period: string; total: number }[];
-    weekly?: { period: string; total: number }[];
-    monthly?: { period: string; total: number }[];
-    quarterly?: { period: string; total: number }[];
-    yearly?: { period: string; total: number }[];
-  };
-  customerStatus?: Record<string, number>;
-  servicePopularity?: { id: number; name: string; usage: number }[];
-  avgSatisfaction?: number;
+const toNumber = (value: unknown): number => {
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const normalized = Number(value);
+    return Number.isNaN(normalized) ? 0 : normalized;
+  }
+  return 0;
 };
 
-type RawFilteredReports = Record<string, unknown> & {
-  totalSales?: number;
-  totalVisits?: number;
-  salesChart?: {
-    daily?: { period: string; total: number }[];
-    weekly?: { period: string; total: number }[];
-    monthly?: { period: string; total: number }[];
-    quarterly?: { period: string; total: number }[];
-    yearly?: { period: string; total: number }[];
-  };
-  servicePopularity?: { id: number; name: string; usage: number }[];
-  avgSatisfaction?: number;
-  customerBreakdown?: { total?: number };
+type RawSalesChart = {
+  daily?: { period: string; total: number }[];
+  weekly?: { period: string; total: number }[];
+  monthly?: { period: string; total: number }[];
+  quarterly?: { period: string; total: number }[];
+  yearly?: { period: string; total: number }[];
 };
+
+type RawAllReports = Record<string, unknown> &
+  RawSalesChart & {
+    totalCustomers?: number;
+    totalSales?: number;
+    totalVisits?: number;
+    salesChart?: RawSalesChart;
+    customerStatus?: Record<string, number>;
+    servicePopularity?: { id: number; name: string; usage: number }[];
+    avgSatisfaction?: number;
+  };
+
+type RawFilteredReports = Record<string, unknown> &
+  RawSalesChart & {
+    totalSales?: number;
+    totalVisits?: number;
+    servicePopularity?: { id: number; name: string; usage: number }[];
+    avgSatisfaction?: number;
+    customerBreakdown?: { total?: number };
+  };
 
 type RawVisitsReport = Record<string, unknown> & {
-  monthly?: { period: string; count: number }[];
-  weekly?: { period: string; count: number }[];
-  daily?: { period: string; count: number }[];
+  currentCount?: number;
+  previousCount?: number | null;
+  changePercent?: number | null;
 };
 
 type RawReferralReport = Record<string, unknown> & {
@@ -75,14 +81,29 @@ const STATUS_COLORS: Record<string, string> = {
   canceled: "#ef4444",
 };
 
-function extractChart(raw: RawAllReports | RawFilteredReports) {
-  const chart = isAllReports(raw) ? raw.salesChart : raw.salesChart;
+const STATUS_LABELS: Record<string, string> = {
+  pending: "در انتظار",
+  confirmed: "تأیید شده",
+  completed: "انجام شده",
+  canceled: "لغو شده",
+};
+
+function toAppointmentStat(key: string, value: number) {
   return {
-    daily: (chart?.daily ?? []).map((e) => ({ period: e.period, total: e.total })),
-    weekly: (chart?.weekly ?? []).map((e) => ({ period: e.period, total: e.total })),
-    monthly: (chart?.monthly ?? []).map((e) => ({ period: e.period, total: e.total })),
-    quarterly: (chart?.quarterly ?? []).map((e) => ({ period: e.period, total: e.total })),
-    yearly: (chart?.yearly ?? []).map((e) => ({ period: e.period, total: e.total })),
+    name: STATUS_LABELS[key] ?? key,
+    value,
+    color: STATUS_COLORS[key] ?? "#94a3b8",
+  };
+}
+
+function extractChart(raw: RawAllReports | RawFilteredReports) {
+  const chart = (raw.salesChart ?? raw) as RawSalesChart;
+  return {
+    daily: (chart.daily ?? []).map((e) => ({ period: e.period, total: toNumber(e.total) })),
+    weekly: (chart.weekly ?? []).map((e) => ({ period: e.period, total: toNumber(e.total) })),
+    monthly: (chart.monthly ?? []).map((e) => ({ period: e.period, total: toNumber(e.total) })),
+    quarterly: (chart.quarterly ?? []).map((e) => ({ period: e.period, total: toNumber(e.total) })),
+    yearly: (chart.yearly ?? []).map((e) => ({ period: e.period, total: toNumber(e.total) })),
   };
 }
 
@@ -94,20 +115,9 @@ function extractAppointmentStats(raw: RawAllReports | RawFilteredReports) {
   const customerStatus = isAllReports(raw) ? raw.customerStatus : undefined;
   if (!customerStatus) return [];
 
-  return Object.entries(customerStatus).map(([key, value]) => ({
-    name:
-      key === "pending"
-        ? "در انتظار"
-        : key === "confirmed"
-          ? "تأیید شده"
-          : key === "completed"
-            ? "انجام شده"
-            : key === "canceled"
-              ? "لغو شده"
-              : key,
-    value,
-    color: STATUS_COLORS[key] ?? "#94a3b8",
-  }));
+  return Object.entries(customerStatus).map(([key, value]) =>
+    toAppointmentStat(key, toNumber(value))
+  );
 }
 
 function toReportsData(raw: RawAllReports | RawFilteredReports): ReportsData {
@@ -127,11 +137,11 @@ function toReportsData(raw: RawAllReports | RawFilteredReports): ReportsData {
     : ((raw as RawFilteredReports).customerBreakdown?.total ?? 0);
 
   return {
-    customerCount,
-    totalRevenue: raw.totalSales ?? 0,
-    totalVisits: raw.totalVisits ?? 0,
+    customerCount: toNumber(customerCount),
+    totalRevenue: toNumber(raw.totalSales),
+    totalVisits: toNumber(raw.totalVisits),
     retentionRate: null,
-    avgSatisfaction: raw.avgSatisfaction ?? 0,
+    avgSatisfaction: toNumber(raw.avgSatisfaction),
     monthlyRevenue,
     appointmentStats,
     monthlyVisits: [],
@@ -155,23 +165,60 @@ export const getFilteredReports = async (
   return toReportsData(data as RawFilteredReports);
 };
 
-export const getCustomerBreakdown = async () => {
-  const { data } = await apiClient.get(endpoints.reports.customers);
-  return data;
+export const getCustomerBreakdown = async (
+  dateFrom?: string,
+  dateTo?: string
+): Promise<{
+  byVisitStatus: { name: string; value: number; color: string }[];
+  newCustomers: number;
+  loyalCustomers: number;
+  total: number;
+}> => {
+  const { data } = await apiClient.get(endpoints.reports.customers, {
+    params: { dateFrom, dateTo },
+  });
+  const raw = data as Record<string, unknown> & {
+    byVisitStatus?: Record<string, number>;
+    newCustomers?: number;
+    loyalCustomers?: number;
+    total?: number;
+  };
+  return {
+    byVisitStatus: Object.entries(raw.byVisitStatus ?? {}).map(([key, value]) =>
+      toAppointmentStat(key, toNumber(value))
+    ),
+    newCustomers: toNumber(raw.newCustomers),
+    loyalCustomers: toNumber(raw.loyalCustomers),
+    total: toNumber(raw.total),
+  };
 };
 
-export const getVisitReports = async (): Promise<{ month: string; visits: number }[]> => {
-  const { data } = await apiClient.get(endpoints.reports.visits);
+export const getVisitReports = async (
+  dateFrom?: string,
+  dateTo?: string
+): Promise<{
+  currentCount: number;
+  previousCount: number | null;
+  changePercent: number | null;
+}> => {
+  const { data } = await apiClient.get(endpoints.reports.visits, {
+    params: { dateFrom, dateTo },
+  });
   const raw = data as RawVisitsReport;
-  const monthly = raw.monthly ?? [];
-  return monthly.map((m) => ({
-    month: m.period,
-    visits: m.count,
-  }));
+  return {
+    currentCount: toNumber(raw.currentCount),
+    previousCount: raw.previousCount == null ? null : toNumber(raw.previousCount),
+    changePercent: raw.changePercent == null ? null : toNumber(raw.changePercent),
+  };
 };
 
-export const getReferralReports = async (): Promise<{ referralRate: number }> => {
-  const { data } = await apiClient.get(endpoints.reports.referral);
+export const getReferralReports = async (
+  dateFrom?: string,
+  dateTo?: string
+): Promise<{ referralRate: number }> => {
+  const { data } = await apiClient.get(endpoints.reports.referral, {
+    params: { dateFrom, dateTo },
+  });
   const raw = data as RawReferralReport;
   return {
     referralRate: raw.referralRate ?? 0,
@@ -183,7 +230,9 @@ export const getVisitComparison = async () => {
   return data;
 };
 
-export const getReferralRate = async () => {
-  const { data } = await apiClient.get(endpoints.reports.referral);
+export const getReferralRate = async (dateFrom?: string, dateTo?: string) => {
+  const { data } = await apiClient.get(endpoints.reports.referral, {
+    params: { dateFrom, dateTo },
+  });
   return data;
 };

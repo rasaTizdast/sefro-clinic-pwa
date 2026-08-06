@@ -36,9 +36,11 @@ export const queryKeys = {
     all: ["reports", "all"] as const,
     filtered: (dateFrom?: string, dateTo?: string) =>
       ["reports", "filtered", dateFrom, dateTo] as const,
-    customers: ["reports", "customers"] as const,
+    customers: (dateFrom?: string, dateTo?: string) =>
+      ["reports", "customers", dateFrom, dateTo] as const,
     visits: ["reports", "visits"] as const,
-    referral: ["reports", "referral"] as const,
+    referral: (dateFrom?: string, dateTo?: string) =>
+      ["reports", "referral", dateFrom, dateTo] as const,
   },
   dashboard: {
     stats: ["dashboard", "stats"] as const,

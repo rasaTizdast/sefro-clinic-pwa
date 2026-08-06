@@ -18,30 +18,30 @@ export function useFilteredReports(dateFrom?: string, dateTo?: string) {
   });
 }
 
-export function useCustomerBreakdown() {
+export function useCustomerBreakdown(dateFrom?: string, dateTo?: string) {
   return useQuery({
-    queryKey: queryKeys.reports.customers,
-    queryFn: reportsService.getCustomerBreakdown,
+    queryKey: queryKeys.reports.customers(dateFrom, dateTo),
+    queryFn: () => reportsService.getCustomerBreakdown(dateFrom, dateTo),
   });
 }
 
 export function useVisitComparison() {
   return useQuery({
-    queryKey: queryKeys.reports.visits,
+    queryKey: ["reports", "visit-comparison"] as const,
     queryFn: reportsService.getVisitComparison,
   });
 }
 
-export function useReferralRate() {
+export function useReferralRate(dateFrom?: string, dateTo?: string) {
   return useQuery({
-    queryKey: queryKeys.reports.referral,
-    queryFn: reportsService.getReferralRate,
+    queryKey: queryKeys.reports.referral(dateFrom, dateTo),
+    queryFn: () => reportsService.getReferralRate(dateFrom, dateTo),
   });
 }
 
-export function useVisitReports() {
+export function useVisitReports(dateFrom?: string, dateTo?: string) {
   return useQuery({
-    queryKey: queryKeys.reports.visits,
-    queryFn: reportsService.getVisitReports,
+    queryKey: ["reports", "visit-reports", dateFrom, dateTo] as const,
+    queryFn: () => reportsService.getVisitReports(dateFrom, dateTo),
   });
 }
