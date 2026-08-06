@@ -20,6 +20,7 @@ import { useFilteredReports, usePaymentsList, useServicesList } from "../hooks/a
 import { useQuickActions } from "../hooks/useQuickActions";
 import { jalaliToShamsiApiDate } from "../lib/date";
 import { exportTransactionsToExcel } from "../lib/excel";
+import { type ChartPeriod, fillChartGaps } from "../lib/report-chart";
 import { exportAllPayments } from "../services/payments";
 import type { AccountingStat, DailyRevenue, PeriodFilter, Transaction } from "../types/accounting";
 
@@ -154,6 +155,11 @@ function getChartLookback(period: PeriodFilter, to: string): string {
   }
 }
 
+function parseYearMonth(period: string): { year: string; month: number } {
+  const parts = toLatinDigits(period).split("-");
+  return { year: parts[0] ?? "", month: parseInt(parts[1] ?? "0", 10) };
+}
+
 function formatChartData(
   chart: {
     daily: { period: string; total: number }[];
@@ -179,24 +185,21 @@ function formatChartData(
     }
     case "month": {
       return chart.monthly.map((d) => {
-        const latin = toLatinDigits(d.period);
-        const parts = latin.split("/");
-        const monthNum = parseInt(parts[1], 10);
-        const yearSuffix = toPersianDigits(parts[0].slice(-2));
+        const { year, month } = parseYearMonth(d.period);
+        const yearSuffix = toPersianDigits(year.slice(-2));
         return {
-          day: `${jalaliMonthNames[monthNum - 1]} ${yearSuffix}`,
+          day: `${jalaliMonthNames[month - 1] ?? toPersianDigits(d.period)} ${yearSuffix}`,
           amount: d.total,
         };
       });
     }
     case "threeMonths": {
       return chart.quarterly.map((d) => {
-        const latin = toLatinDigits(d.period);
-        const parts = latin.split("/");
-        const qIdx = parseInt(parts[1], 10) - 1;
-        const yearSuffix = toPersianDigits(parts[0].slice(-2));
+        const parts = toLatinDigits(d.period).split("-");
+        const qIdx = parseInt(parts[1]?.replace("Q", "") ?? "0", 10) - 1;
+        const yearSuffix = toPersianDigits((parts[0] ?? "").slice(-2));
         return {
-          day: `${persianSeasons[qIdx]} ${yearSuffix}`,
+          day: `${persianSeasons[qIdx] ?? toPersianDigits(d.period)} ${yearSuffix}`,
           amount: d.total,
         };
       });
@@ -292,10 +295,20 @@ function Accounting() {
     ];
   }, [periodReport, todayReport, activePeriod]);
 
-  const revenueData = useMemo(
-    () => (chartReport ? formatChartData(chartReport.salesChart, activePeriod) : []),
-    [chartReport, activePeriod]
-  );
+  const revenueData = useMemo(() => {
+    if (!chartReport) return [];
+    const bucketMap: Record<PeriodFilter, ChartPeriod> = {
+      today: "daily",
+      week: "weekly",
+      month: "monthly",
+      threeMonths: "quarterly",
+      year: "yearly",
+    };
+    const bucket = bucketMap[activePeriod];
+    const source = chartReport.salesChart[bucket] ?? [];
+    const filled = fillChartGaps(source, bucket, chartFromISO, periodToISO);
+    return formatChartData({ ...chartReport.salesChart, [bucket]: filled }, activePeriod);
+  }, [chartReport, activePeriod, chartFromISO, periodToISO]);
 
   const totalPages = paginatedPayments?.totalPages ?? 1;
 

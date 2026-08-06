@@ -26,12 +26,18 @@ import { Button } from "../components/ui/Button";
 import { Card, CardTitle } from "../components/ui/Card";
 import { Select } from "../components/ui/Select";
 import { Skeleton } from "../components/ui/Skeleton";
-import { useAllReports, useFilteredReports, useReferralRate, useVisitReports } from "../hooks/api";
+import {
+  useAllReports,
+  useCustomerBreakdown,
+  useFilteredReports,
+  useReferralRate,
+  useVisitReports,
+} from "../hooks/api";
+import { fillChartGaps } from "../lib/report-chart";
 import type {
   AppointmentStat,
   KpiStat,
   MonthlyRevenue,
-  PatientVisit,
   ServiceCategoryStat,
 } from "../types/analytics";
 
@@ -82,8 +88,18 @@ function Analytics() {
     dateParams.dateFrom || undefined,
     dateParams.dateTo || undefined
   );
-  const { data: referralData } = useReferralRate();
-  const { data: visitReports } = useVisitReports();
+  const { data: referralData } = useReferralRate(
+    dateParams.dateFrom || undefined,
+    dateParams.dateTo || undefined
+  );
+  const { data: customerBreakdown } = useCustomerBreakdown(
+    dateParams.dateFrom || undefined,
+    dateParams.dateTo || undefined
+  );
+  const { data: visitReports } = useVisitReports(
+    dateParams.dateFrom || undefined,
+    dateParams.dateTo || undefined
+  );
   const reports = dateRange === "year" ? allReports : filteredReports;
   const isLoading = dateRange === "year" ? allLoading : filteredLoading;
 
@@ -123,9 +139,24 @@ function Analytics() {
       ]
     : [];
 
-  const monthlyRevenue: MonthlyRevenue[] = reports?.monthlyRevenue ?? [];
-  const appointmentStatusData: AppointmentStat[] = reports?.appointmentStats ?? [];
-  const monthlyVisits: PatientVisit[] = visitReports ?? [];
+  const monthlyRevenue: MonthlyRevenue[] = useMemo(() => {
+    const source = reports?.monthlyRevenue ?? [];
+    if (!dateParams.dateFrom || !dateParams.dateTo) return source;
+    const filled = fillChartGaps(
+      source.map((m) => ({ period: m.month, total: m.revenue })),
+      "monthly",
+      dateParams.dateFrom,
+      dateParams.dateTo
+    );
+    return filled.map((e) => ({ month: e.period, revenue: e.total }));
+  }, [reports, dateParams]);
+  const appointmentStatusData: AppointmentStat[] = customerBreakdown?.byVisitStatus ?? [];
+  const visitComparisonData = visitReports
+    ? [
+        { period: "دوره جاری", visits: visitReports.currentCount },
+        { period: "دوره قبل", visits: visitReports.previousCount ?? 0 },
+      ]
+    : [];
   const serviceCategoryData: ServiceCategoryStat[] = reports?.serviceCategoryStats ?? [];
 
   if (isLoading) {
@@ -271,13 +302,13 @@ function Analytics() {
 
       <div className="grid gap-6 xl:grid-cols-2" data-tour="anl-charts">
         <Card variant="outlined" padding="lg">
-          <CardTitle>مراجعه بیماران به صورت ماهانه</CardTitle>
+          <CardTitle>مقایسه مراجعه بیماران</CardTitle>
           <div className="mt-4" dir="ltr">
             <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={monthlyVisits}>
+              <BarChart data={visitComparisonData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
-                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
+                <XAxis dataKey="period" tick={{ fontSize: 12, fill: "#64748b" }} />
+                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} allowDecimals={false} />
                 <Tooltip
                   formatter={(value) => [Number(value), "مراجعه"]}
                   contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
@@ -286,6 +317,16 @@ function Analytics() {
               </BarChart>
             </ResponsiveContainer>
           </div>
+          {visitReports?.changePercent != null && (
+            <p className="text-surface-600 mt-4 flex items-center justify-center gap-1 text-sm">
+              <span
+                className={visitReports.changePercent >= 0 ? "text-success-600" : "text-danger-600"}
+              >
+                {formatCurrency(Math.abs(visitReports.changePercent))}٪
+              </span>
+              نسبت به دوره قبل
+            </p>
+          )}
         </Card>
 
         <Card variant="outlined" padding="lg">
