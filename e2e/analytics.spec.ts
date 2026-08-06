@@ -20,7 +20,7 @@ test.describe("Analytics", () => {
     await page.goto("/analytics");
     await expect(page.getByText("روند درآمد ماهانه")).toBeVisible();
     await expect(page.getByText("وضعیت نوبت‌ها")).toBeVisible();
-    await expect(page.getByText("مراجعه بیماران به صورت ماهانه")).toBeVisible();
+    await expect(page.getByText("مقایسه مراجعه بیماران")).toBeVisible();
     await expect(page.getByText("محبوبیت دسته‌بندی خدمات")).toBeVisible();
   });
 

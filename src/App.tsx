@@ -1,9 +1,8 @@
-import { BiBell, BiHome } from "react-icons/bi";
+import { BiHome } from "react-icons/bi";
 import { CiMoneyBill, CiSettings } from "react-icons/ci";
-import { FaWarehouse } from "react-icons/fa";
-import { FcServices } from "react-icons/fc";
+import { FaRegCalendarAlt, FaWarehouse } from "react-icons/fa";
 import { IoAnalytics } from "react-icons/io5";
-import { MdHistory, MdPalette } from "react-icons/md";
+import { MdHistory, MdMedicalServices, MdPalette } from "react-icons/md";
 import { PiChartPieSliceDuotone } from "react-icons/pi";
 import { Outlet } from "react-router";
 
@@ -22,8 +21,8 @@ const items: SidebarItem[] = [
   { label: "داشبورد", icon: <BiHome />, path: "/", group: "primary" },
   { label: "مراجعین", icon: <PiChartPieSliceDuotone />, path: "/patients", group: "primary" },
   { label: "حسابداری", icon: <CiMoneyBill />, path: "/accounting", group: "primary" },
-  { label: "تقویم کلینیک", icon: <BiBell />, path: "/calendar", group: "primary" },
-  { label: "خدمات", icon: <FcServices />, path: "/services", group: "primary" },
+  { label: "تقویم کلینیک", icon: <FaRegCalendarAlt />, path: "/calendar", group: "primary" },
+  { label: "خدمات", icon: <MdMedicalServices />, path: "/services", group: "primary" },
   { label: "گزارش‌ها", icon: <IoAnalytics />, path: "/analytics", group: "primary" },
   { label: "مدیریت انبار", icon: <FaWarehouse />, path: "/warehouse", group: "secondary" },
   { label: "تنظیمات", icon: <CiSettings />, path: "/settings", group: "secondary" },
