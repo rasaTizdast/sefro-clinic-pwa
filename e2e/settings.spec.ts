@@ -12,7 +12,7 @@ test.describe("Settings", () => {
     await expect(page.getByRole("heading", { name: "تنظیمات" })).toBeVisible();
     await expect(page.getByText("تنظیمات حساب کاربری و سیستم")).toBeVisible();
     await expect(page.getByText("تغییر رمز عبور")).toBeVisible();
-    await expect(page.getByText("ساعات کاری هفتگی")).toBeVisible();
+    await expect(page.getByText("مدیریت کاربران")).toBeVisible();
   });
 
   test("shows password change form", async ({ page }) => {
@@ -60,12 +60,6 @@ test.describe("Settings", () => {
     await expect(page.getByText("تغییر رمز عبور")).toBeVisible();
   });
 
-  test("shows working hours section", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByText("از ساعت")).toBeVisible();
-    await expect(page.getByText("اعمال برای روزهای:")).toBeVisible();
-  });
-
   test("shows users management section", async ({ page }) => {
     await page.goto("/settings");
     await expect(page.getByText("مدیریت کاربران")).toBeVisible();
@@ -76,8 +70,11 @@ test.describe("Settings", () => {
     await page.goto("/settings");
     await page.getByRole("button", { name: "کاربر جدید" }).click();
     await expect(page.getByText("افزودن کاربر جدید")).toBeVisible();
-    await expect(page.getByLabel("نام کاربری")).toBeVisible();
-    await expect(page.getByLabel("رمز عبور")).toBeVisible();
+    await expect(page.getByLabel("نام", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("نام خانوادگی", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("شماره تلفن", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("نام کاربری", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("رمز عبور", { exact: true })).toBeVisible();
   });
 
   test("creates a new user", async ({ page }) => {

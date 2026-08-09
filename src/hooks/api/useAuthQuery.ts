@@ -64,8 +64,26 @@ export function useCreateEmployee() {
   const toast = useToast();
 
   return useMutation({
-    mutationFn: (data: { username: string; password: string }) =>
-      authService.createEmployee(data as never),
+    mutationFn: ({
+      username,
+      password,
+      firstName,
+      lastName,
+      phoneNumber,
+    }: {
+      username: string;
+      password: string;
+      firstName?: string;
+      lastName?: string;
+      phoneNumber?: string;
+    }) =>
+      authService.createEmployee({
+        username,
+        password,
+        first_name: firstName,
+        last_name: lastName,
+        phone_number: phoneNumber,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.employees });
       toast.success("کاربر جدید با موفقیت افزوده شد.");

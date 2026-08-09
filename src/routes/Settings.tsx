@@ -15,9 +15,7 @@ import {
   useCurrentUser,
   useDeleteEmployee,
   useEmployees,
-  useSaveWorkTime,
   useUpdateEmployee,
-  useWorkTime,
 } from "../hooks/api";
 import { usePermissions } from "../hooks/usePermissions";
 import type { ClinicUser, UserRole } from "../types/settings";
@@ -33,8 +31,6 @@ const statusMap: Record<ClinicUser["status"], { label: string; variant: "success
   inactive: { label: "غیرفعال", variant: "danger" },
 };
 
-const DAYS = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
-
 function Settings() {
   const toast = useToast();
 
@@ -43,8 +39,6 @@ function Settings() {
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const deleteEmployee = useDeleteEmployee();
-  const { data: workTimeRecord, isLoading: workTimeLoading } = useWorkTime();
-  const saveWorkTime = useSaveWorkTime();
 
   const [password, setPassword] = useState({
     current: "",
@@ -52,14 +46,15 @@ function Settings() {
     confirm: "",
   });
 
-  const [draft, setDraft] = useState<{ startTime: string; endTime: string } | null>(null);
-
-  const startTime = draft?.startTime ?? workTimeRecord?.startTime ?? "08:00";
-  const endTime = draft?.endTime ?? workTimeRecord?.endTime ?? "20:00";
-
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ClinicUser | null>(null);
-  const [userForm, setUserForm] = useState({ username: "", password: "" });
+  const [userForm, setUserForm] = useState({
+    username: "",
+    password: "",
+    firstName: "",
+    lastName: "",
+    phoneNumber: "",
+  });
 
   const { canManageUsers } = usePermissions();
 
@@ -111,7 +106,13 @@ function Settings() {
             startIcon={<BiPencil className="size-4" />}
             onClick={() => {
               setEditingUser(user);
-              setUserForm({ username: user.username, password: "" });
+              setUserForm({
+                username: user.username,
+                password: "",
+                firstName: "",
+                lastName: "",
+                phoneNumber: "",
+              });
               setUserModalOpen(true);
             }}
           />
@@ -148,16 +149,9 @@ function Settings() {
     }
   }
 
-  async function handleSaveWorkingHours() {
-    await saveWorkTime.mutateAsync({
-      id: workTimeRecord?.id,
-      data: { startTime, endTime },
-    });
-  }
-
   function handleOpenUserModal() {
     setEditingUser(null);
-    setUserForm({ username: "", password: "" });
+    setUserForm({ username: "", password: "", firstName: "", lastName: "", phoneNumber: "" });
     setUserModalOpen(true);
   }
 
@@ -167,7 +161,12 @@ function Settings() {
       return;
     }
     if (editingUser) {
-      const data: Record<string, unknown> = { username: userForm.username };
+      const data: Record<string, unknown> = {
+        username: userForm.username,
+        first_name: userForm.firstName,
+        last_name: userForm.lastName,
+        phone_number: userForm.phoneNumber,
+      };
       if (userForm.password) data.password = userForm.password;
       await updateEmployee.mutateAsync({ id: editingUser.id, data });
     } else {
@@ -178,6 +177,9 @@ function Settings() {
       await createEmployee.mutateAsync({
         username: userForm.username,
         password: userForm.password,
+        firstName: userForm.firstName,
+        lastName: userForm.lastName,
+        phoneNumber: userForm.phoneNumber,
       });
     }
     setUserModalOpen(false);
@@ -223,60 +225,6 @@ function Settings() {
             >
               تغییر رمز
             </Button>
-          </div>
-        </div>
-      </Card>
-
-      <Card variant="outlined" padding="lg" data-tour="set-hours">
-        <div className="mb-4 flex items-center justify-between">
-          <CardTitle>ساعات کاری هفتگی</CardTitle>
-          <Button
-            variant="primary"
-            startIcon={<BiSave className="size-5" />}
-            onClick={handleSaveWorkingHours}
-            loading={saveWorkTime.isPending}
-            disabled={workTimeLoading}
-          >
-            ذخیره
-          </Button>
-        </div>
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <span className="text-surface-700 w-24 shrink-0 text-sm font-medium">از ساعت</span>
-            <Input
-              type="time"
-              value={startTime}
-              onChange={(e) =>
-                setDraft((prev) => ({
-                  startTime: e.target.value,
-                  endTime: prev?.endTime ?? endTime,
-                }))
-              }
-              onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker?.()}
-              containerClassName="flex-1"
-            />
-            <span className="text-surface-400 text-sm">تا</span>
-            <Input
-              type="time"
-              value={endTime}
-              onChange={(e) =>
-                setDraft((prev) => ({
-                  startTime: prev?.startTime ?? startTime,
-                  endTime: e.target.value,
-                }))
-              }
-              onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker?.()}
-              containerClassName="flex-1"
-            />
-          </div>
-          <div className="text-surface-500 flex flex-wrap items-center gap-1 text-sm">
-            <span>اعمال برای روزهای:</span>
-            {DAYS.map((d, i) => (
-              <span key={d}>
-                <span className="text-surface-700 font-medium">{d}</span>
-                {i < DAYS.length - 1 && <span className="mx-0.5">,</span>}
-              </span>
-            ))}
           </div>
         </div>
       </Card>
@@ -344,6 +292,26 @@ function Settings() {
         }
       >
         <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="نام"
+              value={userForm.firstName}
+              onChange={(e) => setUserForm((prev) => ({ ...prev, firstName: e.target.value }))}
+              startIcon={<BiUser className="size-4" />}
+            />
+            <Input
+              label="نام خانوادگی"
+              value={userForm.lastName}
+              onChange={(e) => setUserForm((prev) => ({ ...prev, lastName: e.target.value }))}
+              startIcon={<BiUser className="size-4" />}
+            />
+          </div>
+          <Input
+            label="شماره تلفن"
+            value={userForm.phoneNumber}
+            onChange={(e) => setUserForm((prev) => ({ ...prev, phoneNumber: e.target.value }))}
+            startIcon={<BiUser className="size-4" />}
+          />
           <Input
             label="نام کاربری"
             value={userForm.username}
