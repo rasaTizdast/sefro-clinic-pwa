@@ -1,13 +1,18 @@
 import { useMemo, useState } from "react";
 import { BiCalendar, BiMinus, BiPlus, BiTrendingDown, BiTrendingUp } from "react-icons/bi";
+import { CiMoneyBill } from "react-icons/ci";
+import { FaWarehouse } from "react-icons/fa";
+import { IoAnalytics } from "react-icons/io5";
 import {
   MdEventAvailable,
+  MdMedicalServices,
   MdPayments,
   MdPeople,
   MdPersonAdd,
   MdStar,
   MdStore,
 } from "react-icons/md";
+import { PiChartPieSliceDuotone } from "react-icons/pi";
 import { useNavigate } from "react-router";
 
 import { PatientFormModal } from "../components/patients/PatientFormModal";
@@ -190,6 +195,36 @@ function Dashboard() {
       icon: <BiPlus className="size-5" />,
       variant: "secondary" as const,
       onClick: () => setPatientModalOpen(true),
+    },
+    {
+      label: "لیست بیماران",
+      icon: <PiChartPieSliceDuotone className="size-5" />,
+      variant: "outline" as const,
+      onClick: () => navigate("/patients"),
+    },
+    {
+      label: "حسابداری",
+      icon: <CiMoneyBill className="size-5" />,
+      variant: "outline" as const,
+      onClick: () => navigate("/accounting"),
+    },
+    {
+      label: "خدمات",
+      icon: <MdMedicalServices className="size-5" />,
+      variant: "outline" as const,
+      onClick: () => navigate("/services"),
+    },
+    {
+      label: "گزارش‌ها",
+      icon: <IoAnalytics className="size-5" />,
+      variant: "outline" as const,
+      onClick: () => navigate("/analytics"),
+    },
+    {
+      label: "مدیریت انبار",
+      icon: <FaWarehouse className="size-5" />,
+      variant: "outline" as const,
+      onClick: () => navigate("/warehouse"),
     },
   ];
 
