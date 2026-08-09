@@ -5,7 +5,7 @@ export const walkthroughSteps: Record<string, DriveStep[]> = {
     {
       element: "[data-tour='auth-brand']",
       popover: {
-        title: "کلینیک سفرو",
+        title: "کلینیک زیبایی باران",
         description: "به پنل مدیریت کلینیک خوش آمدید. ابتدا وارد حساب خود شوید.",
         side: "bottom",
         align: "start",

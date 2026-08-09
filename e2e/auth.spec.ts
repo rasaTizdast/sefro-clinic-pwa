@@ -18,7 +18,7 @@ test.describe("Authentication", () => {
   test("shows login page with all elements", async ({ page }) => {
     await page.goto("/auth");
 
-    await expect(page.getByText("کلینیک سفرو", { exact: true })).toBeVisible();
+    await expect(page.getByText("کلینیک زیبایی باران", { exact: true })).toBeVisible();
     await expect(page.getByText("ورود به حساب کاربری")).toBeVisible();
     await expect(page.getByLabel("نام کاربری یا شماره موبایل")).toBeVisible();
     await expect(page.getByLabel("رمز عبور", { exact: true })).toBeVisible();

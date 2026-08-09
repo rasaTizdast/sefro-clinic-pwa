@@ -73,7 +73,7 @@ export default function Auth() {
                 S
               </span>
               <div>
-                <p className="text-surface-800 text-sm font-bold">کلینیک سفرو</p>
+                <p className="text-surface-800 text-sm font-bold">کلینیک زیبایی باران</p>
                 <p className="text-surface-500 text-xs">پنل مدیریت درمانگاه</p>
               </div>
             </div>
@@ -84,8 +84,8 @@ export default function Auth() {
               به فضای مدیریت کلینیک
             </h1>
             <p className="text-surface-500 mt-4 max-w-sm text-sm leading-6">
-              با وارد کردن نام کاربری و رمز عبور خود، به پنل مدیریت یکپارچه کلینیک سفرو دسترسی پیدا
-              کنید.
+              با وارد کردن نام کاربری و رمز عبور خود، به پنل مدیریت یکپارچه کلینیک زیبایی باران
+              دسترسی پیدا کنید.
             </p>
 
             <div className="mt-10 space-y-3">

@@ -22,9 +22,9 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ["favicon.svg", "apple-touch-icon.svg", "icon-192.svg", "icon-512.svg"],
       manifest: {
-        name: "کلینیک سفرو",
-        short_name: "سفرو",
-        description: "سیستم مدیریت کلینیک سفرو",
+        name: "کلینیک زیبایی باران",
+        short_name: "کلینیک باران",
+        description: "سیستم مدیریت کلینیک زیبایی باران",
         theme_color: "#2563eb",
         background_color: "#f8fafc",
         display: "standalone",
