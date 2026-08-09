@@ -1,13 +1,13 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { BiHome, BiSearch } from "react-icons/bi";
+import { BiCalendar, BiHome, BiSearch } from "react-icons/bi";
 import { CiMoneyBill, CiSettings } from "react-icons/ci";
-import { FaWarehouse } from "react-icons/fa";
-import { FcServices } from "react-icons/fc";
+import { FaRegCalendarAlt, FaWarehouse } from "react-icons/fa";
 import { IoAnalytics } from "react-icons/io5";
-import { MdPalette } from "react-icons/md";
-import { PiChartPieSliceDuotone, PiDotsThreeVertical } from "react-icons/pi";
+import { MdHistory, MdMedicalServices, MdPalette, MdPersonAdd } from "react-icons/md";
+import { PiChartPieSliceDuotone } from "react-icons/pi";
 import { useNavigate } from "react-router";
 
+import { usePermissions } from "../hooks/usePermissions";
 import { useQuickActions } from "../hooks/useQuickActions";
 
 interface NavAction {
@@ -19,19 +19,24 @@ interface NavAction {
 
 const navActions: NavAction[] = [
   { id: "nav-dashboard", label: "داشبورد", icon: <BiHome />, path: "/" },
-  {
-    id: "nav-patients",
-    label: "لیست بیماران",
-    icon: <PiChartPieSliceDuotone />,
-    path: "/patients",
-  },
+  { id: "nav-patients", label: "مراجعین", icon: <PiChartPieSliceDuotone />, path: "/patients" },
   { id: "nav-accounting", label: "حسابداری", icon: <CiMoneyBill />, path: "/accounting" },
-  { id: "nav-calendar", label: "تقویم کلینیک", icon: <PiDotsThreeVertical />, path: "/calendar" },
-  { id: "nav-services", label: "خدمات", icon: <FcServices />, path: "/services" },
+  { id: "nav-calendar", label: "تقویم کلینیک", icon: <FaRegCalendarAlt />, path: "/calendar" },
+  { id: "nav-services", label: "خدمات", icon: <MdMedicalServices />, path: "/services" },
   { id: "nav-analytics", label: "گزارش‌ها", icon: <IoAnalytics />, path: "/analytics" },
   { id: "nav-warehouse", label: "مدیریت انبار", icon: <FaWarehouse />, path: "/warehouse" },
   { id: "nav-settings", label: "تنظیمات", icon: <CiSettings />, path: "/settings" },
-  { id: "nav-design-system", label: "سیستم طراحی", icon: <MdPalette />, path: "/design-system" },
+  ...(import.meta.env.DEV
+    ? [
+        {
+          id: "nav-design-system",
+          label: "سیستم طراحی",
+          icon: <MdPalette />,
+          path: "/design-system",
+        },
+      ]
+    : []),
+  { id: "nav-logs", label: "لاگ سیستم", icon: <MdHistory />, path: "/logs" },
 ];
 
 interface CommandPaletteProps {
@@ -42,13 +47,16 @@ interface CommandPaletteProps {
 export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const navigate = useNavigate();
   const { actions } = useQuickActions();
+  const { canViewLogs } = usePermissions();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
+  const visibleNavActions = canViewLogs ? navActions : navActions.filter((a) => a.path !== "/logs");
+
   const allActions: { id: string; label: string; icon?: ReactNode; perform: () => void }[] = [
-    ...navActions.map((a) => ({
+    ...visibleNavActions.map((a) => ({
       id: a.id,
       label: a.label,
       icon: a.icon,
@@ -57,6 +65,60 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         onClose();
       },
     })),
+    {
+      id: "action-new-patient",
+      label: "بیمار جدید",
+      icon: <MdPersonAdd />,
+      perform: () => {
+        navigate("/patients?new=1");
+        onClose();
+      },
+    },
+    {
+      id: "action-new-appointment",
+      label: "نوبت جدید",
+      icon: <BiCalendar />,
+      perform: () => {
+        navigate("/calendar");
+        onClose();
+      },
+    },
+    {
+      id: "action-new-payment",
+      label: "ثبت پرداخت",
+      icon: <CiMoneyBill />,
+      perform: () => {
+        navigate("/accounting");
+        onClose();
+      },
+    },
+    {
+      id: "action-manage-services",
+      label: "مدیریت خدمات",
+      icon: <MdMedicalServices />,
+      perform: () => {
+        navigate("/services");
+        onClose();
+      },
+    },
+    {
+      id: "action-view-reports",
+      label: "مشاهده گزارش‌ها",
+      icon: <IoAnalytics />,
+      perform: () => {
+        navigate("/analytics");
+        onClose();
+      },
+    },
+    {
+      id: "action-manage-warehouse",
+      label: "مدیریت انبار",
+      icon: <FaWarehouse />,
+      perform: () => {
+        navigate("/warehouse");
+        onClose();
+      },
+    },
     ...actions.map((a) => ({
       id: a.id,
       label: a.label,
