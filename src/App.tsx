@@ -26,7 +26,16 @@ const items: SidebarItem[] = [
   { label: "گزارش‌ها", icon: <IoAnalytics />, path: "/analytics", group: "primary" },
   { label: "مدیریت انبار", icon: <FaWarehouse />, path: "/warehouse", group: "secondary" },
   { label: "تنظیمات", icon: <CiSettings />, path: "/settings", group: "secondary" },
-  { label: "سیستم طراحی", icon: <MdPalette />, path: "/design-system", group: "secondary" },
+  ...(import.meta.env.DEV
+    ? [
+        {
+          label: "سیستم طراحی",
+          icon: <MdPalette />,
+          path: "/design-system",
+          group: "secondary" as const,
+        },
+      ]
+    : []),
   { label: "لاگ سیستم", icon: <MdHistory />, path: "/logs", group: "secondary" },
 ];
 
