@@ -1,0 +1,9 @@
+{
+  "app": "barancliniccenter",
+  "port": 80,
+  "team-id": "67a1f71b800ea5e3dca327de",
+  "build": {
+    "location": "germany"
+  },
+  "disks": []
+}

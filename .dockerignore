@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/db.sqlite3
+website/node_modules/
+
+# Build outputs
+dist/
+website/.next/
+website/out/
+
+# Website source files not needed in build context
+website/.agents/
+website/.mimocode/
+website/docs/
+
+# Environment files
+.env
+.env.*
+backend/.env
+backend/.env.*
+website/.env
+website/.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Docker
+docker-compose*
+
+# Logs
+*.log
+backend/server.err
+backend/server.log
+
+# Test outputs
+test-results/
+playwright-report/
+coverage/
+.nyc_output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.pem
+*.key
+*.crt
+
+# Python
+*.py[cod]
+__pycache__/
+*.so
+
+# Coverage
+.coverage
+htmlcov/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Large data files
+*.sqlite3
+*.db
+*.dump
