@@ -11,53 +11,8 @@ test.describe("Settings", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "تنظیمات" })).toBeVisible();
     await expect(page.getByText("تنظیمات حساب کاربری و سیستم")).toBeVisible();
-    await expect(page.getByText("تغییر رمز عبور")).toBeVisible();
     await expect(page.getByText("مدیریت کاربران")).toBeVisible();
-  });
-
-  test("shows password change form", async ({ page }) => {
-    await page.goto("/settings");
-    await expect(page.getByRole("textbox", { name: "رمز جدید", exact: true })).toBeVisible({
-      timeout: 10000,
-    });
-    await expect(page.getByLabel("تکرار رمز جدید")).toBeVisible();
-    await expect(page.getByRole("button", { name: "تغییر رمز" })).toBeVisible();
-  });
-
-  test("validates password mismatch", async ({ page }) => {
-    await page.goto("/settings");
-
-    await page.getByRole("textbox", { name: "رمز جدید", exact: true }).fill("NewPass123");
-    await page.getByLabel("تکرار رمز جدید").fill("DifferentPass456");
-    await page.getByRole("button", { name: "تغییر رمز" }).first().click();
-
-    // Should show validation error about mismatch
-    // The form should not submit successfully
-    await expect(page.getByRole("textbox", { name: "رمز جدید", exact: true })).toBeVisible();
-  });
-
-  test("successfully changes password", async ({ page }) => {
-    // Mock password change endpoint
-    await page.route("**/api/auth/change-password/", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ detail: "Password updated" }),
-      });
-    });
-
-    await page.goto("/settings");
-
-    await page.getByRole("textbox", { name: "رمز جدید", exact: true }).fill("NewSecurePass123");
-    await page.getByLabel("تکرار رمز جدید").fill("NewSecurePass123");
-    await page.getByRole("button", { name: "تغییر رمز" }).first().click();
-
-    // Should show success feedback (toast or inline message)
-    // Wait briefly for async operation
-    await page.waitForTimeout(1000);
-
-    // Form should still be visible (no crash)
-    await expect(page.getByText("تغییر رمز عبور")).toBeVisible();
+    await expect(page.getByText("تغییر رمز عبور")).toHaveCount(0);
   });
 
   test("shows users management section", async ({ page }) => {
@@ -95,5 +50,50 @@ test.describe("Settings", () => {
 
     await clickSave(page, page.getByRole("dialog").getByRole("button", { name: "ذخیره" }));
     await expect(page.getByText("افزودن کاربر جدید")).not.toBeVisible({ timeout: 10000 });
+  });
+
+  test("cannot change an admin password in edit modal", async ({ page }) => {
+    await page.route("**/api/auth/employees/list/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          count: 2,
+          results: [
+            { id: 1, username: "sefro_admin", role: "admin", date_joined: "2026-01-01T00:00:00Z" },
+            { id: 2, username: "doctor1", role: "employee", date_joined: "2026-01-01T00:00:00Z" },
+          ],
+        }),
+      });
+    });
+
+    await page.goto("/settings");
+
+    const adminRow = page.getByRole("row").filter({ hasText: "sefro_admin" });
+    await adminRow.getByRole("button").first().click();
+    await expect(page.getByText("ویرایش کاربر")).toBeVisible();
+    await expect(page.getByLabel("رمز عبور (خالی بگذارید برای عدم تغییر)")).toHaveCount(0);
+  });
+
+  test("can change an employee password in edit modal", async ({ page }) => {
+    await page.route("**/api/auth/employees/list/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          count: 1,
+          results: [
+            { id: 2, username: "doctor1", role: "employee", date_joined: "2026-01-01T00:00:00Z" },
+          ],
+        }),
+      });
+    });
+
+    await page.goto("/settings");
+
+    const employeeRow = page.getByRole("row").filter({ hasText: "doctor1" });
+    await employeeRow.getByRole("button").first().click();
+    await expect(page.getByText("ویرایش کاربر")).toBeVisible();
+    await expect(page.getByLabel("رمز عبور (خالی بگذارید برای عدم تغییر)")).toBeVisible();
   });
 });

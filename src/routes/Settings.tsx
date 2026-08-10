@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { BiLock, BiPencil, BiPlus, BiSave, BiTrash, BiUser } from "react-icons/bi";
+import { BiLock, BiPencil, BiPlus, BiTrash, BiUser } from "react-icons/bi";
 
 import { SearchButton } from "../components/SearchButton";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
-import { Card, CardTitle } from "../components/ui/Card";
+import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import type { Column } from "../components/ui/Table";
@@ -12,7 +12,6 @@ import { Table } from "../components/ui/Table";
 import { useToast } from "../components/ui/Toast";
 import {
   useCreateEmployee,
-  useCurrentUser,
   useDeleteEmployee,
   useEmployees,
   useUpdateEmployee,
@@ -34,17 +33,10 @@ const statusMap: Record<ClinicUser["status"], { label: string; variant: "success
 function Settings() {
   const toast = useToast();
 
-  const { data: currentUser } = useCurrentUser();
   const { data: employees, isLoading: employeesLoading } = useEmployees();
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const deleteEmployee = useDeleteEmployee();
-
-  const [password, setPassword] = useState({
-    current: "",
-    new: "",
-    confirm: "",
-  });
 
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ClinicUser | null>(null);
@@ -127,28 +119,6 @@ function Settings() {
     },
   ];
 
-  function setPasswordField(field: keyof typeof password, value: string) {
-    setPassword((prev) => ({ ...prev, [field]: value }));
-  }
-
-  async function handleChangePassword() {
-    if (!password.new || password.new.length < 6) {
-      toast.warning("رمز عبور جدید باید حداقل ۶ کاراکتر باشد.");
-      return;
-    }
-    if (password.new !== password.confirm) {
-      toast.warning("رمز عبور و تکرار آن مطابقت ندارند.");
-      return;
-    }
-    if (!currentUser) return;
-    try {
-      await updateEmployee.mutateAsync({ id: currentUser.id, data: { password: password.new } });
-      setPassword({ current: "", new: "", confirm: "" });
-    } catch {
-      // Toast handled in mutation
-    }
-  }
-
   function handleOpenUserModal() {
     setEditingUser(null);
     setUserForm({ username: "", password: "", firstName: "", lastName: "", phoneNumber: "" });
@@ -197,37 +167,6 @@ function Settings() {
         </div>
         <SearchButton />
       </div>
-
-      <Card variant="outlined" padding="lg" data-tour="set-password">
-        <CardTitle className="mb-4">تغییر رمز عبور</CardTitle>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Input
-            label="رمز جدید"
-            type="password"
-            value={password.new}
-            onChange={(e) => setPasswordField("new", e.target.value)}
-            startIcon={<BiLock className="size-4" />}
-          />
-          <Input
-            label="تکرار رمز جدید"
-            type="password"
-            value={password.confirm}
-            onChange={(e) => setPasswordField("confirm", e.target.value)}
-            startIcon={<BiLock className="size-4" />}
-          />
-          <div className="flex items-end">
-            <Button
-              variant="primary"
-              startIcon={<BiSave className="size-5" />}
-              onClick={handleChangePassword}
-              disabled={!password.new || !password.confirm || updateEmployee.isPending}
-              loading={updateEmployee.isPending}
-            >
-              تغییر رمز
-            </Button>
-          </div>
-        </div>
-      </Card>
 
       <div className="flex flex-col gap-4" data-tour="set-users">
         {canManageUsers && (
@@ -318,13 +257,15 @@ function Settings() {
             onChange={(e) => setUserForm((prev) => ({ ...prev, username: e.target.value }))}
             startIcon={<BiUser className="size-4" />}
           />
-          <Input
-            label={editingUser ? "رمز عبور (خالی بگذارید برای عدم تغییر)" : "رمز عبور"}
-            type="password"
-            value={userForm.password}
-            onChange={(e) => setUserForm((prev) => ({ ...prev, password: e.target.value }))}
-            startIcon={<BiLock className="size-4" />}
-          />
+          {(!editingUser || editingUser.role !== "مدیر") && (
+            <Input
+              label={editingUser ? "رمز عبور (خالی بگذارید برای عدم تغییر)" : "رمز عبور"}
+              type="password"
+              value={userForm.password}
+              onChange={(e) => setUserForm((prev) => ({ ...prev, password: e.target.value }))}
+              startIcon={<BiLock className="size-4" />}
+            />
+          )}
         </div>
       </Modal>
     </div>
