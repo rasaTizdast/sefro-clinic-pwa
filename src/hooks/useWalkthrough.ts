@@ -37,7 +37,9 @@ export function useWalkthrough() {
   const startWalkthrough = useCallback(() => {
     if (!isWalkthroughEnabled()) return;
 
-    const steps = walkthroughSteps[location.pathname];
+    const basePath = import.meta.env.DEV ? "" : "/dashboard";
+    const routePath = basePath ? location.pathname.replace(basePath, "") : location.pathname;
+    const steps = walkthroughSteps[routePath];
     if (!steps || steps.length === 0) return;
 
     const visibleSteps = steps.filter((step) => {

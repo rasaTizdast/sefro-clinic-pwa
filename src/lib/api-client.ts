@@ -4,6 +4,8 @@ import { API_URL } from "../config/api";
 import type { ApiError } from "../types/api";
 import { toCamelCase, toSnakeCase } from "./transform";
 
+const BASE_PATH = import.meta.env.DEV ? "" : "/dashboard";
+
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
@@ -42,8 +44,8 @@ apiClient.interceptors.response.use(
         await axios.post(`${API_URL}/auth/token/refresh/`, {}, { withCredentials: true });
         return apiClient(originalRequest);
       } catch {
-        if (window.location.pathname !== "/auth") {
-          window.location.href = "/auth";
+        if (window.location.pathname !== `${BASE_PATH}/auth`) {
+          window.location.href = `${BASE_PATH}/auth`;
         }
         return Promise.reject(error);
       }

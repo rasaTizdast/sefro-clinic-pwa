@@ -5,7 +5,8 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  base: command === "build" ? "/dashboard/" : "/",
   server: {
     host: "127.0.0.1",
     port: 5174,
@@ -29,13 +30,13 @@ export default defineConfig({
         background_color: "#f8fafc",
         display: "standalone",
         orientation: "portrait-primary",
-        start_url: "/",
-        scope: "/",
+        start_url: command === "build" ? "/dashboard/" : "/",
+        scope: command === "build" ? "/dashboard/" : "/",
         lang: "fa",
         dir: "rtl",
         icons: [
-          { src: "/icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
-          { src: "/icon-512.svg", sizes: "512x512", type: "image/svg+xml" },
+          { src: "/dashboard/icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
+          { src: "/dashboard/icon-512.svg", sizes: "512x512", type: "image/svg+xml" },
         ],
       },
       workbox: {
@@ -43,4 +44,4 @@ export default defineConfig({
       },
     }),
   ],
-});
+}));
