@@ -305,7 +305,7 @@ function Accounting() {
       year: "yearly",
     };
     const bucket = bucketMap[activePeriod];
-    const source = chartReport.salesChart[bucket] ?? [];
+    const source = chartReport?.salesChart?.[bucket] ?? [];
     const filled = fillChartGaps(source, bucket, chartFromISO, periodToISO);
     return formatChartData({ ...chartReport.salesChart, [bucket]: filled }, activePeriod);
   }, [chartReport, activePeriod, chartFromISO, periodToISO]);
