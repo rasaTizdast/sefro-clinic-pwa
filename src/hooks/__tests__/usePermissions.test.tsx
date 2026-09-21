@@ -25,6 +25,7 @@ describe("usePermissions", () => {
     expect(result.current.canDelete).toBe(true);
     expect(result.current.canManageUsers).toBe(true);
     expect(result.current.canViewLogs).toBe(true);
+    expect(result.current.canManageFinance).toBe(true);
   });
 
   it("returns restricted permissions for employee", () => {
@@ -41,6 +42,7 @@ describe("usePermissions", () => {
     expect(result.current.canDelete).toBe(false);
     expect(result.current.canManageUsers).toBe(false);
     expect(result.current.canViewLogs).toBe(false);
+    expect(result.current.canManageFinance).toBe(false);
   });
 
   it("returns all false when no user", () => {
@@ -57,5 +59,6 @@ describe("usePermissions", () => {
     expect(result.current.canDelete).toBe(false);
     expect(result.current.canManageUsers).toBe(false);
     expect(result.current.canViewLogs).toBe(false);
+    expect(result.current.canManageFinance).toBe(false);
   });
 });

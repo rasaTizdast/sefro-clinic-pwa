@@ -6,6 +6,8 @@ interface Permissions {
   canDelete: boolean;
   canManageUsers: boolean;
   canViewLogs: boolean;
+  /** admin: refund sales, manage rates/categories/rules */
+  canManageFinance: boolean;
 }
 
 export function usePermissions(): Permissions {
@@ -13,7 +15,12 @@ export function usePermissions(): Permissions {
 
   return useMemo(() => {
     if (!user) {
-      return { canDelete: false, canManageUsers: false, canViewLogs: false };
+      return {
+        canDelete: false,
+        canManageUsers: false,
+        canViewLogs: false,
+        canManageFinance: false,
+      };
     }
 
     const isAdmin = user.role === "admin";
@@ -22,6 +29,7 @@ export function usePermissions(): Permissions {
       canDelete: isAdmin,
       canManageUsers: isAdmin,
       canViewLogs: isAdmin,
+      canManageFinance: isAdmin,
     };
   }, [user]);
 }

@@ -53,4 +53,41 @@ export const queryKeys = {
     list: (params?: Record<string, unknown>) => ["logs", "list", params] as const,
     detail: (id: number) => ["logs", id] as const,
   },
+  sales: {
+    all: ["sales"] as const,
+    list: (params?: Record<string, unknown>) => ["sales", "list", params] as const,
+    detail: (id: number) => ["sales", id] as const,
+  },
+  payouts: {
+    all: ["payouts"] as const,
+    list: (params?: Record<string, unknown>) => ["payouts", "list", params] as const,
+    summary: (params?: Record<string, unknown>) => ["payouts", "summary", params] as const,
+    rules: ["payouts", "rules"] as const,
+  },
+  packages: {
+    all: ["packages"] as const,
+    list: (params?: Record<string, unknown>) => ["packages", "list", params] as const,
+    detail: (id: number) => ["packages", id] as const,
+  },
+  serviceCategories: {
+    all: ["serviceCategories"] as const,
+    list: ["serviceCategories", "list"] as const,
+  },
+  finance: {
+    exchangeRates: ["finance", "exchangeRates"] as const,
+    currentRate: ["finance", "currentRate"] as const,
+    backupRate: ["finance", "backupRate"] as const,
+    financialSummary: (params?: Record<string, unknown>) =>
+      ["finance", "financialSummary", params] as const,
+    profitByService: (params?: Record<string, unknown>) =>
+      ["finance", "profitByService", params] as const,
+    profitByPackage: (params?: Record<string, unknown>) =>
+      ["finance", "profitByPackage", params] as const,
+    profitByStaff: (params?: Record<string, unknown>) =>
+      ["finance", "profitByStaff", params] as const,
+    dashboard: (params?: Record<string, unknown>) => ["finance", "dashboard", params] as const,
+    purchases: (params?: Record<string, unknown>) => ["finance", "purchases", params] as const,
+    usages: (params?: Record<string, unknown>) => ["finance", "usages", params] as const,
+    costHistory: (productId: number) => ["finance", "costHistory", productId] as const,
+  },
 } as const;
