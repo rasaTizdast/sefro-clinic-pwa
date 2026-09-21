@@ -2,7 +2,25 @@ import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
-import type { Service } from "../types/service";
+import type { CompensationRole, ServiceCategory } from "../types/finance";
+import type { Service, ServiceConsumable } from "../types/service";
+
+type RawServiceConsumable = {
+  product?: number;
+  name?: string;
+  quantity?: string;
+  unitCostUsd?: string;
+  totalCostUsd?: string;
+};
+
+type RawServiceCategory = {
+  id: number;
+  name?: string;
+  slug?: string;
+  description?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+};
 
 type RawService = Record<string, unknown> & {
   id: number;
@@ -11,7 +29,40 @@ type RawService = Record<string, unknown> & {
   price?: string;
   description?: string;
   isActive?: boolean;
+  priceUsd?: string;
+  priceToman?: string | null;
+  exchangeRate?: string | null;
+  category?: RawServiceCategory | null;
+  compensationRole?: CompensationRole;
+  products?: RawServiceConsumable[];
+  estimatedCostUsd?: string;
+  estimatedCostToman?: string | null;
+  estimatedGrossProfitUsd?: string;
+  estimatedGrossProfitToman?: string | null;
+  estimatedMarginPercent?: string;
 };
+
+const USD = "0.00";
+
+const toCategory = (raw: RawServiceCategory | null | undefined): ServiceCategory | null =>
+  raw == null
+    ? null
+    : {
+        id: raw.id,
+        name: raw.name ?? "",
+        slug: raw.slug ?? "",
+        description: raw.description ?? "",
+        isActive: raw.isActive ?? true,
+        sortOrder: raw.sortOrder ?? 0,
+      };
+
+const toConsumable = (raw: RawServiceConsumable): ServiceConsumable => ({
+  product: raw.product ?? 0,
+  name: raw.name ?? "",
+  quantity: raw.quantity ?? "0.000",
+  unitCostUsd: raw.unitCostUsd ?? USD,
+  totalCostUsd: raw.totalCostUsd ?? USD,
+});
 
 const toService = (raw: RawService): Service => ({
   id: raw.id,
@@ -20,12 +71,27 @@ const toService = (raw: RawService): Service => ({
   price: Number(raw.price) || 0,
   description: raw.description ?? "",
   isActive: raw.isActive ?? true,
+  priceUsd: raw.priceUsd ?? USD,
+  priceToman: raw.priceToman ?? null,
+  exchangeRate: raw.exchangeRate ?? null,
+  category: toCategory(raw.category),
+  compensationRole: raw.compensationRole ?? "none",
+  products: (raw.products ?? []).map(toConsumable),
+  estimatedCostUsd: raw.estimatedCostUsd ?? USD,
+  estimatedCostToman: raw.estimatedCostToman ?? null,
+  estimatedGrossProfitUsd: raw.estimatedGrossProfitUsd ?? USD,
+  estimatedGrossProfitToman: raw.estimatedGrossProfitToman ?? null,
+  estimatedMarginPercent: raw.estimatedMarginPercent ?? "0",
 });
 
 const toBackendPayload = (data: Record<string, unknown>) => ({
   name: data.title,
   time: data.duration ? Number(data.duration) : 0,
   price: data.price ? Number(data.price) : 0,
+  // USD pricing converted from the Toman input; the backend derives price_toman from it
+  price_usd: data.priceUsd ?? null,
+  category_id: data.categoryId ?? null,
+  compensation_role: data.compensationRole ?? "none",
   description: data.description ?? "",
   is_active: data.isActive ?? true,
 });

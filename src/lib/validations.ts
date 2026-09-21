@@ -34,3 +34,17 @@ export const patientFormSchema = z.object({
 });
 
 export type PatientFormSchema = z.infer<typeof patientFormSchema>;
+
+export const compensationRoles = ["none", "doctor", "facial", "laser"] as const;
+
+export const serviceFormSchema = z.object({
+  title: z.string().min(2, "نام خدمت باید حداقل ۲ کاراکتر باشد"),
+  duration: z.coerce.number().positive("مدت زمان باید بزرگ‌تر از صفر باشد"),
+  // Toman price as entered; converted to USD with the current rate on save
+  priceToman: z.coerce.number().positive("قیمت باید بزرگ‌تر از صفر باشد"),
+  description: z.string().optional(),
+  categoryId: z.string().optional(),
+  compensationRole: z.enum(compensationRoles).optional(),
+});
+
+export type ServiceFormSchema = z.infer<typeof serviceFormSchema>;

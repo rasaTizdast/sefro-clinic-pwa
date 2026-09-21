@@ -97,6 +97,17 @@ describe("TransactionDetailModal", () => {
       description: "معاینه کامل",
       price: 250000,
       isActive: true,
+      priceUsd: "0.00",
+      priceToman: null,
+      exchangeRate: null,
+      category: null,
+      compensationRole: "none" as const,
+      products: [],
+      estimatedCostUsd: "0.00",
+      estimatedCostToman: null,
+      estimatedGrossProfitUsd: "0.00",
+      estimatedGrossProfitToman: null,
+      estimatedMarginPercent: "0",
     };
     render(
       <TransactionDetailModal

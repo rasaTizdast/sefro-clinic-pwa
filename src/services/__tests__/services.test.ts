@@ -57,9 +57,34 @@ describe("services service", () => {
         name: "کوتاهی مو",
         time: 30,
         price: 150000,
+        price_usd: null,
+        category_id: null,
+        compensation_role: "none",
         description: "",
         is_active: true,
       });
+    });
+
+    it("sends price_usd, category_id and compensation_role", async () => {
+      mock.post.mockResolvedValue({ data: { id: 2 } });
+      await createService({
+        title: "لیزر",
+        duration: 45,
+        price: 5000000,
+        description: "",
+        isActive: true,
+        priceUsd: "50.00",
+        categoryId: 3,
+        compensationRole: "laser",
+      });
+      expect(mock.post).toHaveBeenCalledWith(
+        "/services/",
+        expect.objectContaining({
+          price_usd: "50.00",
+          category_id: 3,
+          compensation_role: "laser",
+        })
+      );
     });
   });
 
@@ -71,6 +96,9 @@ describe("services service", () => {
         name: "رنگ مو",
         time: 60,
         price: 300000,
+        price_usd: null,
+        category_id: null,
+        compensation_role: "none",
         description: "",
         is_active: true,
       });
@@ -87,6 +115,60 @@ describe("services service", () => {
       expect(result.duration).toBe(30);
       expect(result.price).toBe(150000);
       expect(result.isActive).toBe(true);
+    });
+
+    it("maps USD pricing, category, compensation role and consumables", async () => {
+      mock.get.mockResolvedValue({
+        data: {
+          id: 2,
+          name: "لیزر",
+          time: 45,
+          price: "5000000",
+          isActive: true,
+          priceUsd: "50.00",
+          priceToman: "5000000",
+          exchangeRate: "100000.00",
+          category: {
+            id: 3,
+            name: "لیزر",
+            slug: "laser",
+            description: "",
+            isActive: true,
+            sortOrder: 1,
+          },
+          compensationRole: "laser",
+          products: [
+            {
+              product: 7,
+              name: "ژل",
+              quantity: "1.500",
+              unitCostUsd: "2.00",
+              totalCostUsd: "3.00",
+            },
+          ],
+          estimatedCostUsd: "3.00",
+          estimatedCostToman: "300000",
+          estimatedGrossProfitUsd: "47.00",
+          estimatedGrossProfitToman: "4700000",
+          estimatedMarginPercent: "94.0",
+        },
+      });
+      const result = await getService(2);
+      expect(result.priceUsd).toBe("50.00");
+      expect(result.category?.name).toBe("لیزر");
+      expect(result.compensationRole).toBe("laser");
+      expect(result.products).toHaveLength(1);
+      expect(result.products[0].name).toBe("ژل");
+      expect(result.estimatedMarginPercent).toBe("94.0");
+    });
+
+    it("defaults the finance fields when the backend omits them", async () => {
+      mock.get.mockResolvedValue({ data: { id: 3, name: "قدیمی", time: 20 } });
+      const result = await getService(3);
+      expect(result.priceUsd).toBe("0.00");
+      expect(result.category).toBeNull();
+      expect(result.compensationRole).toBe("none");
+      expect(result.products).toEqual([]);
     });
   });
 

@@ -4,36 +4,26 @@ import { CiEdit, CiTrash } from "react-icons/ci";
 
 import { SearchButton } from "../components/SearchButton";
 import { PackagesTab } from "../components/services/PackagesTab";
-import { Alert } from "../components/ui/Alert";
+import { ServiceDetailModal } from "../components/services/ServiceDetailModal";
+import { ServiceFormModal } from "../components/services/ServiceFormModal";
+import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import { Input } from "../components/ui/Input";
-import { Modal } from "../components/ui/Modal";
 import { Pagination } from "../components/ui/Pagination";
 import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
 import { TabPanel, Tabs } from "../components/ui/Tabs";
-import { Textarea } from "../components/ui/Textarea";
 import { Toggle } from "../components/ui/Toggle";
 import { useAuth } from "../contexts/AuthContext";
 import {
-  useCreateService,
   useDeleteService,
+  useServiceCategories,
   useServicesList,
   useUpdateService,
 } from "../hooks/api";
-import { extractApiError } from "../lib/api-error";
-import { toLatinDigits } from "../lib/digits";
 import { formatPrice } from "../lib/format";
-import type { Service, ServiceFormData } from "../types/service";
-
-const initialForm: ServiceFormData = {
-  title: "",
-  duration: 0,
-  price: 0,
-  description: "",
-  isActive: true,
-};
+import type { CompensationRole } from "../types/finance";
+import type { Service } from "../types/service";
 
 const PAGE_SIZE = 6;
 
@@ -42,77 +32,51 @@ const statusConfig: Record<string, { label: string; variant: "success" | "warnin
   inactive: { label: "غیرفعال", variant: "warning" },
 };
 
+const roleLabels: Record<CompensationRole, string> = {
+  doctor: "پزشک",
+  facial: "فیشال",
+  laser: "لیزر",
+  none: "بدون پورسانت",
+};
+
 function Services() {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("services");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [form, setForm] = useState<ServiceFormData>(initialForm);
-  const [formError, setFormError] = useState("");
+  const [detailService, setDetailService] = useState<Service | null>(null);
 
   const { user } = useAuth();
   const { data: paginated, isLoading } = useServicesList({ page: currentPage, perPage: PAGE_SIZE });
-  const createMutation = useCreateService();
+  const { data: categories } = useServiceCategories();
   const updateMutation = useUpdateService();
   const deleteMutation = useDeleteService();
 
   const isAdmin = user?.role === "admin";
 
   const services = paginated?.data ?? [];
+  const filtered = categoryFilter
+    ? services.filter((s) => s.category && String(s.category.id) === categoryFilter)
+    : services;
 
-  const totalPages = paginated?.totalPages ?? Math.max(1, Math.ceil(services.length / PAGE_SIZE));
+  const totalPages = paginated?.totalPages ?? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
-  const paginatedServices = services.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const paginatedServices = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   function openAddModal() {
     setEditingService(null);
-    setForm(initialForm);
-    setFormError("");
     setModalOpen(true);
   }
 
   function openEditModal(service: Service) {
     setEditingService(service);
-    setForm({
-      title: service.title,
-      duration: service.duration,
-      price: service.price,
-      description: service.description,
-      isActive: service.isActive,
-    });
-    setFormError("");
     setModalOpen(true);
   }
 
   function closeModal() {
     setModalOpen(false);
     setEditingService(null);
-    setFormError("");
-  }
-
-  function handleFormChange(field: keyof ServiceFormData, value: string | number | boolean) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  async function handleSave() {
-    const payload: Record<string, unknown> = {
-      title: form.title,
-      duration: Number(form.duration),
-      price: Number(form.price),
-      description: form.description,
-      isActive: form.isActive,
-    };
-
-    try {
-      if (editingService) {
-        await updateMutation.mutateAsync({ id: editingService.id, data: payload });
-      } else {
-        await createMutation.mutateAsync(payload);
-      }
-      closeModal();
-    } catch (err: unknown) {
-      setFormError(extractApiError(err));
-    }
   }
 
   function handleDelete(service: Service) {
@@ -121,6 +85,10 @@ function Services() {
 
   function buildActions(service: Service) {
     const items: Record<string, unknown>[] = [
+      {
+        label: "جزئیات",
+        onClick: () => setDetailService(service),
+      },
       {
         label: "ویرایش",
         icon: <CiEdit className="size-4" />,
@@ -141,6 +109,19 @@ function Services() {
   const columns: Column<Service>[] = [
     { key: "title", header: "عنوان خدمت" },
     {
+      key: "category",
+      header: "دسته‌بندی",
+      align: "center",
+      render: (item) =>
+        item.category ? (
+          <Badge variant="info" size="sm">
+            {item.category.name}
+          </Badge>
+        ) : (
+          <span className="text-surface-400">—</span>
+        ),
+    },
+    {
       key: "duration",
       header: "مدت (دقیقه)",
       align: "center",
@@ -148,9 +129,26 @@ function Services() {
     },
     {
       key: "price",
-      header: "قیمت (تومان)",
+      header: "قیمت",
       align: "end",
-      render: (item) => <span className="font-medium">{formatPrice(item.price)}</span>,
+      render: (item) => (
+        <span>
+          <span className="font-medium">
+            {formatPrice(item.priceToman != null ? Number(item.priceToman) : item.price)} تومان
+          </span>{" "}
+          <span className="text-surface-400 text-xs">${item.priceUsd}</span>
+        </span>
+      ),
+    },
+    {
+      key: "role",
+      header: "پورسانت",
+      align: "center",
+      render: (item) => (
+        <Badge variant={item.compensationRole === "none" ? "default" : "success"} size="sm">
+          {roleLabels[item.compensationRole]}
+        </Badge>
+      ),
     },
     {
       key: "isActive",
@@ -230,6 +228,20 @@ function Services() {
       />
 
       <TabPanel id="services" activeTab={activeTab}>
+        <div className="mb-4 w-full sm:w-64">
+          <Select
+            label="دسته‌بندی"
+            options={[
+              { value: "", label: "همه دسته‌ها" },
+              ...(categories ?? []).map((c) => ({ value: String(c.id), label: c.name })),
+            ]}
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
         <Card variant="outlined" padding="none" data-tour="srv-table">
           <Table
             columns={columns}
@@ -252,68 +264,10 @@ function Services() {
         <PackagesTab />
       </TabPanel>
 
-      <Modal
-        open={modalOpen}
-        onClose={closeModal}
-        title={editingService ? "ویرایش خدمت" : "خدمت جدید"}
-        size="lg"
-        footer={
-          <>
-            <Button variant="outline" onClick={closeModal}>
-              انصراف
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleSave}
-              disabled={!form.title || !form.duration || !form.price}
-            >
-              ذخیره
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          {formError && <Alert variant="error">{formError}</Alert>}
-          <Input
-            label="نام خدمت"
-            value={form.title}
-            onChange={(e) => handleFormChange("title", e.target.value)}
-            placeholder="مثال: فیشال صورت"
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="مدت زمان (دقیقه)"
-              type="number"
-              value={form.duration}
-              onChange={(e) => handleFormChange("duration", e.target.value)}
-              placeholder="مثال: ۳۰"
-            />
-            <Input
-              label="قیمت (تومان)"
-              type="text"
-              inputMode="numeric"
-              value={form.price ? formatPrice(Number(form.price)) : ""}
-              onChange={(e) => {
-                const latin = toLatinDigits(e.target.value.replace(/[^\d۰-۹٠-٩]/g, ""));
-                handleFormChange("price", Number(latin) || 0);
-              }}
-              placeholder="مثال: ۳۵۰٬۰۰۰"
-            />
-          </div>
-          <Textarea
-            label="توضیحات"
-            value={form.description}
-            onChange={(e) => handleFormChange("description", e.target.value)}
-            placeholder="توضیحات مربوط به خدمت..."
-            rows={3}
-          />
-          <Toggle
-            label="وضعیت"
-            checked={form.isActive}
-            onChange={(e) => handleFormChange("isActive", e.target.checked)}
-          />
-        </div>
-      </Modal>
+      {modalOpen && <ServiceFormModal service={editingService} onClose={closeModal} />}
+      {detailService && (
+        <ServiceDetailModal service={detailService} onClose={() => setDetailService(null)} />
+      )}
     </div>
   );
 }
