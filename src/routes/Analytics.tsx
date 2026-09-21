@@ -21,11 +21,14 @@ import {
   YAxis,
 } from "recharts";
 
+import { FinancialSummaryTab } from "../components/analytics/FinancialSummaryTab";
+import { ProfitBreakdownTab } from "../components/analytics/ProfitBreakdownTab";
 import { SearchButton } from "../components/SearchButton";
 import { Button } from "../components/ui/Button";
 import { Card, CardTitle } from "../components/ui/Card";
 import { Select } from "../components/ui/Select";
 import { Skeleton } from "../components/ui/Skeleton";
+import { TabPanel, Tabs } from "../components/ui/Tabs";
 import {
   useAllReports,
   useCustomerBreakdown,
@@ -40,6 +43,11 @@ import type {
   MonthlyRevenue,
   ServiceCategoryStat,
 } from "../types/analytics";
+
+const analyticsTabs = [
+  { id: "overview", label: "عمومی" },
+  { id: "financial", label: "مالی" },
+];
 
 const dateRangeOptions = [
   { value: "today", label: "امروز" },
@@ -60,6 +68,7 @@ function toShamsiISO(date: Date): string {
 
 function Analytics() {
   const [dateRange, setDateRange] = useState("year");
+  const [analyticsTab, setAnalyticsTab] = useState("overview");
   const { data: allReports, isLoading: allLoading } = useAllReports();
 
   const dateParams = useMemo(() => {
@@ -201,159 +210,174 @@ function Analytics() {
         </div>
       </div>
 
-      <div className="w-full sm:w-64" data-tour="anl-filter">
-        <Select
-          options={dateRangeOptions}
-          value={dateRange}
-          onChange={(e) => setDateRange(e.target.value)}
-        />
-      </div>
+      <Tabs tabs={analyticsTabs} activeTab={analyticsTab} onChange={setAnalyticsTab} />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" data-tour="anl-kpis">
-        {kpiStats.map((stat) => (
-          <Card key={stat.title} variant="outlined" padding="lg">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col gap-1">
-                <span className="text-surface-500 text-sm">{stat.title}</span>
-                <span className="text-surface-900 text-2xl font-bold">{stat.value}</span>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className="text-primary-600">{stat.icon}</span>
-                <span
-                  className={`text-sm font-semibold ${stat.trend === "up" ? "text-success-600" : "text-danger-600"}`}
-                >
-                  {stat.change}
-                </span>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-5">
-        <Card variant="outlined" padding="lg" className="xl:col-span-3" data-tour="anl-revenue">
-          <CardTitle>روند درآمد ماهانه</CardTitle>
-          <div className="mt-4" dir="ltr">
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={monthlyRevenue}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
-                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
-                <Tooltip
-                  formatter={(value) => [`${formatCurrency(Number(value))} تومان`, "درآمد"]}
-                  contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#2563eb"
-                  strokeWidth={2}
-                  dot={{ fill: "#2563eb", r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+      <TabPanel id="overview" activeTab={analyticsTab}>
+        <div className="flex flex-col gap-6">
+          <div className="w-full sm:w-64" data-tour="anl-filter">
+            <Select
+              options={dateRangeOptions}
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+            />
           </div>
-        </Card>
 
-        <Card variant="outlined" padding="lg" className="xl:col-span-2" data-tour="anl-status">
-          <CardTitle>وضعیت نوبت‌ها</CardTitle>
-          <div className="mt-4" dir="ltr">
-            <ResponsiveContainer width="100%" height={320}>
-              <PieChart>
-                <Pie
-                  data={appointmentStatusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={110}
-                  dataKey="value"
-                  paddingAngle={3}
-                >
-                  {appointmentStatusData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value) => [Number(value), "تعداد"]}
-                  contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  formatter={(value: string) => (
-                    <span style={{ color: "#334155", fontSize: 12 }}>{value}</span>
-                  )}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-4 flex flex-wrap justify-center gap-4">
-            {appointmentStatusData.map((item) => (
-              <div key={item.name} className="text-surface-600 flex items-center gap-2 text-sm">
-                <span className="size-3 rounded-sm" style={{ backgroundColor: item.color }} />
-                <span>{item.name}</span>
-                <span className="text-surface-900 font-medium">{item.value}</span>
-              </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" data-tour="anl-kpis">
+            {kpiStats.map((stat) => (
+              <Card key={stat.title} variant="outlined" padding="lg">
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-surface-500 text-sm">{stat.title}</span>
+                    <span className="text-surface-900 text-2xl font-bold">{stat.value}</span>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-primary-600">{stat.icon}</span>
+                    <span
+                      className={`text-sm font-semibold ${stat.trend === "up" ? "text-success-600" : "text-danger-600"}`}
+                    >
+                      {stat.change}
+                    </span>
+                  </div>
+                </div>
+              </Card>
             ))}
           </div>
-        </Card>
-      </div>
 
-      <div className="grid gap-6 xl:grid-cols-2" data-tour="anl-charts">
-        <Card variant="outlined" padding="lg">
-          <CardTitle>مقایسه مراجعه بیماران</CardTitle>
-          <div className="mt-4" dir="ltr">
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={visitComparisonData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="period" tick={{ fontSize: 12, fill: "#64748b" }} />
-                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} allowDecimals={false} />
-                <Tooltip
-                  formatter={(value) => [Number(value), "مراجعه"]}
-                  contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
-                />
-                <Bar dataKey="visits" fill="#2563eb" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          {visitReports?.changePercent != null && (
-            <p className="text-surface-600 mt-4 flex items-center justify-center gap-1 text-sm">
-              <span
-                className={visitReports.changePercent >= 0 ? "text-success-600" : "text-danger-600"}
-              >
-                {formatCurrency(Math.abs(visitReports.changePercent))}٪
-              </span>
-              نسبت به دوره قبل
-            </p>
-          )}
-        </Card>
+          <div className="grid gap-6 xl:grid-cols-5">
+            <Card variant="outlined" padding="lg" className="xl:col-span-3" data-tour="anl-revenue">
+              <CardTitle>روند درآمد ماهانه</CardTitle>
+              <div className="mt-4" dir="ltr">
+                <ResponsiveContainer width="100%" height={320}>
+                  <LineChart data={monthlyRevenue}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
+                    <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
+                    <Tooltip
+                      formatter={(value) => [`${formatCurrency(Number(value))} تومان`, "درآمد"]}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#2563eb"
+                      strokeWidth={2}
+                      dot={{ fill: "#2563eb", r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
 
-        <Card variant="outlined" padding="lg">
-          <CardTitle>محبوبیت دسته‌بندی خدمات</CardTitle>
-          <div className="mt-4" dir="ltr">
-            <ResponsiveContainer width="100%" height={320}>
-              <AreaChart data={serviceCategoryData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#64748b" }} />
-                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
-                <Tooltip
-                  formatter={(value) => [Number(value), "تعداد"]}
-                  contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#2563eb"
-                  fill="#2563eb"
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <Card variant="outlined" padding="lg" className="xl:col-span-2" data-tour="anl-status">
+              <CardTitle>وضعیت نوبت‌ها</CardTitle>
+              <div className="mt-4" dir="ltr">
+                <ResponsiveContainer width="100%" height={320}>
+                  <PieChart>
+                    <Pie
+                      data={appointmentStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={70}
+                      outerRadius={110}
+                      dataKey="value"
+                      paddingAngle={3}
+                    >
+                      {appointmentStatusData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value) => [Number(value), "تعداد"]}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
+                    />
+                    <Legend
+                      verticalAlign="bottom"
+                      height={36}
+                      formatter={(value: string) => (
+                        <span style={{ color: "#334155", fontSize: 12 }}>{value}</span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 flex flex-wrap justify-center gap-4">
+                {appointmentStatusData.map((item) => (
+                  <div key={item.name} className="text-surface-600 flex items-center gap-2 text-sm">
+                    <span className="size-3 rounded-sm" style={{ backgroundColor: item.color }} />
+                    <span>{item.name}</span>
+                    <span className="text-surface-900 font-medium">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
           </div>
-        </Card>
-      </div>
+
+          <div className="grid gap-6 xl:grid-cols-2" data-tour="anl-charts">
+            <Card variant="outlined" padding="lg">
+              <CardTitle>مقایسه مراجعه بیماران</CardTitle>
+              <div className="mt-4" dir="ltr">
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart data={visitComparisonData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="period" tick={{ fontSize: 12, fill: "#64748b" }} />
+                    <YAxis tick={{ fontSize: 12, fill: "#64748b" }} allowDecimals={false} />
+                    <Tooltip
+                      formatter={(value) => [Number(value), "مراجعه"]}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
+                    />
+                    <Bar dataKey="visits" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              {visitReports?.changePercent != null && (
+                <p className="text-surface-600 mt-4 flex items-center justify-center gap-1 text-sm">
+                  <span
+                    className={
+                      visitReports.changePercent >= 0 ? "text-success-600" : "text-danger-600"
+                    }
+                  >
+                    {formatCurrency(Math.abs(visitReports.changePercent))}٪
+                  </span>
+                  نسبت به دوره قبل
+                </p>
+              )}
+            </Card>
+
+            <Card variant="outlined" padding="lg">
+              <CardTitle>محبوبیت دسته‌بندی خدمات</CardTitle>
+              <div className="mt-4" dir="ltr">
+                <ResponsiveContainer width="100%" height={320}>
+                  <AreaChart data={serviceCategoryData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#64748b" }} />
+                    <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
+                    <Tooltip
+                      formatter={(value) => [Number(value), "تعداد"]}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#2563eb"
+                      fill="#2563eb"
+                      fillOpacity={0.15}
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </TabPanel>
+
+      <TabPanel id="financial" activeTab={analyticsTab}>
+        <div className="flex flex-col gap-8">
+          <FinancialSummaryTab />
+          <ProfitBreakdownTab />
+        </div>
+      </TabPanel>
     </div>
   );
 }

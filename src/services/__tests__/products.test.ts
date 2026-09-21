@@ -110,4 +110,30 @@ describe("products service", () => {
     await deleteProduct(1);
     expect(mock.delete).toHaveBeenCalledWith("/inventory/products/1/");
   });
+
+  it("maps costUsd and defaults it to null", async () => {
+    mock.get.mockResolvedValue({
+      data: { id: 1, name: "شامپو", count: 10, costUsd: "1.50" },
+    });
+    const result = await getProduct(1);
+    expect(result.costUsd).toBe("1.50");
+
+    mock.get.mockResolvedValue({ data: { id: 2, name: "صابون", count: 3 } });
+    const fallback = await getProduct(2);
+    expect(fallback.costUsd).toBeNull();
+  });
+
+  it("sends cost_usd only when the caller provides it", async () => {
+    mock.post.mockResolvedValue({ data: { id: 1 } });
+    await createProduct({ name: "شامپو", stock: 10, unit: "عدد", costUsd: "1.50" });
+    expect(mock.post).toHaveBeenCalledWith(
+      "/inventory/products/",
+      expect.objectContaining({ cost_usd: "1.50" })
+    );
+
+    mock.post.mockResolvedValue({ data: { id: 2 } });
+    await createProduct({ name: "صابون", stock: 3, unit: "عدد" });
+    const payload = mock.post.mock.calls[1][1] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("cost_usd");
+  });
 });

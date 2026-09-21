@@ -2,7 +2,7 @@ import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
-import type { ProductStatus,WarehouseItem } from "../types/warehouse";
+import type { ProductStatus, WarehouseItem } from "../types/warehouse";
 
 type RawProduct = Record<string, unknown> & {
   id: number;
@@ -12,6 +12,7 @@ type RawProduct = Record<string, unknown> & {
   unitPrice?: string;
   description?: string;
   status?: string;
+  costUsd?: string | null;
 };
 
 const toWarehouseItem = (raw: RawProduct): WarehouseItem => ({
@@ -22,6 +23,7 @@ const toWarehouseItem = (raw: RawProduct): WarehouseItem => ({
   unitPrice: raw.unitPrice ?? "0",
   description: raw.description ?? "",
   status: (raw.status as ProductStatus) ?? "available",
+  costUsd: raw.costUsd ?? null,
 });
 
 const toBackendPayload = (data: Record<string, unknown>) => ({
@@ -30,6 +32,8 @@ const toBackendPayload = (data: Record<string, unknown>) => ({
   unit: data.unit ?? "",
   unit_price: data.unitPrice ? Number(data.unitPrice) : 0,
   description: data.description ?? "",
+  // cost_usd is only sent when the caller converted a Toman cost (else the backend keeps it)
+  ...(data.costUsd !== undefined ? { cost_usd: data.costUsd } : {}),
 });
 
 export const listProducts = async (

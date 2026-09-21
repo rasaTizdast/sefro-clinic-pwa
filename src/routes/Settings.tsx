@@ -2,6 +2,9 @@ import { useState } from "react";
 import { BiLock, BiPencil, BiPlus, BiTrash, BiUser } from "react-icons/bi";
 
 import { SearchButton } from "../components/SearchButton";
+import { CompensationRulesTab } from "../components/settings/CompensationRulesTab";
+import { ExchangeRatesTab } from "../components/settings/ExchangeRatesTab";
+import { ServiceCategoriesTab } from "../components/settings/ServiceCategoriesTab";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -9,6 +12,7 @@ import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import type { Column } from "../components/ui/Table";
 import { Table } from "../components/ui/Table";
+import { TabPanel, Tabs } from "../components/ui/Tabs";
 import { useToast } from "../components/ui/Toast";
 import {
   useCreateEmployee,
@@ -18,6 +22,13 @@ import {
 } from "../hooks/api";
 import { usePermissions } from "../hooks/usePermissions";
 import type { ClinicUser, UserRole } from "../types/settings";
+
+const settingsTabs = [
+  { id: "users", label: "کاربران" },
+  { id: "exchange-rates", label: "نرخ ارز" },
+  { id: "compensation-rules", label: "قوانین تسویه" },
+  { id: "service-categories", label: "دسته‌بندی خدمات" },
+];
 
 const roleBadgeVariant: Record<UserRole, "success" | "info" | "warning"> = {
   مدیر: "success",
@@ -32,6 +43,8 @@ const statusMap: Record<ClinicUser["status"], { label: string; variant: "success
 
 function Settings() {
   const toast = useToast();
+  const { canManageUsers, canManageFinance } = usePermissions();
+  const [activeTab, setActiveTab] = useState("users");
 
   const { data: employees, isLoading: employeesLoading } = useEmployees();
   const createEmployee = useCreateEmployee();
@@ -48,7 +61,9 @@ function Settings() {
     phoneNumber: "",
   });
 
-  const { canManageUsers } = usePermissions();
+  const visibleTabs = canManageFinance
+    ? settingsTabs
+    : settingsTabs.filter((t) => t.id === "users");
 
   const users: ClinicUser[] = Array.isArray(employees)
     ? employees.map((emp) => ({
@@ -168,31 +183,47 @@ function Settings() {
         <SearchButton />
       </div>
 
-      <div className="flex flex-col gap-4" data-tour="set-users">
-        {canManageUsers && (
-          <>
-            <div className="flex items-center justify-between">
-              <h2 className="text-surface-900 text-lg font-semibold">مدیریت کاربران</h2>
-              <Button
-                variant="primary"
-                startIcon={<BiPlus className="size-5" />}
-                onClick={handleOpenUserModal}
-              >
-                کاربر جدید
-              </Button>
-            </div>
+      <Tabs tabs={visibleTabs} activeTab={activeTab} onChange={setActiveTab} />
 
-            <Card variant="outlined" padding="none">
-              <Table
-                columns={userColumns}
-                data={users}
-                rowKey={(user) => user.id}
-                loading={employeesLoading}
-              />
-            </Card>
-          </>
-        )}
-      </div>
+      <TabPanel id="users" activeTab={activeTab}>
+        <div className="flex flex-col gap-4" data-tour="set-users">
+          {canManageUsers && (
+            <>
+              <div className="flex items-center justify-between">
+                <h2 className="text-surface-900 text-lg font-semibold">مدیریت کاربران</h2>
+                <Button
+                  variant="primary"
+                  startIcon={<BiPlus className="size-5" />}
+                  onClick={handleOpenUserModal}
+                >
+                  کاربر جدید
+                </Button>
+              </div>
+
+              <Card variant="outlined" padding="none">
+                <Table
+                  columns={userColumns}
+                  data={users}
+                  rowKey={(user) => user.id}
+                  loading={employeesLoading}
+                />
+              </Card>
+            </>
+          )}
+        </div>
+      </TabPanel>
+
+      <TabPanel id="exchange-rates" activeTab={activeTab}>
+        <ExchangeRatesTab />
+      </TabPanel>
+
+      <TabPanel id="compensation-rules" activeTab={activeTab}>
+        <CompensationRulesTab />
+      </TabPanel>
+
+      <TabPanel id="service-categories" activeTab={activeTab}>
+        <ServiceCategoriesTab />
+      </TabPanel>
 
       <Modal
         open={userModalOpen}

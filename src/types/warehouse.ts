@@ -8,4 +8,6 @@ export interface WarehouseItem {
   unitPrice: string;
   description: string;
   status: ProductStatus;
+  /** Current unit cost (USD string); null when the backend has no cost yet. */
+  costUsd: string | null;
 }

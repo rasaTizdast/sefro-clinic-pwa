@@ -6,7 +6,6 @@ import { IoAnalytics } from "react-icons/io5";
 import {
   MdEventAvailable,
   MdMedicalServices,
-  MdPayments,
   MdPeople,
   MdPersonAdd,
   MdStar,
@@ -15,6 +14,8 @@ import {
 import { PiChartPieSliceDuotone } from "react-icons/pi";
 import { useNavigate } from "react-router";
 
+import { ExchangeRateCard } from "../components/dashboard/ExchangeRateCard";
+import { FinanceKpiCards } from "../components/dashboard/FinanceKpiCards";
 import { PatientFormModal } from "../components/patients/PatientFormModal";
 import { SearchButton } from "../components/SearchButton";
 import { Alert } from "../components/ui/Alert";
@@ -157,7 +158,7 @@ function Dashboard() {
           value: toPersianDigits(dashboardStats.todaySales.toLocaleString("fa-IR")),
           change: "",
           trend: "flat",
-          icon: <MdPayments className="size-5" />,
+          icon: <CiMoneyBill className="size-5" />,
           variant: "success",
         },
         {
@@ -318,6 +319,12 @@ function Dashboard() {
             </div>
           </Card>
         ))}
+      </div>
+
+      <FinanceKpiCards />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <ExchangeRateCard />
       </div>
 
       <Card variant="outlined" padding="lg" data-tour="dash-quick-actions">

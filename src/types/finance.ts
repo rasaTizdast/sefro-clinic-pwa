@@ -178,6 +178,7 @@ export interface ProductCostHistory {
   costUsd: string;
   effectiveFrom: string;
   effectiveTo: string | null;
+  createdAt: string;
 }
 
 export interface FinancialSummary {

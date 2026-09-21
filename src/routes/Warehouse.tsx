@@ -11,7 +11,10 @@ import { Modal } from "../components/ui/Modal";
 import { Pagination } from "../components/ui/Pagination";
 import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
+import { TabPanel, Tabs } from "../components/ui/Tabs";
 import { Textarea } from "../components/ui/Textarea";
+import { PurchasesTab } from "../components/warehouse/PurchasesTab";
+import { UsagesTab } from "../components/warehouse/UsagesTab";
 import { useAuth } from "../contexts/AuthContext";
 import {
   useCreateProduct,
@@ -37,8 +40,15 @@ function getStatus(stock: number): { label: string; variant: "success" | "warnin
   return { label: "موجود", variant: "success" };
 }
 
+const warehouseTabs = [
+  { id: "products", label: "محصولات" },
+  { id: "purchases", label: "خریدها" },
+  { id: "usages", label: "مصرف" },
+];
+
 function Warehouse() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState("products");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
@@ -204,42 +214,67 @@ function Warehouse() {
           مدیریت انبار
         </h1>
         <div className="mt-3 flex items-center gap-3 sm:mt-0">
-          <Button
-            variant="primary"
-            startIcon={<BiPlus className="size-5" />}
-            onClick={openNewModal}
-          >
-            محصول جدید
-          </Button>
+          {activeTab === "products" && (
+            <Button
+              variant="primary"
+              startIcon={<BiPlus className="size-5" />}
+              onClick={openNewModal}
+            >
+              محصول جدید
+            </Button>
+          )}
           <SearchButton />
         </div>
       </div>
 
-      <div data-tour="wh-alert">
-        {lowStockCount > 0 && (
-          <Alert variant="warning" title="هشدار موجودی">
-            {lowStockCount} محصول در انبار دارای موجودی کم یا صفر هستند. لطفاً نسبت به تامین آنها
-            اقدام کنید.
-          </Alert>
-        )}
-      </div>
+      <Tabs tabs={warehouseTabs} activeTab={activeTab} onChange={setActiveTab} />
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="w-full shrink-0 sm:w-64" data-tour="wh-search">
-          <Input
-            placeholder="جستجوی محصول..."
-            startIcon={<BiSearch className="size-4" />}
-            value={searchQuery}
-            onChange={handleSearchChange}
+      <TabPanel id="products" activeTab={activeTab}>
+        <div className="flex flex-col gap-6">
+          <div data-tour="wh-alert">
+            {lowStockCount > 0 && (
+              <Alert variant="warning" title="هشدار موجودی">
+                {lowStockCount} محصول در انبار دارای موجودی کم یا صفر هستند. لطفاً نسبت به تامین
+                آنها اقدام کنید.
+              </Alert>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="w-full shrink-0 sm:w-64" data-tour="wh-search">
+              <Input
+                placeholder="جستجوی محصول..."
+                startIcon={<BiSearch className="size-4" />}
+                value={searchQuery}
+                onChange={handleSearchChange}
+              />
+            </div>
+          </div>
+
+          <Card variant="outlined" padding="none" data-tour="wh-table">
+            <Table
+              columns={columns}
+              data={pagedData}
+              rowKey={(item) => item.id}
+              loading={isLoading}
+            />
+          </Card>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
           />
         </div>
-      </div>
+      </TabPanel>
 
-      <Card variant="outlined" padding="none" data-tour="wh-table">
-        <Table columns={columns} data={pagedData} rowKey={(item) => item.id} loading={isLoading} />
-      </Card>
+      <TabPanel id="purchases" activeTab={activeTab}>
+        <PurchasesTab />
+      </TabPanel>
 
-      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+      <TabPanel id="usages" activeTab={activeTab}>
+        <UsagesTab />
+      </TabPanel>
 
       <Modal
         open={modalOpen}
