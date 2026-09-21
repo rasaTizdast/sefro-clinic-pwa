@@ -15,13 +15,6 @@ export const queryKeys = {
     list: (params?: Record<string, unknown>) => ["visits", "list", params] as const,
     detail: (id: number) => ["visits", id] as const,
   },
-  payments: {
-    all: ["payments"] as const,
-    list: (params?: Record<string, unknown>) => ["payments", "list", params] as const,
-    detail: (id: number) => ["payments", id] as const,
-    byService: (dateFrom?: string, dateTo?: string) =>
-      ["payments", "byService", dateFrom, dateTo] as const,
-  },
   products: {
     all: ["products"] as const,
     list: (params?: PaginationParams) => ["products", "list", params] as const,

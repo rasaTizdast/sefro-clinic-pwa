@@ -26,11 +26,6 @@ export const endpoints = {
     cancel: (id: number) => `/visits/${id}/cancel/`,
     reserve: "/visits/reserve/",
   },
-  payments: {
-    list: "/payments/",
-    detail: (id: number) => `/payments/${id}/`,
-    byService: "/payments/by_service/",
-  },
   products: {
     list: "/inventory/products/",
     detail: (id: number) => `/inventory/products/${id}/`,

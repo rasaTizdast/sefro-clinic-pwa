@@ -1,4 +1,3 @@
-export type { AccountingStat, DailyRevenue, Transaction, TransactionStatus } from "./accounting";
 export type {
   AppointmentStat,
   KpiStat,

@@ -33,12 +33,6 @@ export {
 export { useLog, useLogsList } from "./useLogsQuery";
 export { useDeletePackage, usePackage, usePackagesList, useSavePackage } from "./usePackagesQuery";
 export {
-  useCreatePayment,
-  usePayment,
-  usePaymentsByService,
-  usePaymentsList,
-} from "./usePaymentsQuery";
-export {
   useCompensationRules,
   usePayoutsList,
   usePayoutSummary,
