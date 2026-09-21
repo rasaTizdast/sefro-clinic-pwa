@@ -15,6 +15,7 @@ export {
   useUpdateCustomer,
 } from "./useCustomersQuery";
 export { useDashboardStats } from "./useDashboardQuery";
+export { useCreateExchangeRate, useCurrentRate, useExchangeRates } from "./useExchangeRatesQuery";
 export { useLog, useLogsList } from "./useLogsQuery";
 export {
   useCreatePayment,
