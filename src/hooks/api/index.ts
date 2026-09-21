@@ -17,6 +17,7 @@ export {
 export { useDashboardStats } from "./useDashboardQuery";
 export { useCreateExchangeRate, useCurrentRate, useExchangeRates } from "./useExchangeRatesQuery";
 export { useLog, useLogsList } from "./useLogsQuery";
+export { usePackage, usePackagesList, useSavePackage } from "./usePackagesQuery";
 export {
   useCreatePayment,
   usePayment,

@@ -73,7 +73,9 @@ export const endpoints = {
     list: "/finance/packages/",
     detail: (id: number) => `/finance/packages/${id}/`,
     items: "/finance/package-items/",
+    itemDetail: (id: number) => `/finance/package-items/${id}/`,
     services: "/finance/package-services/",
+    serviceDetail: (id: number) => `/finance/package-services/${id}/`,
   },
   serviceCategories: {
     list: "/service-categories/",
