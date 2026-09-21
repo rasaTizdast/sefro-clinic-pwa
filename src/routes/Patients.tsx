@@ -86,7 +86,7 @@ function Patients() {
     return unregister;
   }, [registerAction]);
 
-  const patients = paginated?.data ?? [];
+  const patients = useMemo(() => paginated?.data ?? [], [paginated?.data]);
   const totalPages = paginated?.totalPages ?? 1;
 
   const tabCounts = useMemo(() => {
