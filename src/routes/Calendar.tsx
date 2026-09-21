@@ -13,6 +13,7 @@ import {
   BiTime,
 } from "react-icons/bi";
 
+import { VisitCheckoutModal } from "../components/accounting/VisitCheckoutModal";
 import { SearchButton } from "../components/SearchButton";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -252,6 +253,7 @@ function Calendar() {
   const [editNotes, setEditNotes] = useState("");
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [checkoutAppointment, setCheckoutAppointment] = useState<Appointment | null>(null);
 
   const [mobileView, setMobileView] = useState<"timeline" | "list">("list");
 
@@ -1475,6 +1477,14 @@ function Calendar() {
           آیا از حذف این نوبت مطمئن هستید؟ این عمل قابل بازگشت نیست.
         </p>
       </Modal>
+
+      {checkoutAppointment && (
+        <VisitCheckoutModal
+          appointment={checkoutAppointment}
+          services={services}
+          onClose={() => setCheckoutAppointment(null)}
+        />
+      )}
     </div>
   );
 
@@ -1575,6 +1585,15 @@ function Calendar() {
                         لغو
                       </Button>
                     </>
+                  )}
+                  {appt.status === "completed" && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => setCheckoutAppointment(appt)}
+                    >
+                      تسویه و ثبت فروش
+                    </Button>
                   )}
                   <div className="me-auto" />
                   <Button
@@ -1690,6 +1709,11 @@ function Calendar() {
                 لغو
               </Button>
             </>
+          )}
+          {appt.status === "completed" && (
+            <Button size="sm" variant="primary" onClick={() => setCheckoutAppointment(appt)}>
+              تسویه و ثبت فروش
+            </Button>
           )}
           <div className="me-auto" />
           <Button
