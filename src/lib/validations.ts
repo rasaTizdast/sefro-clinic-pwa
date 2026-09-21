@@ -28,6 +28,9 @@ export const patientFormSchema = z.object({
     }),
   bitmojiCode: z.string().optional(),
   notes: z.string().optional(),
+  // optional Shamsi birthday — no format check; the picker guarantees the format
+  birthday: z.string().optional(),
+  fileSysId: z.string().optional(),
 });
 
 export type PatientFormSchema = z.infer<typeof patientFormSchema>;

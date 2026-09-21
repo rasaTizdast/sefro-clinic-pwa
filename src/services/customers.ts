@@ -1,5 +1,6 @@
 import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
+import { jalaliToShamsiApiDate } from "../lib/date";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
 import type { Patient, PatientFormData, PatientStatus } from "../types/patient";
@@ -19,6 +20,9 @@ type RawPatient = Record<string, unknown> & {
   isLoyalCustomer?: boolean;
   totalPayments?: number;
   createdAt?: string;
+  birthday?: string | null;
+  fileSysId?: string | null;
+  file_sys_id?: string | null;
 };
 
 const toStatus = (raw: RawPatient): PatientStatus => {
@@ -45,7 +49,21 @@ const toPatient = (raw: RawPatient): Patient => ({
   isLoyalCustomer: raw.isLoyalCustomer ?? false,
   totalPayments: Number(raw.totalPayments) || 0,
   createdAt: raw.createdAt ?? "",
+  birthday: raw.birthday ?? null,
+  fileSysId: raw.fileSysId ?? raw.file_sys_id ?? null,
 });
+
+/** Picker dates (`YYYY/MM/DD`) become Shamsi API dates (`YYYY-MM-DD`); cleared → null. */
+const toCustomerPayload = (
+  data: PatientFormData | Partial<PatientFormData>
+): Record<string, unknown> => {
+  const payload: Record<string, unknown> = { ...data };
+  if (payload.birthday !== undefined) {
+    const raw = String(payload.birthday ?? "").trim();
+    payload.birthday = raw ? jalaliToShamsiApiDate(raw) : null;
+  }
+  return payload;
+};
 
 export const listCustomers = async (
   params?: PaginationParams
@@ -73,12 +91,12 @@ export const getCustomer = async (id: number): Promise<Patient> => {
 };
 
 export const createCustomer = (customer: PatientFormData) => {
-  const payload: Record<string, unknown> = { ...customer };
+  const payload = toCustomerPayload(customer);
   if (!payload.bitmojiCode) delete payload.bitmojiCode;
   return apiClient.post(endpoints.customers.list, payload);
 };
 
 export const updateCustomer = (id: number, customer: Partial<PatientFormData>) =>
-  apiClient.put(endpoints.customers.detail(id), customer);
+  apiClient.put(endpoints.customers.detail(id), toCustomerPayload(customer));
 
 export const deleteCustomer = (id: number) => apiClient.delete(endpoints.customers.detail(id));

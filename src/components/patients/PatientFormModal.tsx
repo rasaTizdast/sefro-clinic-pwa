@@ -6,6 +6,7 @@ import type { PatientFormData } from "../../types/patient";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
+import { JalaliDatePicker } from "../ui/JalaliDatePicker";
 import { Modal } from "../ui/Modal";
 import { Textarea } from "../ui/Textarea";
 
@@ -23,6 +24,8 @@ const initialValues: PatientFormData = {
   nationalId: "",
   bitmojiCode: "",
   notes: "",
+  birthday: "",
+  fileSysId: "",
 };
 
 export function PatientFormModal({
@@ -75,6 +78,8 @@ export function PatientFormModal({
         ...result.data,
         bitmojiCode: result.data.bitmojiCode ?? "",
         notes: result.data.notes ?? "",
+        birthday: result.data.birthday ?? "",
+        fileSysId: result.data.fileSysId ?? "",
       });
       onClose();
     } catch (err: unknown) {
@@ -166,6 +171,31 @@ export function PatientFormModal({
           onChange={handleChange("bitmojiCode")}
           disabled={loading}
         />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <JalaliDatePicker
+              label="تاریخ تولد"
+              value={values.birthday || null}
+              onChange={(date) => setValues((prev) => ({ ...prev, birthday: date ?? "" }))}
+            />
+            {values.birthday && (
+              <button
+                type="button"
+                onClick={() => setValues((prev) => ({ ...prev, birthday: "" }))}
+                className="text-danger-600 cursor-pointer self-start text-xs"
+              >
+                پاک کردن تاریخ تولد
+              </button>
+            )}
+          </div>
+          <Input
+            label="شماره پرونده"
+            placeholder="مثال: ۱۲۳۴۵"
+            value={values.fileSysId ?? ""}
+            onChange={handleChange("fileSysId")}
+            disabled={loading}
+          />
+        </div>
         <Textarea
           label="یادداشت‌ها"
           placeholder="یادداشت‌های مربوط به بیمار..."

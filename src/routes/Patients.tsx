@@ -181,6 +181,17 @@ function Patients() {
       ),
     },
     {
+      key: "birthday",
+      header: "تاریخ تولد",
+      align: "center",
+      width: "110px",
+      render: (item) => (
+        <span className={item.birthday ? "text-surface-700" : "text-surface-400"}>
+          {item.birthday ? formatJalaliDate(item.birthday) : "—"}
+        </span>
+      ),
+    },
+    {
       key: "lastVisit",
       header: "آخرین مراجعه",
       align: "center",
@@ -298,7 +309,7 @@ function Patients() {
       <Card variant="outlined" padding="none" data-tour="pat-table">
         <div className="p-4 pb-3" data-tour="pat-search">
           <Input
-            placeholder="جستجوی نام، تلفن یا کد ملی..."
+            placeholder="جستجوی نام، تلفن، کد ملی یا شماره پرونده..."
             startIcon={<BiSearch className="size-4" />}
             value={search}
             onChange={(e) => {
@@ -373,6 +384,8 @@ function Patients() {
                   nationalId: editingPatient.nationalId,
                   bitmojiCode: editingPatient.bitmojiCode,
                   notes: editingPatient.notes,
+                  birthday: (editingPatient.birthday ?? "").replace(/-/g, "/"),
+                  fileSysId: editingPatient.fileSysId ?? "",
                 }
               : undefined
           }

@@ -16,6 +16,9 @@ export interface Patient {
   isLoyalCustomer: boolean;
   totalPayments: number;
   createdAt: string;
+  /** Shamsi birthday as the API stores it (`YYYY-MM-DD`); null when unset. */
+  birthday?: string | null;
+  fileSysId?: string | null;
 }
 
 export interface PatientFormData {
@@ -25,4 +28,7 @@ export interface PatientFormData {
   nationalId: string;
   bitmojiCode: string;
   notes: string;
+  /** Picker format (`YYYY/MM/DD`); empty string when unset. */
+  birthday?: string;
+  fileSysId?: string;
 }

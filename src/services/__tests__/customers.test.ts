@@ -142,6 +142,64 @@ describe("customers service", () => {
       const payload = mock.post.mock.calls[0][1] as Record<string, unknown>;
       expect(payload).not.toHaveProperty("bitmojiCode");
     });
+
+    it("converts the picker birthday to a Shamsi API date and passes fileSysId", async () => {
+      mock.post.mockResolvedValue({ data: { id: 1 } });
+      await createCustomer({
+        firstName: "علی",
+        lastName: "رضایی",
+        mobileNumber: "0912",
+        nationalId: "1234567890",
+        bitmojiCode: "",
+        notes: "",
+        birthday: "1404/06/28",
+        fileSysId: "12345",
+      });
+      const payload = mock.post.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.birthday).toBe("1404-06-28");
+      expect(payload.fileSysId).toBe("12345");
+    });
+
+    it("sends birthday null when the field is cleared", async () => {
+      mock.post.mockResolvedValue({ data: { id: 1 } });
+      await createCustomer({
+        firstName: "علی",
+        lastName: "رضایی",
+        mobileNumber: "0912",
+        nationalId: "1234567890",
+        bitmojiCode: "",
+        notes: "",
+        birthday: "",
+      });
+      const payload = mock.post.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.birthday).toBeNull();
+    });
+  });
+
+  describe("birthday and fileSysId mapping", () => {
+    it("maps birthday and file_sys_id onto the patient", async () => {
+      mock.get.mockResolvedValue({
+        data: {
+          id: 1,
+          firstName: "علی",
+          birthday: "1404-06-28",
+          fileSysId: "12345",
+          visitNumber: 1,
+          isNewCustomer: false,
+          isLoyalCustomer: false,
+        },
+      });
+      const result = await getCustomer(1);
+      expect(result.birthday).toBe("1404-06-28");
+      expect(result.fileSysId).toBe("12345");
+    });
+
+    it("defaults birthday and fileSysId to null when absent", async () => {
+      mock.get.mockResolvedValue({ data: { id: 1, firstName: "علی" } });
+      const result = await getCustomer(1);
+      expect(result.birthday).toBeNull();
+      expect(result.fileSysId).toBeNull();
+    });
   });
 
   describe("updateCustomer", () => {

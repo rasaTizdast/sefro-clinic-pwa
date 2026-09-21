@@ -4,10 +4,54 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PatientFormModal } from "../PatientFormModal";
 
+vi.mock("react-calendar-datetime-picker", () => ({
+  DtPicker: () => null,
+}));
+
 describe("PatientFormModal", () => {
-  it("renders with new patient title by default", () => {
+  it("renders the birthday picker and file number input", () => {
     render(<PatientFormModal onClose={() => {}} onSave={async () => {}} />);
-    expect(screen.getByText("بیمار جدید")).toBeInTheDocument();
+    expect(screen.getByText("تاریخ تولد")).toBeInTheDocument();
+    expect(screen.getByLabelText("شماره پرونده")).toBeInTheDocument();
+  });
+
+  it("shows the birthday and file number from initialData", () => {
+    render(
+      <PatientFormModal
+        onClose={() => {}}
+        onSave={async () => {}}
+        initialData={{
+          firstName: "علی",
+          lastName: "رضایی",
+          mobileNumber: "09121234567",
+          nationalId: "0012345678",
+          bitmojiCode: "",
+          notes: "",
+          birthday: "1404/06/28",
+          fileSysId: "12345",
+        }}
+      />
+    );
+    // the date picker itself is mocked; the clear button proves the birthday state is set
+    expect(screen.getByRole("button", { name: "پاک کردن تاریخ تولد" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("12345")).toBeInTheDocument();
+  });
+
+  it("submits birthday and fileSysId with the form", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<PatientFormModal onClose={() => {}} onSave={onSave} />);
+
+    await user.type(screen.getByLabelText("نام"), "علی");
+    await user.type(screen.getByLabelText("نام خانوادگی"), "رضایی");
+    await user.type(screen.getByLabelText("شماره تلفن"), "09121234567");
+    await user.type(screen.getByLabelText("کد ملی"), "0012345678");
+    await user.type(screen.getByLabelText("شماره پرونده"), "12345");
+
+    await user.click(screen.getByRole("button", { name: "ذخیره" }));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ fileSysId: "12345", birthday: "" })
+    );
   });
 
   it("renders edit title when initialData provided", () => {
