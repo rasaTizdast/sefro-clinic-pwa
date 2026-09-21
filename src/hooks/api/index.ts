@@ -31,7 +31,7 @@ export {
   useUsagesList,
 } from "./useInventoryFinanceQuery";
 export { useLog, useLogsList } from "./useLogsQuery";
-export { usePackage, usePackagesList, useSavePackage } from "./usePackagesQuery";
+export { useDeletePackage, usePackage, usePackagesList, useSavePackage } from "./usePackagesQuery";
 export {
   useCreatePayment,
   usePayment,

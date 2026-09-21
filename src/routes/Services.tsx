@@ -3,6 +3,7 @@ import { BiPlus } from "react-icons/bi";
 import { CiEdit, CiTrash } from "react-icons/ci";
 
 import { SearchButton } from "../components/SearchButton";
+import { PackagesTab } from "../components/services/PackagesTab";
 import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -11,6 +12,7 @@ import { Modal } from "../components/ui/Modal";
 import { Pagination } from "../components/ui/Pagination";
 import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
+import { TabPanel, Tabs } from "../components/ui/Tabs";
 import { Textarea } from "../components/ui/Textarea";
 import { Toggle } from "../components/ui/Toggle";
 import { useAuth } from "../contexts/AuthContext";
@@ -42,6 +44,7 @@ const statusConfig: Record<string, { label: string; variant: "success" | "warnin
 
 function Services() {
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("services");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [form, setForm] = useState<ServiceFormData>(initialForm);
@@ -217,22 +220,37 @@ function Services() {
         </div>
       </div>
 
-      <Card variant="outlined" padding="none" data-tour="srv-table">
-        <Table
-          columns={columns}
-          data={paginatedServices}
-          rowKey={(item) => item.id}
-          className="rounded-none border-0"
-          loading={isLoading}
-        />
-        <div className="border-surface-200 flex items-center justify-center border-t px-5 py-4">
-          <Pagination
-            currentPage={safePage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
+      <Tabs
+        tabs={[
+          { id: "services", label: "خدمات" },
+          { id: "packages", label: "پکیج‌ها" },
+        ]}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
+
+      <TabPanel id="services" activeTab={activeTab}>
+        <Card variant="outlined" padding="none" data-tour="srv-table">
+          <Table
+            columns={columns}
+            data={paginatedServices}
+            rowKey={(item) => item.id}
+            className="rounded-none border-0"
+            loading={isLoading}
           />
-        </div>
-      </Card>
+          <div className="border-surface-200 flex items-center justify-center border-t px-5 py-4">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        </Card>
+      </TabPanel>
+
+      <TabPanel id="packages" activeTab={activeTab}>
+        <PackagesTab />
+      </TabPanel>
 
       <Modal
         open={modalOpen}

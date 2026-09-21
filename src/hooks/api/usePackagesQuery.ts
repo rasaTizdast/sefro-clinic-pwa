@@ -40,3 +40,19 @@ export function useSavePackage() {
     },
   });
 }
+
+export function useDeletePackage() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (id: number) => packagesService.deletePackage(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.packages.all });
+      toast.success("پکیج حذف شد");
+    },
+    onError: (error) => {
+      toast.error(extractApiError(error));
+    },
+  });
+}

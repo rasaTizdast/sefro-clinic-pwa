@@ -57,6 +57,10 @@ export const getPackage = async (id: number): Promise<Package> => {
   return toPackage(data as RawPackage);
 };
 
+export const deletePackage = async (id: number): Promise<void> => {
+  await apiClient.delete(endpoints.packages.detail(id));
+};
+
 export interface PackageInput {
   /** Absent → create, present → full update. */
   id?: number;
