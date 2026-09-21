@@ -73,6 +73,10 @@ export const queryKeys = {
     all: ["serviceCategories"] as const,
     list: ["serviceCategories", "list"] as const,
   },
+  serviceItems: {
+    all: ["serviceItems"] as const,
+    list: (serviceId: number) => ["serviceItems", serviceId] as const,
+  },
   finance: {
     exchangeRates: ["finance", "exchangeRates"] as const,
     currentRate: ["finance", "currentRate"] as const,

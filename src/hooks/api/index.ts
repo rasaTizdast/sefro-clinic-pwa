@@ -46,6 +46,12 @@ export {
 } from "./useReportsQuery";
 export { useCheckout, useRefundSale, useSale, useSalesList } from "./useSalesQuery";
 export {
+  useDeleteServiceCategory,
+  useSaveServiceCategory,
+  useServiceCategories,
+} from "./useServiceCategoriesQuery";
+export { useServiceItems, useSyncServiceItems } from "./useServiceItemsQuery";
+export {
   useCreateService,
   useDeleteService,
   useService,
