@@ -24,6 +24,12 @@ export {
   usePaymentsList,
 } from "./usePaymentsQuery";
 export {
+  useCompensationRules,
+  usePayoutsList,
+  usePayoutSummary,
+  useUpsertCompensationRule,
+} from "./usePayoutsQuery";
+export {
   useCreateProduct,
   useDeleteProduct,
   useProduct,
