@@ -21,6 +21,7 @@ export const router = createBrowserRouter(
           Component: RequireAuth,
           children: [
             { index: true, lazy: lazyRoute(() => import("./Dashboard")) },
+            { path: "wizard", lazy: lazyRoute(() => import("./WizardPage")) },
             { path: "patients", lazy: lazyRoute(() => import("./Patients")) },
             { path: "calendar", lazy: lazyRoute(() => import("./Calendar")) },
             { path: "services", lazy: lazyRoute(() => import("./Services")) },

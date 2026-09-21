@@ -2,7 +2,7 @@ import { BiHome } from "react-icons/bi";
 import { CiMoneyBill, CiSettings } from "react-icons/ci";
 import { FaRegCalendarAlt, FaWarehouse } from "react-icons/fa";
 import { IoAnalytics } from "react-icons/io5";
-import { MdHistory, MdMedicalServices, MdPalette } from "react-icons/md";
+import { MdHistory, MdMedicalServices, MdPalette, MdPerson } from "react-icons/md";
 import { PiChartPieSliceDuotone } from "react-icons/pi";
 import { Outlet } from "react-router";
 
@@ -13,12 +13,14 @@ import Sidebar from "./components/Sidebar";
 import { LoadingBar } from "./components/ui/LoadingBar";
 import { WalkthroughButton } from "./components/walkthrough/WalkthroughButton";
 import { CommandPaletteContext } from "./contexts/commandPalette";
+import { WizardProvider } from "./contexts/WizardContext";
 import { useCommandPalette } from "./hooks/useCommandPalette";
 import { usePermissions } from "./hooks/usePermissions";
 import type { SidebarItem } from "./types/sidebar";
 
 const items: SidebarItem[] = [
   { label: "داشبورد", icon: <BiHome />, path: "/", group: "primary" },
+  { label: "پذیرش", icon: <MdPerson />, path: "/wizard", group: "primary" },
   { label: "مراجعین", icon: <PiChartPieSliceDuotone />, path: "/patients", group: "primary" },
   { label: "حسابداری", icon: <CiMoneyBill />, path: "/accounting", group: "primary" },
   { label: "تقویم کلینیک", icon: <FaRegCalendarAlt />, path: "/calendar", group: "primary" },
@@ -62,9 +64,11 @@ function AppContent() {
 
 function App() {
   return (
-    <QuickActionProvider>
-      <AppContent />
-    </QuickActionProvider>
+    <WizardProvider>
+      <QuickActionProvider>
+        <AppContent />
+      </QuickActionProvider>
+    </WizardProvider>
   );
 }
 

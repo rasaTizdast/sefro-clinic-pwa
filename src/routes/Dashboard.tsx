@@ -186,10 +186,10 @@ function Dashboard() {
 
   const quickActions: QuickAction[] = [
     {
-      label: "نوبت جدید",
-      icon: <BiCalendar className="size-5" />,
+      label: "پذیرش",
+      icon: <MdPersonAdd className="size-5" />,
       variant: "primary" as const,
-      onClick: () => navigate("/calendar"),
+      onClick: () => navigate("/wizard"),
     },
     {
       label: "بیمار جدید",
