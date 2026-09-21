@@ -38,6 +38,7 @@ export {
   useVisitComparison,
   useVisitReports,
 } from "./useReportsQuery";
+export { useCheckout, useRefundSale, useSale, useSalesList } from "./useSalesQuery";
 export {
   useCreateService,
   useDeleteService,
