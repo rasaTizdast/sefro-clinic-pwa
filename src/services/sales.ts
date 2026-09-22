@@ -61,13 +61,18 @@ export function buildCheckoutPayload(i: CheckoutInput): CheckoutPayload {
   if (amountUsd === null) throw new Error("Exchange rate unavailable.");
 
   const components: PaymentComponentInput[] = [];
-  if (i.cashToman > 0 && i.cardToman > 0) {
-    const cashUsd = tomanToUsd(i.cashToman, i.rate) as string;
+  if (i.cashToman > 0) {
+    // NOTE: for "cash_toman" the backend expects the wire key amount_usd but
+    // interprets its value as a TOMAN amount and converts it server-side.
+    components.push({ method: "cash_toman", amountUsd: String(i.cashToman) });
+  }
+
+  if (i.cardToman > 0) {
+    const cashUsd = tomanToUsd(i.cashToman, i.rate);
+    if (cashUsd === null) throw new Error("Exchange rate unavailable.");
     // the remainder goes to the last component so the components sum exactly to amountUsd
-    const cardUsd = (Number(amountUsd) - Number(cashUsd)).toFixed(2);
-    components.push({ method: "cash", amountUsd: cashUsd }, { method: "card", amountUsd: cardUsd });
-  } else {
-    components.push({ method: i.cashToman > 0 ? "cash" : "card", amountUsd });
+    const cardUsd = i.cashToman > 0 ? (Number(amountUsd) - Number(cashUsd)).toFixed(2) : amountUsd;
+    components.push({ method: "card", amountUsd: cardUsd });
   }
 
   const discountUsd = i.discountToman ? tomanToUsd(i.discountToman, i.rate) : null;

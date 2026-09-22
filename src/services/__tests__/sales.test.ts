@@ -40,9 +40,11 @@ describe("buildCheckoutPayload", () => {
     });
 
     const sum = p.components.reduce((a, c) => a + Number(c.amountUsd), 0);
-    expect(sum.toFixed(2)).toBe(p.amountUsd);
+    // cash_toman carries a Toman value on the wire; card carries the USD remainder
     expect(p.amountUsd).toBe("10.00");
-    expect(p.components.map((c) => c.method)).toEqual(["cash", "card"]);
+    expect(p.components[0]).toEqual({ method: "cash_toman", amountUsd: "400000" });
+    expect(p.components[1]).toEqual({ method: "card", amountUsd: "6.00" });
+    expect(sum.toFixed(2)).toBe("400006.00");
     expect(p.idempotencyKey).toBeTruthy();
     expect(p.customer).toBe(1);
     expect(p.visit).toBe(9);
@@ -101,8 +103,25 @@ describe("buildCheckoutPayload", () => {
     });
 
     expect(p.components).toHaveLength(1);
-    expect(p.components[0].method).toBe("cash");
-    expect(p.components[0].amountUsd).toBe("5.00");
+    expect(p.components[0].method).toBe("cash_toman");
+    // cash_toman sends the raw Toman amount; the backend converts it to USD
+    expect(p.components[0].amountUsd).toBe("500000");
+  });
+
+  it("sends cash_toman as the raw Toman amount and card as USD", () => {
+    const payload = buildCheckoutPayload({
+      customerId: 1,
+      totalToman: 10_000_000,
+      rate: 100_000,
+      cashToman: 5_000_000,
+      cardToman: 5_000_000,
+    });
+
+    expect(payload.amountUsd).toBe("100.00");
+    expect(payload.components).toEqual([
+      { method: "cash_toman", amountUsd: "5000000" },
+      { method: "card", amountUsd: "50.00" },
+    ]);
   });
 
   it("omits zero-amount components (card-only)", () => {

@@ -1,6 +1,6 @@
 export type SaleStatus = "pending" | "paid" | "refunded" | "partially_refunded" | "cancelled";
 
-export type PaymentMethod = "cash" | "card";
+export type PaymentMethod = "cash" | "cash_usd" | "cash_toman" | "card" | "wallet";
 
 export type PayoutStatus = "pending" | "approved" | "paid" | "cancelled";
 
