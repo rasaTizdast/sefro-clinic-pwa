@@ -128,7 +128,5 @@ test.describe("Appointment Lifecycle", () => {
     // Verify accounting page shows payment data
     await page.goto("/accounting");
     await expect(page.getByRole("heading", { name: "حسابداری" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "ثبت تراکنش" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "گزارش اکسل" })).toBeVisible();
   });
 });

@@ -11,7 +11,7 @@ test.describe("Warehouse", () => {
     await expect(page.getByRole("columnheader", { name: "نام محصول" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "موجودی" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "واحد", exact: true })).toBeVisible();
-    await expect(page.getByRole("columnheader", { name: "قیمت واحد (تومان)" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "قیمت واحد" })).toBeVisible();
     await expect(page.getByPlaceholder("جستجوی محصول...")).toBeVisible();
   });
 

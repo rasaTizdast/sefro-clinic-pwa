@@ -68,8 +68,8 @@ test.describe("Authentication", () => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible();
 
-    // Click logout button in sidebar
-    await page.getByRole("button", { name: "خروج از سیستم" }).click();
+    // Click logout button in sidebar (may be outside viewport on tall sidebars)
+    await page.getByRole("button", { name: "خروج از سیستم" }).dispatchEvent("click");
 
     // Should redirect to /auth
     await page.waitForURL("**/auth", { timeout: 10000 });

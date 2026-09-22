@@ -20,7 +20,9 @@ test.describe("Patients Management", () => {
     await expect(page.getByRole("tab", { name: /^فعال/ })).toBeVisible();
     await expect(page.getByRole("tab", { name: "غیرفعال" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "جدید" })).toBeVisible();
-    await expect(page.getByPlaceholder("جستجوی نام، تلفن یا کد ملی...")).toBeVisible();
+    await expect(
+      page.getByPlaceholder("جستجوی نام، تلفن، کد ملی یا شماره پرونده...")
+    ).toBeVisible();
   });
 
   test("pagination navigates between pages", async ({ page }) => {

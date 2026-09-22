@@ -127,6 +127,25 @@ async function setupCoreMocks(page: any) {
       }),
     })
   );
+  await page.route("**/api/finance/**", async (r: any) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ count: 0, results: [] }),
+    })
+  );
+  await page.route("**/api/reports/exchange-dollar/**", async (r: any) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        rate_toman_per_usd: "800000",
+        rate: "800000",
+        effective_at: null,
+        source: "manual",
+      }),
+    })
+  );
 }
 
 const SERVICE = { id: 9101, name: "ویزیت کامل", time: 30, price: "300000", is_active: true };
@@ -331,7 +350,7 @@ test.describe("Complete Patient → Visit → Payment Flow", () => {
     await page.goto("/accounting");
     await page.waitForTimeout(1000);
 
-    await page.getByRole("button", { name: "ثبت تراکنش" }).click();
+    await page.getByRole("button", { name: "فروش جدید" }).click();
     await expect(page.getByRole("heading", { name: "انتخاب ویزیت" })).toBeVisible();
     await page.getByText("مسیر کامل").first().click();
     await expect(page.getByRole("heading", { name: "پرداخت" })).toBeVisible({ timeout: 5000 });

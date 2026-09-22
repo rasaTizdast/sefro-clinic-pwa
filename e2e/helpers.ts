@@ -75,4 +75,5 @@ export async function mockAllApiEndpoints(page: Page) {
   await fulfill(page, "**/api/auth/employees/list/**", 200, EMPTY_PAGINATED);
   await fulfill(page, "**/api/work-time/**", 200, EMPTY_PAGINATED);
   await fulfill(page, "**/api/logs/**", 200, EMPTY_PAGINATED);
+  await fulfill(page, "**/api/service-categories/**", 200, EMPTY_PAGINATED);
 }

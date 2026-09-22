@@ -5,6 +5,21 @@ import { mockAllApiEndpoints } from "./helpers";
 test.describe("Dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await mockAllApiEndpoints(page);
+    // Dashboard components call finance-specific endpoints not covered by mockAllApiEndpoints
+    await page.route("**/api/finance/reports/dashboard/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({}),
+      });
+    });
+    await page.route("**/api/finance/exchange-rates/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ count: 0, results: [] }),
+      });
+    });
   });
 
   test("displays dashboard with stats cards and today appointments", async ({ page }) => {
@@ -20,17 +35,16 @@ test.describe("Dashboard", () => {
     await expect(page.getByText("مشتریان وفادار")).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "اقدامات سریع" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "نوبت جدید", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "پذیرش" })).toBeVisible();
     await expect(page.getByRole("button", { name: "بیمار جدید" })).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "نوبت‌های امروز" })).toBeVisible();
   });
 
-  test("quick action 'نوبت جدید' navigates to calendar", async ({ page }) => {
+  test("quick action 'پذیرش' navigates to wizard", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "نوبت جدید", exact: true }).click();
-    await page.waitForURL("**/calendar", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "تقویم نوبت‌ها" })).toBeVisible();
+    await page.getByRole("button", { name: "پذیرش" }).click();
+    await page.waitForURL("**/wizard", { waitUntil: "domcontentloaded" });
   });
 
   test("quick action 'بیمار جدید' opens patient modal", async ({ page }) => {

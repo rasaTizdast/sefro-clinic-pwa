@@ -10,7 +10,7 @@ test.describe("Services", () => {
     await expect(page.getByRole("button", { name: "خدمت جدید" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "عنوان خدمت" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "مدت (دقیقه)" })).toBeVisible();
-    await expect(page.getByRole("columnheader", { name: "قیمت (تومان)" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "قیمت" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "وضعیت" })).toBeVisible();
   });
 
@@ -36,6 +36,13 @@ test.describe("Services", () => {
           body: JSON.stringify({ count: 0, results: [] }),
         });
       }
+    });
+    await page.route("**/api/finance/service-items/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ count: 0, results: [] }),
+      });
     });
 
     await page.goto("/services");
@@ -64,6 +71,13 @@ test.describe("Services", () => {
           count: 1,
           results: [{ id: 1, name: "testsvc", time: 30, price: "500000", is_active: true }],
         }),
+      });
+    });
+    await page.route("**/api/finance/service-items/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ count: 0, results: [] }),
       });
     });
 

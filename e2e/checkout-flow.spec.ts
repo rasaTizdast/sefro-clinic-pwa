@@ -194,15 +194,15 @@ test.describe("Visit → Checkout → Sale", () => {
     await expect(page.getByRole("dialog").getByText("تسویه و ثبت فروش")).toBeVisible({
       timeout: 5000,
     });
-    await expect(page.getByLabelText("مبلغ کل (تومان)")).toHaveValue("۱٬۰۰۰٬۰۰۰");
+    await expect(page.getByLabel("مبلغ کل (تومان)")).toHaveValue("۱٬۰۰۰٬۰۰۰");
 
     // Split 400k cash / 600k card.
-    const cash = page.getByLabelText("نقدی (تومان)");
+    const cash = page.getByLabel("نقدی (تومان)");
     await cash.clear();
     await cash.fill("400000");
-    await expect(page.getByLabelText("کارتی (تومان)")).toHaveValue("۶۰۰٬۰۰۰");
+    await expect(page.getByLabel("کارتی (تومان)")).toHaveValue("۶۰۰٬۰۰۰");
 
-    await page.getByRole("button", { name: "ثبت فروش" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "ثبت فروش" }).click();
     await expect(page.getByText("فروش ثبت شد")).toBeVisible({ timeout: 10000 });
     expect(state.checkoutCalled).toBe(true);
   });
