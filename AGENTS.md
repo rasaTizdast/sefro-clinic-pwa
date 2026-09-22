@@ -2,6 +2,8 @@
 
 Persian clinic management PWA (Vite 8 + React 19 + TypeScript ~6.0). Single package, no monorepo.
 
+its forbidden for you to edit, update or delete any backend files, you can only view and read them.
+
 This project follows **Trunk-Based Development (TBD)** — see below for rules.
 
 ## Commands
