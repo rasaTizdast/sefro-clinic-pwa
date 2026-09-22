@@ -21,3 +21,4 @@ export { TabPanel, Tabs } from "./Tabs";
 export { Textarea } from "./Textarea";
 export { ToastProvider, useToast } from "./Toast";
 export { Toggle } from "./Toggle";
+export { Tooltip } from "./Tooltip";

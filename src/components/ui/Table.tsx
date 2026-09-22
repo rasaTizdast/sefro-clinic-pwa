@@ -22,10 +22,7 @@ interface TableProps<T> {
   rowKey: (item: T, index: number) => string | number;
   onRowClick?: (item: T) => void;
   className?: string;
-}
-
-function renderCell<T>(item: T, col: Column<T>): ReactNode {
-  return col.render ? col.render(item) : (item as Record<string, ReactNode>)[col.key];
+  caption?: string;
 }
 
 function DesktopTable<T>({
@@ -39,6 +36,7 @@ function DesktopTable<T>({
   rowKey,
   onRowClick,
   className,
+  caption,
 }: {
   columns: Column<T>[];
   data: T[];
@@ -50,6 +48,7 @@ function DesktopTable<T>({
   rowKey: (item: T, index: number) => string | number;
   onRowClick?: (item: T) => void;
   className: string;
+  caption?: string;
 }) {
   const renderSortIcon = (column: Column<T>) => {
     if (!column.sortable) return null;
@@ -60,6 +59,7 @@ function DesktopTable<T>({
           className={`size-1.5 ${isActive && sortDirection === "asc" ? "text-primary-600" : "text-surface-400"}`}
           viewBox="0 0 10 6"
           fill="currentColor"
+          aria-hidden="true"
         >
           <path d="M5 0L10 6H0z" />
         </svg>
@@ -67,6 +67,7 @@ function DesktopTable<T>({
           className={`size-1.5 ${isActive && sortDirection === "desc" ? "text-primary-600" : "text-surface-400"}`}
           viewBox="0 0 10 6"
           fill="currentColor"
+          aria-hidden="true"
         >
           <path d="M5 6L0 0h10z" />
         </svg>
@@ -77,16 +78,25 @@ function DesktopTable<T>({
   return (
     <div className={`border-surface-200 overflow-x-auto rounded-lg border ${className}`}>
       <table className="w-full border-collapse">
+        {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
           <tr className="bg-surface-50">
             {columns.map((col) => (
               <th
                 key={col.key}
+                scope="col"
                 className={`text-surface-600 bg-surface-50 sticky top-0 px-4 py-3 text-xs font-semibold tracking-wider whitespace-nowrap uppercase select-none ${
                   col.sortable ? "hover:text-surface-800 cursor-pointer" : ""
                 }`}
                 style={{ width: col.width, textAlign: col.align || "start" }}
                 onClick={() => col.sortable && onSort?.(col.key)}
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === " ") && col.sortable) {
+                    e.preventDefault();
+                    onSort?.(col.key);
+                  }
+                }}
+                tabIndex={col.sortable ? 0 : undefined}
                 aria-sort={
                   sortKey === col.key
                     ? sortDirection === "asc"
@@ -112,6 +122,7 @@ function DesktopTable<T>({
                       <div
                         className="bg-surface-200 h-4 animate-pulse rounded"
                         style={{ width: `${60 + Math.random() * 30}%` }}
+                        aria-hidden="true"
                       />
                     </td>
                   ))}
@@ -121,6 +132,14 @@ function DesktopTable<T>({
                 <tr
                   key={rowKey(item, index)}
                   onClick={() => onRowClick?.(item)}
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === " ") && onRowClick) {
+                      e.preventDefault();
+                      onRowClick(item);
+                    }
+                  }}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  role={onRowClick ? "button" : undefined}
                   className={`${onRowClick ? "hover:bg-surface-50 cursor-pointer" : ""} transition-colors duration-150`}
                 >
                   {columns.map((col) => (
@@ -168,8 +187,14 @@ function MobileCards<T>({
             <div className="flex flex-col gap-3">
               {columns.slice(0, 4).map((col) => (
                 <div key={col.key} className="flex items-center justify-between">
-                  <div className="bg-surface-200 h-3 w-16 animate-pulse rounded" />
-                  <div className="bg-surface-200 h-4 w-24 animate-pulse rounded" />
+                  <div
+                    className="bg-surface-200 h-3 w-16 animate-pulse rounded"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="bg-surface-200 h-4 w-24 animate-pulse rounded"
+                    aria-hidden="true"
+                  />
                 </div>
               ))}
             </div>
@@ -193,6 +218,14 @@ function MobileCards<T>({
         <div
           key={rowKey(item, index)}
           onClick={() => onRowClick?.(item)}
+          onKeyDown={(e) => {
+            if ((e.key === "Enter" || e.key === " ") && onRowClick) {
+              e.preventDefault();
+              onRowClick(item);
+            }
+          }}
+          tabIndex={onRowClick ? 0 : undefined}
+          role={onRowClick ? "button" : undefined}
           className={`border-surface-200 rounded-lg border bg-white p-4 ${onRowClick ? "hover:border-surface-300 cursor-pointer" : ""} transition-colors duration-150`}
         >
           <div className="flex flex-col gap-2.5">
@@ -206,7 +239,7 @@ function MobileCards<T>({
                       col.align === "center" ? "end" : col.align === "start" ? "start" : "end",
                   }}
                 >
-                  {renderCell(item, col)}
+                  {col.render ? col.render(item) : (item as Record<string, ReactNode>)[col.key]}
                 </span>
               </div>
             ))}
@@ -229,6 +262,7 @@ export function Table<T>(props: TableProps<T>) {
     rowKey,
     onRowClick,
     className = "",
+    caption,
   } = props;
 
   return (
@@ -245,6 +279,7 @@ export function Table<T>(props: TableProps<T>) {
           rowKey={rowKey}
           onRowClick={onRowClick}
           className={className}
+          caption={caption}
         />
       </div>
       <div className="tablet:hidden block">
