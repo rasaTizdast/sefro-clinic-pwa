@@ -11,6 +11,9 @@ export interface PatientData {
   totalSpent: number;
   lastVisit: string | null;
   servicesHistory: number[];
+  notes: string;
+  birthday: string;
+  fileSysId: string;
 }
 
 export interface ServiceSelection {

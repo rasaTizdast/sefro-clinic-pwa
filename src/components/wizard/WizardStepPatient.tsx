@@ -3,13 +3,14 @@ import { useCallback, useState } from "react";
 import { BiCheck, BiSearch } from "react-icons/bi";
 import { MdPersonAdd } from "react-icons/md";
 
-import { endpoints } from "../../config/api";
-import { apiClient } from "../../lib/api-client";
 import { toPersianDigits } from "../../lib/digits";
+import { listCustomers } from "../../services/customers";
 import type { Patient } from "../../types/patient";
 import type { PatientData } from "../../types/wizard";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
+import { JalaliDatePicker } from "../ui/JalaliDatePicker";
+import { Textarea } from "../ui/Textarea";
 
 interface Props {
   patient: PatientData;
@@ -27,10 +28,8 @@ export default function WizardStepPatient({ patient, onBack, onComplete }: Props
   const { data: searchResults, isFetching } = useQuery({
     queryKey: ["wizard-patient-search", query],
     queryFn: async () => {
-      const { data } = await apiClient.get(endpoints.customers.list, {
-        params: { search: query, per_page: 20 },
-      });
-      return (data?.results ?? data?.data ?? data ?? []) as Patient[];
+      const result = await listCustomers({ search: query, perPage: 20 });
+      return result.data;
     },
     enabled: query.length >= 2 && !showNewForm,
     staleTime: 30_000,
@@ -48,6 +47,9 @@ export default function WizardStepPatient({ patient, onBack, onComplete }: Props
       totalSpent: p.totalPayments,
       lastVisit: p.lastVisit,
       servicesHistory: [],
+      notes: p.notes ?? "",
+      birthday: p.birthday ?? "",
+      fileSysId: p.fileSysId ?? "",
     });
     setQuery("");
   }, []);
@@ -166,6 +168,9 @@ function NewPatientForm({
   const [lastName, setLastName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [nationalId, setNationalId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [fileSysId, setFileSysId] = useState("");
 
   const handleSubmit = () => {
     onSubmit({
@@ -179,6 +184,9 @@ function NewPatientForm({
       totalSpent: 0,
       lastVisit: null,
       servicesHistory: [],
+      notes,
+      birthday,
+      fileSysId,
     });
   };
 
@@ -215,6 +223,26 @@ function NewPatientForm({
           required
         />
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <JalaliDatePicker
+          label="تاریخ تولد"
+          value={birthday || null}
+          onChange={(date) => setBirthday(date ?? "")}
+        />
+        <Input
+          label="شماره پرونده"
+          placeholder="مثال: ۱۲۳۴۵"
+          value={fileSysId}
+          onChange={(e) => setFileSysId(e.target.value)}
+        />
+      </div>
+      <Textarea
+        label="یادداشت‌ها"
+        placeholder="یادداشت‌های مربوط به بیمار..."
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        rows={3}
+      />
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="outline" onClick={onCancel}>
           انصراف
