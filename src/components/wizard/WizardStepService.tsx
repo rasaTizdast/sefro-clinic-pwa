@@ -1,13 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { BiSearch } from "react-icons/bi";
 import { MdDelete } from "react-icons/md";
 
-import { endpoints } from "../../config/api";
-import { apiClient } from "../../lib/api-client";
+import { usePackagesList } from "../../hooks/api/usePackagesQuery";
+import { useServicesList } from "../../hooks/api/useServicesQuery";
 import { toPersianDigits } from "../../lib/digits";
-import type { Package } from "../../types/finance";
-import type { Service } from "../../types/service";
 import type { PatientData, ServiceSelection } from "../../types/wizard";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -17,6 +14,7 @@ interface Props {
   patient: PatientData;
   selectedServices: ServiceSelection[];
   onBack: () => void;
+  onUpdateServices: (services: ServiceSelection[]) => void;
   onComplete: (services: ServiceSelection[]) => void;
 }
 
@@ -24,32 +22,24 @@ export default function WizardStepService({
   patient,
   selectedServices,
   onBack,
+  onUpdateServices,
   onComplete,
 }: Props) {
   const [tab, setTab] = useState<"services" | "packages">("services");
   const [query, setQuery] = useState("");
 
-  const { data: services } = useQuery({
-    queryKey: ["wizard-services", query],
-    queryFn: async () => {
-      const { data } = await apiClient.get(endpoints.services.list, {
-        params: { search: query || undefined, per_page: 50 },
-      });
-      return (data?.results ?? data?.data ?? data ?? []) as Service[];
-    },
-    staleTime: 60_000,
+  const { data: servicesResponse } = useServicesList({
+    search: query || undefined,
+    perPage: 50,
   });
 
-  const { data: packages } = useQuery({
-    queryKey: ["wizard-packages", query],
-    queryFn: async () => {
-      const { data } = await apiClient.get(endpoints.packages.list, {
-        params: { search: query || undefined, per_page: 50 },
-      });
-      return (data?.results ?? data?.data ?? data ?? []) as Package[];
-    },
-    staleTime: 60_000,
+  const { data: packagesResponse } = usePackagesList({
+    search: query || undefined,
+    perPage: 50,
   });
+
+  const services = servicesResponse?.data ?? [];
+  const packages = packagesResponse?.data ?? [];
 
   const addService = useCallback(
     (svc: {
@@ -62,7 +52,7 @@ export default function WizardStepService({
     }) => {
       const exists = selectedServices.some((s) => s.serviceId === svc.id);
       if (exists) return;
-      onComplete([
+      onUpdateServices([
         ...selectedServices,
         {
           serviceId: svc.id,
@@ -74,14 +64,14 @@ export default function WizardStepService({
         },
       ]);
     },
-    [selectedServices, onComplete]
+    [selectedServices, onUpdateServices]
   );
 
   const removeService = useCallback(
     (idx: number) => {
-      onComplete(selectedServices.filter((_, i) => i !== idx));
+      onUpdateServices(selectedServices.filter((_, i) => i !== idx));
     },
-    [selectedServices, onComplete]
+    [selectedServices, onUpdateServices]
   );
 
   const totalToman = selectedServices.reduce((sum, s) => {
@@ -122,7 +112,7 @@ export default function WizardStepService({
 
       <div className="max-h-60 space-y-1 overflow-y-auto">
         {tab === "services" &&
-          services?.map((s) => (
+          services.map((s) => (
             <button
               key={s.id}
               type="button"
@@ -143,7 +133,7 @@ export default function WizardStepService({
             </button>
           ))}
         {tab === "packages" &&
-          packages?.map((p) => (
+          packages.map((p) => (
             <button
               key={p.id}
               type="button"

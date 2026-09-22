@@ -31,7 +31,7 @@ function WizardPage() {
         payment: null,
       };
       const updates: Partial<WizardTabData> = { ...data };
-      if (nextStep[step]) {
+      if (!updates.step && nextStep[step]) {
         updates.step = nextStep[step];
       }
       updateTab(activeTabId, updates);
@@ -93,7 +93,14 @@ function WizardPage() {
           <WizardStepContent
             tab={activeTab}
             onComplete={handleStepComplete}
-            onBack={() => navigate("/")}
+            onBack={() => {
+              if (!activeTabId) return;
+              const stepOrder: WizardStep[] = ["patient", "service", "payment"];
+              const currentIdx = stepOrder.indexOf(activeTab.step ?? "patient");
+              if (currentIdx > 0) {
+                updateTab(activeTabId, { step: stepOrder[currentIdx - 1] });
+              }
+            }}
           />
         ) : (
           <div className="text-surface-400 flex h-full flex-col items-center justify-center gap-4">
@@ -166,6 +173,7 @@ function WizardStepContent({
           patient={tab.patient}
           selectedServices={tab.selectedServices}
           onBack={() => onComplete("patient", { step: "patient" })}
+          onUpdateServices={(services) => onComplete("service", { selectedServices: services })}
           onComplete={(services) =>
             onComplete("service", { selectedServices: services, step: "payment" })
           }

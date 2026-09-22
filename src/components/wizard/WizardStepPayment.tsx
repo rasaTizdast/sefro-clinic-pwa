@@ -3,11 +3,11 @@ import { useCallback, useMemo, useState } from "react";
 import { MdCheckCircle, MdPayment } from "react-icons/md";
 
 import { endpoints } from "../../config/api";
+import { useCheckout, useCurrentRate } from "../../hooks/api";
 import { apiClient } from "../../lib/api-client";
 import { toPersianDigits } from "../../lib/digits";
 import { buildCheckoutPayload } from "../../services/sales";
 import type { PatientData, PaymentSelection, ServiceSelection } from "../../types/wizard";
-import { useCheckout, useCurrentRate } from "../../hooks/api";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { useToast } from "../ui/Toast";
@@ -127,6 +127,7 @@ export default function WizardStepPayment({
     rate,
     cashNum,
     cardNum,
+    paidTotal,
     reserveMutation,
     checkoutMutation,
     toastSuccess,
