@@ -89,6 +89,11 @@ export function ExchangeRatesTab() {
                   </Badge>
                   <span className="text-surface-400 text-xs">{r.source}</span>
                 </div>
+                <div className="flex flex-col items-end gap-0.5 text-xs">
+                  <span className="text-surface-500">
+                    {r.effectiveAt ? new Date(r.effectiveAt).toLocaleDateString("fa-IR") : "—"}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

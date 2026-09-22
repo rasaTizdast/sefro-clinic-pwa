@@ -6,6 +6,13 @@ import { formatPrice } from "../../lib/format";
 import { Card } from "../ui/Card";
 import { Skeleton } from "../ui/Skeleton";
 
+/** Format a USD amount with 2dp, stripping trailing zeros (e.g. $12 → $12, $12.50 stays). */
+function trimUsdZeros(value: string | number): string {
+  return Number(value)
+    .toFixed(2)
+    .replace(/\.?0+$/, "");
+}
+
 export function FinanceKpiCards() {
   const { data: dashboard, isLoading } = useFinanceDashboard({ period: "today" });
 
@@ -30,21 +37,21 @@ export function FinanceKpiCards() {
     {
       title: "درآمد امروز",
       value: `${formatPrice(Number(salesSummary.revenueToman))} تومان`,
-      sub: `$${Number(salesSummary.revenueUsd).toFixed(2)}`,
+      sub: `$${trimUsdZeros(salesSummary.revenueUsd)}`,
       icon: <CiMoneyBill className="size-5" />,
       variant: "success" as const,
     },
     {
       title: "سود خالص",
       value: `${formatPrice(Number(salesSummary.netProfitToman))} تومان`,
-      sub: `$${Number(salesSummary.netProfitUsd).toFixed(2)}`,
+      sub: `$${trimUsdZeros(salesSummary.netProfitUsd)}`,
       icon: <MdAttachMoney className="size-5" />,
       variant: "info" as const,
     },
     {
       title: "تعداد فروش",
       value: String(salesSummary.saleCount),
-      sub: `میانگین: $${Number(salesSummary.avgTicketUsd).toFixed(2)}`,
+      sub: `میانگین: $${trimUsdZeros(salesSummary.avgTicketUsd)}`,
       icon: <MdShoppingCart className="size-5" />,
       variant: "warning" as const,
     },
