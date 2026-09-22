@@ -34,6 +34,7 @@
     "driver.js": "^1.6.0",
     "jalaali-js": "^1.2.8",
     "motion": "^12.40.0",
+    "playwright": "^1.63.0",
     "react": "^19.2.6",
     "react-calendar-datetime-picker": "^2.0.0",
     "react-dom": "^19.2.6",

@@ -28,11 +28,15 @@ export default defineConfig({
     {
       name: "setup",
       testMatch: /auth\.setup\.ts/,
+      use: {
+        channel: "chrome",
+      },
     },
     {
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
+        channel: "chrome",
         storageState: "e2e/.auth/user.json",
       },
       dependencies: ["setup"],
