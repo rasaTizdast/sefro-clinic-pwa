@@ -136,4 +136,24 @@ describe("products service", () => {
     const payload = mock.post.mock.calls[1][1] as Record<string, unknown>;
     expect(payload).not.toHaveProperty("cost_usd");
   });
+
+  it("maps unitPriceUsd from the warehouse form to cost_usd", async () => {
+    mock.post.mockResolvedValue({ data: { id: 1 } });
+    await createProduct({
+      name: "شامپو",
+      stock: 10,
+      unit: "عدد",
+      unitPrice: 250000,
+      unitPriceUsd: 2.5,
+    });
+    expect(mock.post).toHaveBeenCalledWith(
+      "/inventory/products/",
+      expect.objectContaining({ cost_usd: 2.5 })
+    );
+
+    mock.put.mockResolvedValue({ data: { id: 1 } });
+    await updateProduct(1, { name: "شامپو", stock: 10, unitPriceUsd: null });
+    const payload = mock.put.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("cost_usd");
+  });
 });

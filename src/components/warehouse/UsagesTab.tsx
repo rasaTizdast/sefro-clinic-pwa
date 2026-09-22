@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { useProductsList, useUsagesList } from "../../hooks/api";
+import { snapshotToman } from "../../lib/currency";
 import { formatJalaliDate } from "../../lib/date";
 import type { ProductUsage } from "../../types/finance";
 import { Card } from "../ui/Card";
@@ -8,6 +9,7 @@ import { Input } from "../ui/Input";
 import { Pagination } from "../ui/Pagination";
 import { Select } from "../ui/Select";
 import { type Column, Table } from "../ui/Table";
+import { PriceCell } from "./PriceCell";
 
 const PAGE_SIZE = 20;
 
@@ -61,18 +63,26 @@ export function UsagesTab() {
     },
     {
       key: "unitCost",
-      header: "بهای واحد ($)",
-      align: "end",
+      header: "بهای واحد",
+      align: "center",
+      width: "130px",
       render: (item) => (
-        <span className="text-surface-700 text-sm">${item.unitCostUsdSnapshot}</span>
+        <PriceCell
+          toman={snapshotToman(item.unitCostUsdSnapshot, item.exchangeRateSnapshot)}
+          usd={item.unitCostUsdSnapshot}
+        />
       ),
     },
     {
       key: "totalCost",
-      header: "بهای کل ($)",
-      align: "end",
+      header: "بهای کل",
+      align: "center",
+      width: "130px",
       render: (item) => (
-        <span className="text-surface-900 font-medium">${item.totalCostUsdSnapshot}</span>
+        <PriceCell
+          toman={snapshotToman(item.totalCostUsdSnapshot, item.exchangeRateSnapshot)}
+          usd={item.totalCostUsdSnapshot}
+        />
       ),
     },
     {

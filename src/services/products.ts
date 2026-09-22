@@ -21,20 +21,25 @@ const toWarehouseItem = (raw: RawProduct): WarehouseItem => ({
   stock: raw.count ?? 0,
   unit: raw.unit ?? "",
   unitPrice: raw.unitPrice ?? "0",
+  unitPriceUsd: raw.costUsd ?? null,
   description: raw.description ?? "",
   status: (raw.status as ProductStatus) ?? "available",
   costUsd: raw.costUsd ?? null,
 });
 
-const toBackendPayload = (data: Record<string, unknown>) => ({
-  name: data.name,
-  count: Number(data.stock) || 0,
-  unit: data.unit ?? "",
-  unit_price: data.unitPrice ? Number(data.unitPrice) : 0,
-  description: data.description ?? "",
-  // cost_usd is only sent when the caller converted a Toman cost (else the backend keeps it)
-  ...(data.costUsd !== undefined ? { cost_usd: data.costUsd } : {}),
-});
+const toBackendPayload = (data: Record<string, unknown>) => {
+  // unitPriceUsd (warehouse form) and costUsd (service callers) both map to cost_usd
+  const usd = data.unitPriceUsd !== undefined ? data.unitPriceUsd : data.costUsd;
+  return {
+    name: data.name,
+    count: Number(data.stock) || 0,
+    unit: data.unit ?? "",
+    unit_price: data.unitPrice ? Number(data.unitPrice) : 0,
+    description: data.description ?? "",
+    // cost_usd is only sent when the caller provides a USD value (else the backend keeps it)
+    ...(usd !== undefined && usd !== null && usd !== "" ? { cost_usd: usd } : {}),
+  };
+};
 
 export const listProducts = async (
   params?: PaginationParams
