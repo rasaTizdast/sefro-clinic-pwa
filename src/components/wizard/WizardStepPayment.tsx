@@ -5,7 +5,9 @@ import { MdCheckCircle, MdPayment } from "react-icons/md";
 import { endpoints } from "../../config/api";
 import { apiClient } from "../../lib/api-client";
 import { toPersianDigits } from "../../lib/digits";
+import { buildCheckoutPayload } from "../../services/sales";
 import type { PatientData, PaymentSelection, ServiceSelection } from "../../types/wizard";
+import { useCheckout, useCurrentRate } from "../../hooks/api";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { useToast } from "../ui/Toast";
@@ -27,12 +29,23 @@ export default function WizardStepPayment({
   const [cashToman, setCashToman] = useState("");
   const [cardToman, setCardToman] = useState("");
 
+  // Per-item price state - allow editing each item's price
+  const [itemPrices, setItemPrices] = useState<Record<number, string>>(
+    selectedServices.reduce(
+      (acc, s, i) => {
+        acc[i] = s.priceToman;
+        return acc;
+      },
+      {} as Record<number, string>
+    )
+  );
+
   const totalToman = useMemo(() => {
-    return selectedServices.reduce((sum, s) => {
-      const price = parseInt(s.priceToman.replace(/[^\d]/g, ""), 10) || 0;
+    return Object.values(itemPrices).reduce((sum, priceStr) => {
+      const price = parseInt(priceStr.replace(/[^\d]/g, ""), 10) || 0;
       return sum + price;
     }, 0);
-  }, [selectedServices]);
+  }, [itemPrices]);
 
   const cashNum = parseInt(cashToman.replace(/[^\d]/g, ""), 10) || 0;
   const cardNum = parseInt(cardToman.replace(/[^\d]/g, ""), 10) || 0;
@@ -40,24 +53,14 @@ export default function WizardStepPayment({
   const remaining = totalToman - paidTotal;
   const isComplete = remaining === 0 && totalToman > 0;
 
-  const checkoutMutation = useMutation({
-    mutationFn: async (payload: {
-      customerId: number;
-      visitId: number;
-      totalUsd: string;
-      components: { method: string; amountUsd: string }[];
-    }) => {
-      const { data } = await apiClient.post(endpoints.sales.checkout, {
-        customer: payload.customerId,
-        visit: payload.visitId,
-        amountUsd: payload.totalUsd,
-        components: payload.components,
-        idempotencyKey: crypto.randomUUID(),
-        description: `پذیرش ${patient.firstName} ${patient.lastName}`,
-      });
-      return data;
-    },
-  });
+  const checkoutMutation = useCheckout();
+
+  const { data: currentRate } = useCurrentRate();
+  const rate = useMemo(() => {
+    const raw = currentRate?.rateTomanPerUsd ?? currentRate?.rate;
+    const parsed = Number(raw);
+    return raw != null && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [currentRate]);
 
   const reserveMutation = useMutation({
     mutationFn: async () => {
@@ -84,23 +87,25 @@ export default function WizardStepPayment({
   const handleFinish = useCallback(async () => {
     if (!isComplete || !patient.id) return;
 
+    if (rate === null) {
+      toastError("نرخ ارز در دسترس نیست");
+      return;
+    }
+
     try {
       const visit = await reserveMutation.mutateAsync();
 
-      const components: { method: string; amountUsd: string }[] = [];
-      if (cashNum > 0) {
-        components.push({ method: "cash", amountUsd: String(cashNum) });
-      }
-      if (cardNum > 0) {
-        components.push({ method: "card", amountUsd: String(cardNum) });
-      }
-
-      await checkoutMutation.mutateAsync({
+      const payload = buildCheckoutPayload({
         customerId: patient.id,
         visitId: visit.id,
-        totalUsd: String(paidTotal),
-        components,
+        totalToman,
+        rate,
+        cashToman: cashNum,
+        cardToman: cardNum,
+        description: `پذیرش ${patient.firstName} ${patient.lastName}`,
       });
+
+      await checkoutMutation.mutateAsync(payload);
 
       toastSuccess(`پذیرش ${patient.firstName} ${patient.lastName} با موفقیت ثبت شد`);
       onComplete({
@@ -118,9 +123,10 @@ export default function WizardStepPayment({
     patient.id,
     patient.firstName,
     patient.lastName,
+    totalToman,
+    rate,
     cashNum,
     cardNum,
-    paidTotal,
     reserveMutation,
     checkoutMutation,
     toastSuccess,
@@ -137,9 +143,18 @@ export default function WizardStepPayment({
 
       <div className="border-surface-200 space-y-1 rounded-lg border p-3">
         {selectedServices.map((s, i) => (
-          <div key={`${s.serviceId}-${i}`} className="flex justify-between text-sm">
+          <div key={`${s.serviceId}-${i}`} className="flex items-center justify-between text-sm">
             <span className="text-surface-700">{s.serviceName}</span>
-            <span className="text-surface-600">{toPersianDigits(s.priceToman)} تومان</span>
+            <span className="text-surface-600">
+              <Input
+                value={itemPrices[i] ?? ""}
+                onChange={(e) =>
+                  setItemPrices((prev) => ({ ...prev, [i]: e.target.value.toString() }))
+                }
+                inputMode="numeric"
+              />{" "}
+              تومان
+            </span>
           </div>
         ))}
         <div className="border-surface-200 mt-2 flex justify-between border-t pt-2 font-bold">
