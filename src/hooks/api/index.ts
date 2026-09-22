@@ -53,6 +53,17 @@ export {
   useVisitComparison,
   useVisitReports,
 } from "./useReportsQuery";
+export {
+  useCreateOperatingExpense,
+  useCreateOperatingExpenseCategory,
+  useDeleteOperatingExpense,
+  useDeleteOperatingExpenseCategory,
+  useOperatingExpenseCategories,
+  useOperatingExpenseSummary,
+  useOperatingExpensesList,
+  useUpdateOperatingExpense,
+  useUpdateOperatingExpenseCategory,
+} from "./useOperatingExpensesQuery";
 export { useCheckout, useRefundSale, useSale, useSalesList } from "./useSalesQuery";
 export {
   useDeleteServiceCategory,
