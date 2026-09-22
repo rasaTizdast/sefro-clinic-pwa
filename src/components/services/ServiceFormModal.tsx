@@ -30,7 +30,7 @@ interface ServiceFormModalProps {
 }
 
 const roleOptions = [
-  { value: "none", label: "بدون پورسانت" },
+  { value: "none", label: "بدون اپراتور" },
   { value: "doctor", label: "پزشک" },
   { value: "facial", label: "فیشال" },
   { value: "laser", label: "لیزر" },
@@ -196,7 +196,7 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
             onChange={(e) => setCategoryId(e.target.value)}
           />
           <Select
-            label="نقش پورسانت"
+            label="نقش اپراتور"
             options={roleOptions}
             value={role}
             onChange={(e) => setRole(e.target.value as CompensationRole)}

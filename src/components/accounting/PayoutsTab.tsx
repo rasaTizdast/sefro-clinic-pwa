@@ -21,7 +21,7 @@ const roleLabels: Record<CompensationRole, string> = {
   doctor: "پزشک",
   facial: "فیشال",
   laser: "لیزر",
-  none: "بدون پورسانت",
+  none: "بدون اپراتور",
 };
 
 const payoutStatusConfig: Record<
@@ -133,6 +133,7 @@ export function PayoutsTab() {
           rowKey={(item) => item.id}
           loading={listLoading}
           className="rounded-none border-0"
+          caption="لیست تسویه‌های پرسنل"
         />
         {totalPages > 1 && (
           <div className="border-surface-200 flex items-center justify-center border-t px-5 py-4">

@@ -36,7 +36,7 @@ const roleLabels: Record<CompensationRole, string> = {
   doctor: "پزشک",
   facial: "فیشال",
   laser: "لیزر",
-  none: "بدون پورسانت",
+  none: "بدون اپراتور",
 };
 
 function Services() {
@@ -59,6 +59,7 @@ function Services() {
   const filtered = categoryFilter
     ? services.filter((s) => s.category && String(s.category.id) === categoryFilter)
     : services;
+  const newServices = services.filter((s) => s.category && s.category.name === "جدید");
 
   const totalPages = paginated?.totalPages ?? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -142,7 +143,7 @@ function Services() {
     },
     {
       key: "role",
-      header: "پورسانت",
+      header: "اپراتور",
       align: "center",
       render: (item) => (
         <Badge variant={item.compensationRole === "none" ? "default" : "success"} size="sm">
@@ -160,9 +161,11 @@ function Services() {
           <Toggle
             label={cfg.label}
             checked={item.isActive}
-            onChange={() =>
-              updateMutation.mutate({ id: item.id, data: { isActive: !item.isActive } })
-            }
+            onChange={() => {
+              if (!window.confirm("آیا تغییر وضعیت خدمت را تأیید می‌کنید؟")) return;
+              updateMutation.mutate({ id: item.id, data: { isActive: !item.isActive } });
+            }}
+            disabled={updateMutation.isPending}
           />
         );
       },
@@ -222,6 +225,7 @@ function Services() {
         tabs={[
           { id: "services", label: "خدمات" },
           { id: "packages", label: "پکیج‌ها" },
+          { id: "new", label: "جدید" },
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
@@ -262,6 +266,39 @@ function Services() {
 
       <TabPanel id="packages" activeTab={activeTab}>
         <PackagesTab />
+      </TabPanel>
+
+      <TabPanel id="new" activeTab={activeTab}>
+        <div className="mb-4 w-full sm:w-64">
+          <Select
+            label="دسته‌بندی"
+            options={[
+              { value: "", label: "همه دسته‌ها" },
+              ...(categories ?? []).map((c) => ({ value: String(c.id), label: c.name })),
+            ]}
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+        <Card variant="outlined" padding="none" data-tour="srv-table">
+          <Table
+            columns={columns}
+            data={newServices?.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE) ?? []}
+            rowKey={(item) => item.id}
+            className="rounded-none border-0"
+            loading={isLoading}
+          />
+          <div className="border-surface-200 flex items-center justify-center border-t px-5 py-4">
+            <Pagination
+              currentPage={safePage}
+              totalPages={Math.max(1, Math.ceil(newServices.length / PAGE_SIZE))}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        </Card>
       </TabPanel>
 
       {modalOpen && <ServiceFormModal service={editingService} onClose={closeModal} />}
