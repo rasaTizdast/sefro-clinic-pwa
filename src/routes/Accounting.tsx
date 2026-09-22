@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CiMoneyBill, CiReceipt } from "react-icons/ci";
 
+import { OperatingExpensesTab } from "../components/accounting/OperatingExpensesTab";
 import { PayoutsTab } from "../components/accounting/PayoutsTab";
 import { SalesTab } from "../components/accounting/SalesTab";
 import { SearchButton } from "../components/SearchButton";
@@ -25,6 +26,11 @@ function Accounting() {
       <Tabs
         tabs={[
           { id: "sales", label: "فروش", icon: <CiReceipt className="size-4" /> },
+          {
+            id: "operating-expenses",
+            label: "هزینه‌های جاری",
+            icon: <CiMoneyBill className="size-4" />,
+          },
           { id: "payouts", label: "تسویه پرسنل", icon: <CiMoneyBill className="size-4" /> },
         ]}
         activeTab={activeTab}
@@ -33,6 +39,9 @@ function Accounting() {
 
       <TabPanel id="sales" activeTab={activeTab}>
         <SalesTab />
+      </TabPanel>
+      <TabPanel id="operating-expenses" activeTab={activeTab}>
+        <OperatingExpensesTab />
       </TabPanel>
       <TabPanel id="payouts" activeTab={activeTab}>
         <PayoutsTab />

@@ -88,6 +88,8 @@ export const toFinancialSummary = (raw: RawFinancialSummary): FinancialSummary =
   revenue: raw.revenue ?? { ...emptyMoney },
   productCost: raw.productCost ?? { ...emptyMoney },
   grossProfit: raw.grossProfit ?? { ...emptyMoney },
+  // Backend financialSummary.expenses represents employee Expense claims only.
+  // Direct clinic OperatingExpense totals are fetched from /finance/operating-expenses/summary/.
   expenses: raw.expenses ?? { ...emptyMoney },
   netProfit: raw.netProfit ?? { ...emptyMoney },
   paymentMethods: raw.paymentMethods ?? { cash: USD, card: USD, wallet: USD },
