@@ -57,6 +57,30 @@ vi.mock("../../../hooks/api", () => ({
     },
     isLoading: false,
   }),
+  useServicesList: () => ({
+    data: {
+      data: [],
+      total: 0,
+      page: 1,
+      perPage: 200,
+      totalPages: 1,
+      hasNext: false,
+      hasPrev: false,
+    },
+    isLoading: false,
+  }),
+  useVisitsList: () => ({
+    data: {
+      data: [],
+      total: 0,
+      page: 1,
+      perPage: 200,
+      totalPages: 1,
+      hasNext: false,
+      hasPrev: false,
+    },
+    isLoading: false,
+  }),
   useCurrentRate: () => ({ data: null, isLoading: false }),
   useCheckout: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRecordConsumption: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -83,7 +107,7 @@ describe("SalesTab", () => {
     const user = userEvent.setup();
     render(<SalesTab />);
 
-    await user.click(screen.getAllByRole("button", { name: "استرداد" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "استرداد فروش #12" })[0]);
     expect(screen.getByText("استرداد فروش #12")).toBeInTheDocument();
   });
 
@@ -91,7 +115,7 @@ describe("SalesTab", () => {
     canManageFinance = false;
     render(<SalesTab />);
 
-    expect(screen.queryByRole("button", { name: "استرداد" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "استرداد فروش #12" })).not.toBeInTheDocument();
     canManageFinance = true;
   });
 

@@ -1,11 +1,18 @@
 import { useMemo, useState } from "react";
-import { BiPlus } from "react-icons/bi";
+import { BiCreditCard, BiPlus, BiTrash } from "react-icons/bi";
 
-import { useCustomersList, usePackagesList, useSalesList } from "../../hooks/api";
+import {
+  useCustomersList,
+  usePackagesList,
+  useSalesList,
+  useServicesList,
+  useVisitsList,
+} from "../../hooks/api";
 import { usePermissions } from "../../hooks/usePermissions";
 import { formatJalaliDate } from "../../lib/date";
 import { toLatinDigits } from "../../lib/digits";
 import { formatPrice } from "../../lib/format";
+import type { Appointment } from "../../types/appointment";
 import type { Sale, SaleStatus } from "../../types/finance";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -15,8 +22,10 @@ import { Modal } from "../ui/Modal";
 import { Pagination } from "../ui/Pagination";
 import { Select } from "../ui/Select";
 import { type Column, Table } from "../ui/Table";
+import { Tooltip } from "../ui/Tooltip";
 import { CheckoutModal } from "./CheckoutModal";
 import { RefundModal } from "./RefundModal";
+import { VisitCheckoutModal } from "./VisitCheckoutModal";
 
 const saleStatusConfig: Record<
   SaleStatus,
@@ -53,7 +62,9 @@ export function SalesTab() {
   const [newCustomerId, setNewCustomerId] = useState("");
   const [newPackageId, setNewPackageId] = useState("");
   const [newTotal, setNewTotal] = useState("");
+  const [newTotalHint, setNewTotalHint] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutVisitId, setCheckoutVisitId] = useState<number | null>(null);
 
   const { canManageFinance } = usePermissions();
   const { data: paginated, isLoading } = useSalesList({
@@ -63,6 +74,29 @@ export function SalesTab() {
   });
   const { data: customersData } = useCustomersList({ perPage: 200 });
   const { data: packagesData } = usePackagesList({ perPage: 100 });
+  const { data: servicesData } = useServicesList({ perPage: 200 });
+  const { data: visitsData, isLoading: visitsLoading } = useVisitsList({
+    status: "completed",
+    perPage: 200,
+  });
+
+  // Package price lookup
+  const packagePrices = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const p of packagesData?.data ?? []) {
+      map.set(p.id, Number(p.priceToman ?? p.priceUsd ?? 0));
+    }
+    return map;
+  }, [packagesData?.data]);
+
+  // Service price lookup
+  const servicePrices = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const s of servicesData?.data ?? []) {
+      map.set(s.id, Number(s.price ?? 0));
+    }
+    return map;
+  }, [servicesData?.data]);
 
   const customerNames = useMemo(() => {
     const map = new Map<number, string>();
@@ -70,13 +104,48 @@ export function SalesTab() {
     return map;
   }, [customersData]);
 
-  const sales = paginated?.data ?? [];
+  const sales = useMemo(() => paginated?.data ?? [], [paginated?.data]);
   const totalPages = paginated?.totalPages ?? 1;
+
+  // Find paid visit IDs from sales
+  const paidVisitIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const sale of sales) {
+      if (sale.visit && sale.status === "paid") {
+        ids.add(sale.visit);
+      }
+    }
+    return ids;
+  }, [sales]);
+
+  // Filter completed visits that are not paid
+  const unpaidVisits = useMemo((): Appointment[] => {
+    const visits = visitsData?.data ?? [];
+    return visits.filter((v) => !paidVisitIds.has(v.id));
+  }, [visitsData?.data, paidVisitIds]);
+
+  // Compute visit totals
+  const visitTotals = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const visit of unpaidVisits) {
+      const total = visit.services.reduce((sum, id) => sum + (servicePrices.get(id) ?? 0), 0);
+      map.set(visit.id, total);
+    }
+    return map;
+  }, [unpaidVisits, servicePrices]);
 
   const startCheckout = () => {
     if (!newCustomerId || parseToman(newTotal) <= 0) return;
     setNewSaleOpen(false);
     setCheckoutOpen(true);
+  };
+
+  const openVisitCheckout = (visitId: number) => {
+    setCheckoutVisitId(visitId);
+  };
+
+  const closeVisitCheckout = () => {
+    setCheckoutVisitId(null);
   };
 
   const columns: Column<Sale>[] = [
@@ -132,12 +201,22 @@ export function SalesTab() {
             key: "actions",
             header: "عملیات",
             align: "center" as const,
-            width: "110px",
+            width: "90px",
             render: (item: Sale) =>
-              item.status === "paid" ? (
-                <Button variant="ghost" size="sm" onClick={() => setRefundSale(item)}>
-                  استرداد
-                </Button>
+              item.status === "paid" || item.status === "partially_refunded" ? (
+                <div className="flex justify-center gap-1.5">
+                  <Tooltip content="استرداد" side="top">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      iconOnly
+                      aria-label={`استرداد فروش #${item.id}`}
+                      onClick={() => setRefundSale(item)}
+                    >
+                      <BiTrash className="text-danger-600 size-4" />
+                    </Button>
+                  </Tooltip>
+                </div>
               ) : null,
           },
         ]
@@ -173,6 +252,7 @@ export function SalesTab() {
           rowKey={(item) => item.id}
           loading={isLoading}
           className="rounded-none border-0"
+          caption="لیست فروش‌ها"
         />
         {totalPages > 1 && (
           <div className="border-surface-200 flex items-center justify-center border-t px-5 py-4">
@@ -180,6 +260,55 @@ export function SalesTab() {
           </div>
         )}
       </Card>
+
+      {unpaidVisits.length > 0 && (
+        <Card variant="outlined" padding="md">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-surface-900 text-lg font-semibold">
+              نوبت‌های تکمیل‌شده و تسویه‌نشده
+            </h3>
+            <Badge variant="warning" size="sm">
+              {unpaidVisits.length} نوبت
+            </Badge>
+          </div>
+          <div className="flex flex-col gap-2">
+            {unpaidVisits.map((visit) => (
+              <div
+                key={visit.id}
+                className="border-surface-200 hover:bg-surface-50 flex items-center justify-between gap-4 rounded-lg border p-3 transition-colors"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <div className="bg-primary-100 text-primary-700 flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold">
+                    {visit.customerName[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-surface-900 truncate text-sm font-medium">
+                      {visit.customerName}
+                    </p>
+                    <p className="text-surface-500 text-xs" dir="ltr">
+                      {visit.time} · {visit.serviceNames?.join("، ") ?? "—"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-surface-600 text-sm">
+                    {formatPrice(visitTotals.get(visit.id) ?? 0)} تومان
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    startIcon={<BiCreditCard className="size-4" />}
+                    onClick={() => openVisitCheckout(visit.id)}
+                    disabled={visitsLoading}
+                  >
+                    تسویه
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {refundSale && <RefundModal sale={refundSale} onClose={() => setRefundSale(null)} />}
 
@@ -220,14 +349,28 @@ export function SalesTab() {
               ...(packagesData?.data ?? []).map((p) => ({ value: String(p.id), label: p.name })),
             ]}
             value={newPackageId}
-            onChange={(e) => setNewPackageId(e.target.value)}
+            onChange={(e) => {
+              const pkgId = e.target.value ? Number(e.target.value) : null;
+              setNewPackageId(e.target.value);
+              if (pkgId) {
+                const price = packagePrices.get(pkgId) ?? 0;
+                setNewTotal(String(price));
+                setNewTotalHint(`(هزینه پکیج: ${formatPrice(price)} تومان)`);
+              } else {
+                setNewTotalHint("");
+              }
+            }}
           />
           <Input
             label="مبلغ کل (تومان)"
             value={newTotal}
             inputMode="numeric"
-            onChange={(e) => setNewTotal(e.target.value)}
+            onChange={(e) => {
+              setNewTotal(e.target.value);
+              setNewTotalHint("");
+            }}
           />
+          {newTotalHint && <p className="text-surface-400 mt-1 text-xs">{newTotalHint}</p>}
         </div>
       </Modal>
 
@@ -239,6 +382,10 @@ export function SalesTab() {
           packageId={newPackageId ? Number(newPackageId) : null}
           defaultTotalToman={parseToman(newTotal)}
         />
+      )}
+
+      {checkoutVisitId && (
+        <VisitCheckoutModal visitId={checkoutVisitId} onClose={closeVisitCheckout} />
       )}
     </div>
   );
