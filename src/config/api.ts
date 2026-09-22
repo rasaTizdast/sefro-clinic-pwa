@@ -92,5 +92,10 @@ export const endpoints = {
     profitByPackage: "/finance/reports/profit-by-package/",
     profitByStaff: "/finance/reports/profit-by-staff/",
     dashboard: "/finance/reports/dashboard/",
+    operatingExpenses: "/finance/operating-expenses/",
+    operatingExpenseDetail: (id: number) => `/finance/operating-expenses/${id}/`,
+    operatingExpenseSummary: "/finance/operating-expenses/summary/",
+    operatingExpenseCategories: "/finance/operating-expense-categories/",
+    operatingExpenseCategoryDetail: (id: number) => `/finance/operating-expense-categories/${id}/`,
   },
 } as const;

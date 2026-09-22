@@ -2,6 +2,124 @@ export type SaleStatus = "pending" | "paid" | "refunded" | "partially_refunded" 
 
 export type PaymentMethod = "cash" | "cash_usd" | "cash_toman" | "card" | "wallet";
 
+export type OperatingExpensePaymentMethod = "cash" | "card" | "bank_transfer" | "other";
+
+export interface OperatingExpenseCategory {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OperatingExpense {
+  id: number;
+  category: number;
+  categoryName: string | null;
+  title: string;
+  description: string;
+  amountUsd: string;
+  exchangeRate: string | null;
+  amountToman: string;
+  expenseDate: string;
+  paymentMethod: OperatingExpensePaymentMethod;
+  vendor: string;
+  receipt: string | null;
+  notes: string;
+  createdBy: number | null;
+  createdByName: string | null;
+  idempotencyKey: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOperatingExpensePayload {
+  category: number;
+  title: string;
+  description?: string;
+  amountUsd: string;
+  expenseDate: string;
+  paymentMethod: OperatingExpensePaymentMethod;
+  vendor?: string;
+  receipt?: File | null;
+  notes?: string;
+  idempotencyKey: string;
+}
+
+export interface UpdateOperatingExpensePayload {
+  category?: number;
+  title?: string;
+  description?: string;
+  amountUsd?: string;
+  expenseDate?: string;
+  paymentMethod?: OperatingExpensePaymentMethod;
+  vendor?: string;
+  receipt?: File | null;
+  notes?: string;
+}
+
+export interface CreateOperatingExpenseCategoryPayload {
+  name: string;
+  slug?: string;
+  description?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateOperatingExpenseCategoryPayload {
+  name?: string;
+  slug?: string;
+  description?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface OperatingExpenseListParams {
+  page?: number;
+  perPage?: number;
+  search?: string;
+  category?: number;
+  paymentMethod?: OperatingExpensePaymentMethod;
+  createdBy?: number;
+  dateFrom?: string; // Gregorian YYYY-MM-DD
+  dateTo?: string; // Gregorian YYYY-MM-DD
+  ordering?:
+    | "expense_date"
+    | "-expense_date"
+    | "amount_usd"
+    | "-amount_usd"
+    | "created_at"
+    | "-created_at";
+}
+
+export interface OperatingExpenseSummaryQuery {
+  period?: ReportPeriod;
+  startDateJalali?: string;
+  endDateJalali?: string;
+}
+
+export interface OperatingExpenseSummary {
+  period: { start: string; end: string };
+  totalUsd: string;
+  totalToman: string;
+  count: number;
+  byCategory: {
+    categoryId: number;
+    categoryName: string;
+    totalUsd: string;
+    totalToman: string;
+    count: number;
+  }[];
+  byPaymentMethod: {
+    paymentMethod: OperatingExpensePaymentMethod;
+    totalUsd: string;
+    count: number;
+  }[];
+}
+
 export type PayoutStatus = "pending" | "approved" | "paid" | "cancelled";
 
 export type CompensationRole = "none" | "doctor" | "facial" | "laser";

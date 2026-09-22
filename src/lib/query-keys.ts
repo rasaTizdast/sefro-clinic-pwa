@@ -86,5 +86,14 @@ export const queryKeys = {
     purchases: (params?: Record<string, unknown>) => ["finance", "purchases", params] as const,
     usages: (params?: Record<string, unknown>) => ["finance", "usages", params] as const,
     costHistory: (productId: number) => ["finance", "costHistory", productId] as const,
+    operatingExpenses: {
+      list: (params?: Record<string, unknown>) =>
+        ["finance", "operatingExpenses", "list", params] as const,
+      categories: (params?: Record<string, unknown>) =>
+        ["finance", "operatingExpenses", "categories", params] as const,
+      summary: (params?: Record<string, unknown>) =>
+        ["finance", "operatingExpenses", "summary", params] as const,
+      detail: (id: number) => ["finance", "operatingExpenses", "detail", id] as const,
+    },
   },
 } as const;
