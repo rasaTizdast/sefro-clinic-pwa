@@ -4,15 +4,20 @@ import { CiMoneyBill } from "react-icons/ci";
 import { FiEdit2 } from "react-icons/fi";
 
 import {
+  useAllOperatingExpenseCategories,
   useDeleteOperatingExpense,
-  useOperatingExpenseCategories,
   useOperatingExpensesList,
   useOperatingExpenseSummary,
 } from "../../hooks/api";
 import { usePermissions } from "../../hooks/usePermissions";
 import { formatJalaliDate, jalaliToGregorianISO } from "../../lib/date";
 import { formatPrice } from "../../lib/format";
-import type { OperatingExpense, OperatingExpensePaymentMethod } from "../../types/finance";
+import { REPORT_PERIOD_OPTIONS, reportPeriodLabel } from "../../lib/report-period";
+import type {
+  OperatingExpense,
+  OperatingExpensePaymentMethod,
+  ReportPeriod,
+} from "../../types/finance";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { EmptyState } from "../ui/EmptyState";
@@ -23,6 +28,7 @@ import { Pagination } from "../ui/Pagination";
 import { Select } from "../ui/Select";
 import { type Column, Table } from "../ui/Table";
 import { Tooltip } from "../ui/Tooltip";
+import { FinanceContext, SummaryMetric } from "./FinanceSummary";
 import { OperatingExpenseCategoryModal } from "./OperatingExpenseCategoryModal";
 import { OperatingExpenseFormModal } from "./OperatingExpenseFormModal";
 
@@ -53,6 +59,7 @@ const orderingOptions = [
 ];
 
 export function OperatingExpensesTab() {
+  const [period, setPeriod] = useState<ReportPeriod>("this_month");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -68,7 +75,7 @@ export function OperatingExpensesTab() {
 
   const { canManageFinance } = usePermissions();
 
-  const { data: categoriesData } = useOperatingExpenseCategories({ perPage: 100 });
+  const { data: categoriesData } = useAllOperatingExpenseCategories();
 
   const { data: paginated, isLoading } = useOperatingExpensesList({
     page,
@@ -81,18 +88,41 @@ export function OperatingExpensesTab() {
     ...(dateTo ? { dateTo: jalaliToGregorianISO(dateTo) } : {}),
   });
 
-  const { data: summary } = useOperatingExpenseSummary({ period: "this_month" });
+  const { data: summary } = useOperatingExpenseSummary({ period });
 
   const deleteExpense = useDeleteOperatingExpense();
 
   const expenses = paginated?.data ?? [];
   const totalPages = paginated?.totalPages ?? 1;
-  const categories = categoriesData?.data ?? [];
+  const categories = categoriesData ?? [];
+  const periodText = reportPeriodLabel(period);
 
   const topCategory = useMemo(
     () => summary?.byCategory?.slice().sort((a, b) => b.count - a.count)[0],
     [summary?.byCategory]
   );
+
+  const topPaymentMethod = useMemo(
+    () =>
+      summary?.byPaymentMethod?.slice().sort((a, b) => Number(b.totalUsd) - Number(a.totalUsd))[0],
+    [summary?.byPaymentMethod]
+  );
+
+  const averageToman = useMemo(() => {
+    if (!summary || summary.count <= 0) return 0;
+    return Math.round(Number(summary.totalToman) / summary.count);
+  }, [summary]);
+
+  const hasActiveFilters = Boolean(search || category || paymentMethod || dateFrom || dateTo);
+
+  const clearFilters = () => {
+    setSearch("");
+    setCategory("");
+    setPaymentMethod("");
+    setDateFrom(null);
+    setDateTo(null);
+    setPage(1);
+  };
 
   const columns: Column<OperatingExpense>[] = [
     {
@@ -214,32 +244,82 @@ export function OperatingExpensesTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Card variant="outlined" padding="sm">
-          <p className="text-surface-400 text-xs">جمع تومان (این ماه)</p>
-          <p className="text-surface-900 text-lg font-bold">
-            {summary ? `${formatPrice(Number(summary.totalToman))} تومان` : "—"}
+      <Card variant="outlined" padding="none" className="overflow-hidden">
+        <div className="flex flex-col gap-5 p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-surface-500 text-sm">جمع تومان ({periodText})</p>
+              <p className="text-surface-900 mt-1 text-3xl font-bold">
+                {summary ? `${formatPrice(Number(summary.totalToman))} تومان` : "—"}
+              </p>
+              <p className="text-surface-400 mt-1 text-sm" dir="ltr">
+                {summary ? `$${summary.totalUsd}` : "—"}
+              </p>
+            </div>
+            <div className="w-full sm:w-52">
+              <Select
+                label="بازه زمانی"
+                options={REPORT_PERIOD_OPTIONS}
+                value={period}
+                onChange={(e) => setPeriod(e.target.value as ReportPeriod)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <SummaryMetric
+              label="تعداد هزینه‌ها"
+              value={summary ? String(summary.count) : "—"}
+              hint={`در ${periodText}`}
+            />
+            <SummaryMetric
+              label="بیشترین دسته‌بندی"
+              value={topCategory ? `${topCategory.categoryName} (${topCategory.count})` : "—"}
+            />
+            <SummaryMetric
+              label="غالب‌ترین روش پرداخت"
+              value={topPaymentMethod ? paymentMethodLabels[topPaymentMethod.paymentMethod] : "—"}
+              hint={topPaymentMethod ? `${topPaymentMethod.count} ردیف` : undefined}
+            />
+            <SummaryMetric
+              label="میانگین هر هزینه"
+              value={summary && summary.count > 0 ? formatPrice(averageToman) : "—"}
+              hint="تومان"
+            />
+          </div>
+        </div>
+
+        <FinanceContext
+          period={period}
+          primaryLabel="هزینه‌های جاری"
+          primaryToman={Number(summary?.totalToman ?? 0)}
+          tone="danger"
+        />
+      </Card>
+
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h3 className="text-surface-900 text-base font-semibold">لیست هزینه‌ها</h3>
+          <p className="text-surface-400 text-xs">
+            {paginated ? `${formatPrice(paginated.total)} ردیف` : "—"} بر اساس فیلترهای زیر
           </p>
-        </Card>
-        <Card variant="outlined" padding="sm">
-          <p className="text-surface-400 text-xs">جمع دلار (این ماه)</p>
-          <p className="text-surface-900 text-lg font-bold">
-            {summary ? `$${summary.totalUsd}` : "—"}
-          </p>
-        </Card>
-        <Card variant="outlined" padding="sm">
-          <p className="text-surface-400 text-xs">تعداد هزینه‌ها</p>
-          <p className="text-surface-900 text-lg font-bold">{summary ? summary.count : "—"}</p>
-        </Card>
-        <Card variant="outlined" padding="sm">
-          <p className="text-surface-400 text-xs">بیشترین دسته‌بندی</p>
-          <p className="text-surface-900 text-sm font-bold">
-            {topCategory ? `${topCategory.categoryName} (${topCategory.count})` : "—"}
-          </p>
-        </Card>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              حذف فیلترها
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => setCategoriesOpen(true)}>
+            دسته‌بندی‌ها
+          </Button>
+          <Button variant="primary" startIcon={<BiPlus className="size-5" />} onClick={openCreate}>
+            هزینه جدید
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Input
           label="جستجو"
           value={search}
@@ -294,14 +374,6 @@ export function OperatingExpensesTab() {
             setPage(1);
           }}
         />
-        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-3 lg:justify-end">
-          <Button variant="outline" onClick={() => setCategoriesOpen(true)}>
-            دسته‌بندی‌ها
-          </Button>
-          <Button variant="primary" startIcon={<BiPlus className="size-5" />} onClick={openCreate}>
-            هزینه جدید
-          </Button>
-        </div>
       </div>
 
       <Card variant="outlined" padding="none">
@@ -325,7 +397,7 @@ export function OperatingExpensesTab() {
         <EmptyState
           icon={<CiMoneyBill className="size-16" />}
           title="هزینه جاری‌ای ثبت نشده است"
-          description="هزینه‌های مستقیم کلینیک مانند اجاره و مصرفی‌ها را اینجا ثبت کنید."
+          description="هزینه‌های مستقیم کلینیک مانند اجاره و قبوض را اینجا ثبت کنید."
           action={
             <Button
               variant="primary"

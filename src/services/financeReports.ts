@@ -1,7 +1,14 @@
 import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
 import { jalaliToGregorianISO } from "../lib/date";
-import type { FinanceDashboard, FinancialSummary, ProfitRow, ReportPeriod } from "../types/finance";
+import type {
+  FinanceDashboard,
+  FinancialSummary,
+  Money,
+  ProfitRow,
+  ReportPeriod,
+  StaffCompensationByRole,
+} from "../types/finance";
 
 const USD = "0.00";
 const TOMAN = "0";
@@ -43,10 +50,23 @@ export function toReportParams(query: ReportQuery = {}): Record<string, string |
 type RawFinancialSummary = Record<string, unknown> & {
   period?: { start: string; end: string };
   revenue?: { usd: string; toman: string };
+  revenueBasis?: string;
   productCost?: { usd: string; toman: string };
+  welcomePackCost?: { usd: string; toman: string };
   grossProfit?: { usd: string; toman: string };
   expenses?: { usd: string; toman: string };
+  staffCompensation?: {
+    cash?: { usd: string; toman: string };
+    product?: { usd: string; toman: string };
+    total?: { usd: string; toman: string };
+    payoutCount?: number;
+    byRole?: Record<string, RawStaffRole>;
+  };
+  operatingExpenses?: { usd: string; toman: string; count?: number };
+  staffExpenseClaims?: { usd: string; toman: string; count?: number };
+  belowTheLineTotal?: { usd: string; toman: string };
   netProfit?: { usd: string; toman: string };
+  costCoverage?: { zeroCostRows?: number; productsMissingCost?: number[] };
   paymentMethods?: { cash: string; card: string; wallet: string };
   counts?: {
     appointments: number;
@@ -83,24 +103,94 @@ type RawFinanceDashboard = Record<string, unknown> & {
 
 const emptyMoney = { usd: USD, toman: TOMAN };
 
-export const toFinancialSummary = (raw: RawFinancialSummary): FinancialSummary => ({
-  period: raw.period ?? { start: "", end: "" },
-  revenue: raw.revenue ?? { ...emptyMoney },
-  productCost: raw.productCost ?? { ...emptyMoney },
-  grossProfit: raw.grossProfit ?? { ...emptyMoney },
-  // Backend financialSummary.expenses represents employee Expense claims only.
-  // Direct clinic OperatingExpense totals are fetched from /finance/operating-expenses/summary/.
-  expenses: raw.expenses ?? { ...emptyMoney },
-  netProfit: raw.netProfit ?? { ...emptyMoney },
-  paymentMethods: raw.paymentMethods ?? { cash: USD, card: USD, wallet: USD },
-  counts: raw.counts ?? {
-    appointments: 0,
-    packagesSold: 0,
-    productsSoldQuantity: "0.000",
-    paidSales: 0,
-    averageTransactionValue: USD,
-  },
+const emptyStaffCompensation = {
+  cash: { ...emptyMoney },
+  product: { ...emptyMoney },
+  total: { ...emptyMoney },
+  payoutCount: 0,
+  byRole: {} as Record<string, StaffCompensationByRole>,
+};
+
+type RawMoney = { usd?: string; toman?: string };
+
+type RawStaffRole = Record<string, unknown> & {
+  role?: string;
+  count?: number;
+  cashUsd?: string;
+  cashToman?: string;
+  productUsd?: string;
+  productToman?: string;
+  totalUsd?: string;
+  totalToman?: string;
+};
+
+const toMoney = (raw: RawMoney | undefined): Money => ({
+  usd: raw?.usd ?? USD,
+  toman: raw?.toman ?? TOMAN,
 });
+
+const toStaffRole = (raw: RawStaffRole): StaffCompensationByRole => ({
+  role: raw.role ?? "",
+  count: raw.count ?? 0,
+  cashUsd: raw.cashUsd ?? USD,
+  cashToman: raw.cashToman ?? TOMAN,
+  productUsd: raw.productUsd ?? USD,
+  productToman: raw.productToman ?? TOMAN,
+  totalUsd: raw.totalUsd ?? USD,
+  totalToman: raw.totalToman ?? TOMAN,
+});
+
+export const toFinancialSummary = (raw: RawFinancialSummary): FinancialSummary => {
+  const byRoleRaw = (raw.staffCompensation?.byRole ?? {}) as Record<string, RawStaffRole>;
+  const byRole: Record<string, StaffCompensationByRole> = {};
+  for (const [key, value] of Object.entries(byRoleRaw)) {
+    if (!value) continue;
+    byRole[key] = toStaffRole(value);
+  }
+
+  return {
+    period: raw.period ?? { start: "", end: "" },
+    revenue: toMoney(raw.revenue),
+    revenueBasis: raw.revenueBasis ?? "sale_ledger",
+    productCost: toMoney(raw.productCost),
+    welcomePackCost: toMoney(raw.welcomePackCost),
+    grossProfit: toMoney(raw.grossProfit),
+    // `expenses` is the backend's long-standing alias for staff expense claims;
+    // `staffExpenseClaims` is the explicit name for the same money.
+    expenses: toMoney(raw.expenses ?? raw.staffExpenseClaims),
+    staffCompensation: raw.staffCompensation
+      ? {
+          cash: toMoney(raw.staffCompensation.cash),
+          product: toMoney(raw.staffCompensation.product),
+          total: toMoney(raw.staffCompensation.total),
+          payoutCount: raw.staffCompensation.payoutCount ?? 0,
+          byRole,
+        }
+      : emptyStaffCompensation,
+    operatingExpenses: {
+      ...toMoney(raw.operatingExpenses),
+      count: raw.operatingExpenses?.count ?? 0,
+    },
+    staffExpenseClaims: {
+      ...toMoney(raw.staffExpenseClaims ?? raw.expenses),
+      count: raw.staffExpenseClaims?.count ?? 0,
+    },
+    belowTheLineTotal: toMoney(raw.belowTheLineTotal),
+    netProfit: toMoney(raw.netProfit),
+    costCoverage: {
+      zeroCostRows: raw.costCoverage?.zeroCostRows ?? 0,
+      productsMissingCost: raw.costCoverage?.productsMissingCost ?? [],
+    },
+    paymentMethods: raw.paymentMethods ?? { cash: USD, card: USD, wallet: USD },
+    counts: raw.counts ?? {
+      appointments: 0,
+      packagesSold: 0,
+      productsSoldQuantity: "0.000",
+      paidSales: 0,
+      averageTransactionValue: USD,
+    },
+  };
+};
 
 export const toProfitRow = (raw: RawProfitRow): ProfitRow => ({
   serviceId: raw.serviceId,

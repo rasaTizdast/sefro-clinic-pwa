@@ -19,6 +19,11 @@ export function extractApiError(error: unknown): string {
   if (typeof error === "string") return error;
 
   const apiErr = error as ApiError;
+
+  if (apiErr.code === "ECONNABORTED" || /timeout/i.test(apiErr.message ?? "")) {
+    return "زمان درخواست تمام شد — اتصال را بررسی کنید و دوباره تلاش کنید.";
+  }
+
   const raw = apiErr.raw;
 
   if (raw && typeof raw === "object") {

@@ -9,7 +9,13 @@ export function useProductsList(params?: PaginationParams) {
   return useQuery({
     queryKey: queryKeys.products.list(params),
     queryFn: () => productsService.listProducts(params),
-    placeholderData: (prev) => prev,
+  });
+}
+
+export function useAllProducts() {
+  return useQuery({
+    queryKey: queryKeys.products.all,
+    queryFn: () => productsService.listAllProducts(),
   });
 }
 

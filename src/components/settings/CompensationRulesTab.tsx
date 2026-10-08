@@ -1,7 +1,13 @@
 import { useState } from "react";
-import { BiPencil, BiPlus } from "react-icons/bi";
+import { BiPencil, BiPlus, BiTrash } from "react-icons/bi";
 
-import { useCompensationRules, useProductsList, useUpsertCompensationRule } from "../../hooks/api";
+import {
+  useAllProducts,
+  useCompensationRules,
+  useCurrentRate,
+  useUpsertCompensationRule,
+} from "../../hooks/api";
+import { toPersianDigits } from "../../lib/digits";
 import type { StaffCompensationRule } from "../../types/finance";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -42,15 +48,22 @@ const roleLabel: Record<string, string> = {
   laser: "لیزر",
 };
 
+interface ProductRow {
+  product: string;
+  qty: string;
+}
+
 interface RuleForm {
   role: string;
   payoutType: string;
   calculationType: string;
   percentProfit: string;
   fixedAmountToman: string;
+  fixedAmountUsd: string;
+  monthlySalaryToman: string;
+  monthlySalaryUsd: string;
   transportToman: string;
-  product: string;
-  productQty: string;
+  products: ProductRow[];
 }
 
 const emptyForm: RuleForm = {
@@ -59,16 +72,20 @@ const emptyForm: RuleForm = {
   calculationType: "percent_profit",
   percentProfit: "",
   fixedAmountToman: "",
+  fixedAmountUsd: "",
+  monthlySalaryToman: "",
+  monthlySalaryUsd: "",
   transportToman: "",
-  product: "",
-  productQty: "",
+  products: [],
 };
 
 export function CompensationRulesTab() {
   const { data: rules, isLoading } = useCompensationRules();
   const upsertRule = useUpsertCompensationRule();
-  const { data: productsData } = useProductsList({ perPage: 200 });
-  const products = productsData?.data ?? [];
+  const { data: productsData } = useAllProducts();
+  const { data: currentRate } = useCurrentRate();
+  const products = productsData ?? [];
+  const rate = currentRate ? Number(currentRate.rateTomanPerUsd) : 0;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -90,11 +107,28 @@ export function CompensationRulesTab() {
       calculationType: rule.calculationType,
       percentProfit: rule.percentProfit ?? "",
       fixedAmountToman: rule.fixedAmountToman ?? "",
+      fixedAmountUsd: rule.fixedAmountUsd ?? "",
+      monthlySalaryToman: rule.fixedAmountToman ?? "",
+      monthlySalaryUsd: rule.fixedAmountUsd ?? "",
       transportToman: rule.transportToman,
-      product: rule.product ? String(rule.product) : "",
-      productQty: rule.productQty,
+      products: rule.product ? [{ product: String(rule.product), qty: rule.productQty }] : [],
     });
     setModalOpen(true);
+  }
+
+  function addProductRow() {
+    setForm((f) => ({ ...f, products: [...f.products, { product: "", qty: "1" }] }));
+  }
+
+  function removeProductRow(index: number) {
+    setForm((f) => ({ ...f, products: f.products.filter((_, i) => i !== index) }));
+  }
+
+  function updateProductRow(index: number, field: keyof ProductRow, value: string) {
+    setForm((f) => ({
+      ...f,
+      products: f.products.map((p, i) => (i === index ? { ...p, [field]: value } : p)),
+    }));
   }
 
   async function handleSave() {
@@ -109,11 +143,16 @@ export function CompensationRulesTab() {
       payload.percent_profit = form.percentProfit || "0";
     } else if (form.calculationType === "fixed_per_session") {
       payload.fixed_amount_toman = form.fixedAmountToman || "0";
+      if (form.fixedAmountUsd) payload.fixed_amount_usd = form.fixedAmountUsd;
+    } else if (form.calculationType === "monthly_salary") {
+      payload.fixed_amount_toman = form.monthlySalaryToman || "0";
+      if (form.monthlySalaryUsd) payload.fixed_amount_usd = form.monthlySalaryUsd;
     }
 
-    if (form.payoutType !== "cash" && form.product) {
-      payload.product = Number(form.product);
-      payload.product_qty = form.productQty || "1";
+    const activeProducts = form.products.filter((p) => p.product);
+    if (form.payoutType !== "cash" && activeProducts.length > 0) {
+      payload.product = Number(activeProducts[0].product);
+      payload.product_qty = activeProducts[0].qty || "1";
     }
 
     await upsertRule.mutateAsync({
@@ -247,47 +286,116 @@ export function CompensationRulesTab() {
               inputMode="numeric"
               value={form.percentProfit}
               onChange={(e) => setForm((f) => ({ ...f, percentProfit: e.target.value }))}
-              placeholder="مثال: 30"
+              placeholder="مثال: ۳۰"
             />
           )}
 
           {form.calculationType === "fixed_per_session" && (
-            <Input
-              label="مبلغ ثابت (تومان)"
-              type="text"
-              inputMode="numeric"
-              value={form.fixedAmountToman}
-              onChange={(e) => setForm((f) => ({ ...f, fixedAmountToman: e.target.value }))}
-              placeholder="مثال: 500000"
-            />
-          )}
-
-          <Input
-            label="ایاب و ذهاب (تومان)"
-            type="text"
-            inputMode="numeric"
-            value={form.transportToman}
-            onChange={(e) => setForm((f) => ({ ...f, transportToman: e.target.value }))}
-            placeholder="0"
-          />
-
-          {form.payoutType !== "cash" && (
             <div className="grid grid-cols-2 gap-4">
-              <Select
-                label="محصول"
-                options={products.map((p) => ({ value: String(p.id), label: p.name }))}
-                placeholder="انتخاب محصول"
-                value={form.product}
-                onChange={(e) => setForm((f) => ({ ...f, product: e.target.value }))}
-              />
               <Input
-                label="تعداد"
+                label="مبلغ ثابت (تومان)"
                 type="text"
                 inputMode="numeric"
-                value={form.productQty}
-                onChange={(e) => setForm((f) => ({ ...f, productQty: e.target.value }))}
-                placeholder="1"
+                value={form.fixedAmountToman}
+                onChange={(e) => setForm((f) => ({ ...f, fixedAmountToman: e.target.value }))}
+                placeholder="مثال: ۵۰۰٬۰۰۰"
               />
+              <Input
+                label="مبلغ ثابت (دلار)"
+                type="text"
+                inputMode="numeric"
+                value={form.fixedAmountUsd}
+                onChange={(e) => setForm((f) => ({ ...f, fixedAmountUsd: e.target.value }))}
+                placeholder="مثال: ۱۰"
+              />
+            </div>
+          )}
+
+          {form.calculationType === "monthly_salary" && (
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="حقوق ماهانه (تومان)"
+                type="text"
+                inputMode="numeric"
+                value={form.monthlySalaryToman}
+                onChange={(e) => setForm((f) => ({ ...f, monthlySalaryToman: e.target.value }))}
+                placeholder="مثال: ۵٬۰۰۰٬۰۰۰"
+              />
+              <Input
+                label="حقوق ماهانه (دلار)"
+                type="text"
+                inputMode="numeric"
+                value={form.monthlySalaryUsd}
+                onChange={(e) => setForm((f) => ({ ...f, monthlySalaryUsd: e.target.value }))}
+                placeholder="مثال: ۱۰۰"
+              />
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-surface-700 text-sm font-medium">ایاب و ذهاب (تومان)</label>
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={form.transportToman}
+              onChange={(e) => setForm((f) => ({ ...f, transportToman: e.target.value }))}
+              placeholder="۰"
+            />
+            {rate > 0 && form.transportToman && (
+              <span className="text-surface-400 text-xs">
+                ≈ {toPersianDigits((Number(form.transportToman) / rate).toFixed(2))} دلار
+              </span>
+            )}
+          </div>
+
+          {form.payoutType !== "cash" && (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <label className="text-surface-700 text-sm font-medium">محصولات</label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  startIcon={<BiPlus className="size-4" />}
+                  onClick={addProductRow}
+                >
+                  افزودن محصول
+                </Button>
+              </div>
+
+              {form.products.length === 0 && (
+                <p className="text-surface-400 text-sm">هنوز محصولی اضافه نشده است.</p>
+              )}
+
+              {form.products.map((row, index) => (
+                <div key={index} className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Select
+                      label={`محصول ${toPersianDigits(String(index + 1))}`}
+                      options={products.map((p) => ({ value: String(p.id), label: p.name }))}
+                      placeholder="انتخاب محصول"
+                      value={row.product}
+                      onChange={(e) => updateProductRow(index, "product", e.target.value)}
+                    />
+                  </div>
+                  <div className="w-24">
+                    <Input
+                      label="تعداد"
+                      type="text"
+                      inputMode="numeric"
+                      value={row.qty}
+                      onChange={(e) => updateProductRow(index, "qty", e.target.value)}
+                      placeholder="۱"
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    startIcon={<BiTrash className="text-danger-500 size-4" />}
+                    onClick={() => removeProductRow(index)}
+                    disabled={form.products.length === 1}
+                  />
+                </div>
+              ))}
             </div>
           )}
         </div>

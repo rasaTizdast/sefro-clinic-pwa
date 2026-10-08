@@ -13,6 +13,15 @@ export function useVisitsList(params?: Record<string, unknown>) {
   });
 }
 
+/** All visits matching the filters — walks every server page (`per_page` is ignored). */
+export function useAllVisits(params?: visitsService.ListAllVisitsParams) {
+  return useQuery({
+    queryKey: queryKeys.visits.allPages(params as unknown as Record<string, unknown>),
+    queryFn: () => visitsService.listAllVisits(params),
+    placeholderData: (prev) => prev,
+  });
+}
+
 export function useVisit(id: number) {
   return useQuery({
     queryKey: queryKeys.visits.detail(id),

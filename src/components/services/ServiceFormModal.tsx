@@ -2,17 +2,17 @@ import { useMemo, useState } from "react";
 import { CiTrash } from "react-icons/ci";
 
 import {
+  useAllProducts,
   useCreateService,
   useCurrentRate,
-  useProductsList,
   useServiceCategories,
   useSyncServiceItems,
   useUpdateService,
 } from "../../hooks/api";
 import { extractApiError } from "../../lib/api-error";
-import { tomanToUsd } from "../../lib/currency";
-import { toLatinDigits } from "../../lib/digits";
-import { formatPrice } from "../../lib/format";
+import { formatUsd, tomanToUsd } from "../../lib/currency";
+import { toLatinDigits, toPersianDigits } from "../../lib/digits";
+import { ceilUp, formatPrice, parseTomanAmount, serviceDisplayToman } from "../../lib/format";
 import { serviceFormSchema } from "../../lib/validations";
 import type { CompensationRole } from "../../types/finance";
 import type { Service } from "../../types/service";
@@ -22,7 +22,7 @@ import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
 import { Select } from "../ui/Select";
 import { Textarea } from "../ui/Textarea";
-import { Toggle } from "../ui/Toggle";
+import { useToast } from "../ui/Toast";
 
 interface ServiceFormModalProps {
   service?: Service | null;
@@ -30,16 +30,12 @@ interface ServiceFormModalProps {
 }
 
 const roleOptions = [
-  { value: "none", label: "بدون اپراتور" },
   { value: "doctor", label: "پزشک" },
   { value: "facial", label: "فیشال" },
   { value: "laser", label: "لیزر" },
 ];
 
-const parseToman = (value: string): number => {
-  const latin = toLatinDigits(value.replace(/[^\d۰-۹٠-٩]/g, ""));
-  return Number(latin) || 0;
-};
+const parseToman = (value: string): number => parseTomanAmount(value);
 
 /**
  * Service create/edit form: Toman price (converted to USD on save), category +
@@ -49,16 +45,14 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
   const [title, setTitle] = useState(service?.title ?? "");
   const [duration, setDuration] = useState(service ? String(service.duration) : "");
   const [priceToman, setPriceToman] = useState(
-    service
-      ? formatPrice(service.priceToman != null ? Number(service.priceToman) : service.price)
-      : ""
+    service ? formatPrice(serviceDisplayToman(service)) : ""
   );
   const [description, setDescription] = useState(service?.description ?? "");
   const [categoryId, setCategoryId] = useState(
     service?.category ? String(service.category.id) : ""
   );
-  const [role, setRole] = useState<CompensationRole>(service?.compensationRole ?? "none");
-  const [isActive, setIsActive] = useState(service?.isActive ?? true);
+  const [role, setRole] = useState<CompensationRole>(service?.compensationRole ?? "doctor");
+  const [isActive] = useState(service?.isActive ?? true);
   const [items, setItems] = useState<{ product: number; quantity: string }[]>(() =>
     (service?.products ?? []).map((row) => ({ product: row.product, quantity: row.quantity }))
   );
@@ -66,10 +60,11 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
 
   const { data: currentRate, isLoading: rateLoading } = useCurrentRate();
   const { data: categoriesData } = useServiceCategories();
-  const { data: productsData } = useProductsList({ perPage: 100 });
+  const { data: productsData } = useAllProducts();
   const createService = useCreateService();
   const updateService = useUpdateService();
   const syncItems = useSyncServiceItems();
+  const toast = useToast();
 
   const rate = useMemo(() => {
     const parsed = Number(currentRate?.rateTomanPerUsd ?? currentRate?.rate);
@@ -78,6 +73,8 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
 
   const rateMissing = !rateLoading && rate === null;
   const isPending = createService.isPending || updateService.isPending || syncItems.isPending;
+  const priceNumber = parseToman(priceToman);
+  const priceUsdPreview = priceNumber > 0 ? tomanToUsd(priceNumber, rate) : null;
 
   const categoryOptions = useMemo(
     () => [
@@ -90,7 +87,7 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
   const productOptions = useMemo(
     () => [
       { value: "", label: "انتخاب محصول" },
-      ...(productsData?.data ?? []).map((p) => ({ value: String(p.id), label: p.name })),
+      ...(productsData ?? []).map((p) => ({ value: String(p.id), label: p.name })),
     ],
     [productsData]
   );
@@ -99,6 +96,28 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
   const updateItem = (index: number, patch: Partial<{ product: number; quantity: string }>) =>
     setItems((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   const removeItem = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
+
+  const unitPriceByProduct = useMemo(
+    () => new Map((productsData ?? []).map((p) => [p.id, parseTomanAmount(p.unitPrice)])),
+    [productsData]
+  );
+
+  /** Billable materials at Product.unit_price — the same basis as the detail modal. */
+  const materialsToman = useMemo(() => {
+    let total = 0;
+    for (const row of items) {
+      if (row.product <= 0) continue;
+      const unit = unitPriceByProduct.get(row.product);
+      const qty = Number(toLatinDigits(row.quantity));
+      if (unit == null || !Number.isFinite(qty) || qty <= 0) return null;
+      total += ceilUp(unit * qty);
+    }
+    return total;
+  }, [items, unitPriceByProduct]);
+
+  const materialsCount = items.filter((row) => row.product > 0).length;
+  const finishedToman = materialsToman != null ? priceNumber + materialsToman : null;
+  const finishedUsd = finishedToman != null ? tomanToUsd(finishedToman, rate) : null;
 
   const handleSave = async () => {
     setFormError("");
@@ -134,7 +153,12 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
         ? await updateService.mutateAsync({ id: service.id, data: payload })
         : await createService.mutateAsync(payload);
       const cleanItems = items.filter((row) => row.product > 0);
-      await syncItems.mutateAsync({ serviceId: saved.id, items: cleanItems });
+      try {
+        await syncItems.mutateAsync({ serviceId: saved.id, items: cleanItems });
+      } catch {
+        // Service itself is saved (visible in lists); only the consumable recipe failed.
+        toast.warning("خدمت ذخیره شد", "ثبت مواد مصرفی کامل نشد — از ویرایش دوباره تلاش کنید.");
+      }
       onClose();
     } catch (err: unknown) {
       setFormError(extractApiError(err));
@@ -176,18 +200,30 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
           <Input
             label="مدت زمان (دقیقه)"
             type="number"
+            min={1}
             value={duration}
-            onChange={(e) => setDuration(e.target.value)}
+            onChange={(e) => setDuration(e.target.value.replace(/[^\d۰-۹٠-٩]/g, ""))}
             placeholder="مثال: ۳۰"
           />
           <Input
             label="قیمت (تومان)"
             value={priceToman}
             inputMode="numeric"
-            onChange={(e) => setPriceToman(e.target.value)}
+            onChange={(e) => {
+              const num = parseToman(e.target.value);
+              setPriceToman(num > 0 ? formatPrice(num) : "");
+            }}
             placeholder="مثال: ۳۵۰٬۰۰۰"
           />
         </div>
+        {priceNumber > 0 && (
+          <p className="text-surface-500 -mt-2 text-xs">
+            {formatPrice(priceNumber)} تومان
+            {priceUsdPreview != null && (
+              <span className="text-surface-400"> (${priceUsdPreview})</span>
+            )}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <Select
             label="دسته‌بندی"
@@ -246,7 +282,34 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
           ))}
         </div>
 
-        <Toggle label="فعال" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+        {priceNumber > 0 && (
+          <div className="border-surface-200 bg-surface-50 flex flex-col gap-1.5 rounded-lg border px-3 py-2.5 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-surface-500">اجرت خدمت</span>
+              <span className="text-surface-700 font-medium">{formatPrice(priceNumber)} تومان</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-surface-500">
+                مواد مصرفی ({toPersianDigits(String(materialsCount))} قلم)
+              </span>
+              <span className="text-surface-700 font-medium">
+                {materialsToman != null ? `${formatPrice(materialsToman)} تومان` : "—"}
+              </span>
+            </div>
+            <div className="border-surface-200 mt-1 flex items-center justify-between border-t pt-1.5">
+              <span className="text-surface-900 font-medium">مبلغ نهایی مشتری</span>
+              <span className="text-primary-700 font-bold">
+                {finishedToman != null ? `${formatPrice(finishedToman)} تومان` : "—"}
+                {finishedUsd != null && (
+                  <span className="text-surface-400 text-xs font-normal">
+                    {" "}
+                    ({formatUsd(finishedUsd)})
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );

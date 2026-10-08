@@ -56,7 +56,12 @@ export function WizardProvider({ children }: { children: ReactNode }) {
         fileSysId: "",
       },
       selectedServices: [],
+      selectedPackageId: null,
+      consumables: {},
+      extraProducts: [],
+      welcomePack: null,
       payment: null,
+      visitId: null,
       step: "patient",
     });
     setTabs(wizardStorage.getActiveTabs());

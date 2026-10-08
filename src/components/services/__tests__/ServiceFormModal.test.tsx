@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import { ToastProvider } from "../../ui/Toast";
 import { ServiceFormModal } from "../ServiceFormModal";
 
 const createMutateAsync = vi.fn().mockResolvedValue({ id: 9 });
@@ -15,26 +16,18 @@ vi.mock("../../../hooks/api", () => ({
   useServiceCategories: () => ({
     data: [{ id: 3, name: "لیزر", slug: "laser", description: "", isActive: true, sortOrder: 1 }],
   }),
-  useProductsList: () => ({
-    data: {
-      data: [
-        {
-          id: 2,
-          name: "ژل",
-          stock: 10,
-          unit: "عدد",
-          unitPrice: "100000",
-          description: "",
-          status: "available",
-        },
-      ],
-      total: 1,
-      page: 1,
-      perPage: 100,
-      totalPages: 1,
-      hasNext: false,
-      hasPrev: false,
-    },
+  useAllProducts: () => ({
+    data: [
+      {
+        id: 2,
+        name: "ژل",
+        stock: 10,
+        unit: "عدد",
+        unitPrice: "100000",
+        description: "",
+        status: "available",
+      },
+    ],
     isLoading: false,
   }),
   useServiceItems: () => ({ data: undefined, isLoading: false }),
@@ -46,7 +39,11 @@ vi.mock("../../../hooks/api", () => ({
 describe("ServiceFormModal", () => {
   it("saves with price_usd converted from Toman plus category and role", async () => {
     const user = userEvent.setup();
-    render(<ServiceFormModal onClose={() => {}} />);
+    render(
+      <ToastProvider>
+        <ServiceFormModal onClose={() => {}} />
+      </ToastProvider>
+    );
 
     await user.type(screen.getByLabelText("نام خدمت"), "لیزر مو");
     await user.type(screen.getByLabelText("مدت زمان (دقیقه)"), "45");
@@ -72,7 +69,11 @@ describe("ServiceFormModal", () => {
 
   it("adds consumable rows and syncs them after saving the service", async () => {
     const user = userEvent.setup();
-    render(<ServiceFormModal onClose={() => {}} />);
+    render(
+      <ToastProvider>
+        <ServiceFormModal onClose={() => {}} />
+      </ToastProvider>
+    );
 
     await user.type(screen.getByLabelText("نام خدمت"), "لیزر مو");
     await user.type(screen.getByLabelText("مدت زمان (دقیقه)"), "45");

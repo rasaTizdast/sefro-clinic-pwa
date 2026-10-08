@@ -29,7 +29,8 @@ export type WizardStep = "patient" | "service" | "time";
 
 export interface WizardFormData {
   patientId: number | null;
-  serviceId: number | null;
+  /** Multiple services may be booked in one visit; order = selection order. */
+  serviceIds: number[];
   date: string;
   time: string;
   notes: string;

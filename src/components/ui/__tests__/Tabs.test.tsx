@@ -68,38 +68,108 @@ describe("Tabs", () => {
   });
 
   it("renders icon when provided", () => {
-    const tabsWithIcon = [
-      { id: "home", label: "خانه", icon: <span data-testid="icon">🏠</span> },
-    ];
+    const tabsWithIcon = [{ id: "home", label: "خانه", icon: <span data-testid="icon">🏠</span> }];
     render(<Tabs tabs={tabsWithIcon} activeTab="home" onChange={() => {}} />);
     expect(screen.getByTestId("icon")).toBeInTheDocument();
+  });
+
+  it("keeps only the active tab in the page tab order", () => {
+    render(<Tabs tabs={tabs} activeTab="history" onChange={() => {}} />);
+    const [first, second, third] = screen.getAllByRole("tab");
+    expect(first).toHaveAttribute("tabindex", "-1");
+    expect(second).toHaveAttribute("tabindex", "0");
+    expect(third).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("wires each tab to its panel through id and aria-controls", () => {
+    render(
+      <>
+        <Tabs tabs={tabs} activeTab="info" onChange={() => {}} />
+        <TabPanel id="info" activeTab="info">
+          محتوا
+        </TabPanel>
+      </>
+    );
+    const [first] = screen.getAllByRole("tab");
+    expect(first).toHaveAttribute("id", "info");
+    expect(first).toHaveAttribute("aria-controls", "info-panel");
+
+    const panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveAttribute("id", "info-panel");
+    expect(panel).toHaveAttribute("aria-labelledby", "info");
+  });
+
+  it("moves selection and focus with the arrow keys", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<Tabs tabs={tabs} activeTab="info" onChange={onChange} />);
+
+    screen.getAllByRole("tab")[0].focus();
+    await user.keyboard("{ArrowRight}");
+    expect(onChange).toHaveBeenLastCalledWith("history");
+    expect(document.activeElement).toBe(screen.getAllByRole("tab")[1]);
+
+    await user.keyboard("{ArrowLeft}");
+    expect(onChange).toHaveBeenLastCalledWith("info");
+    expect(document.activeElement).toBe(screen.getAllByRole("tab")[0]);
+  });
+
+  it("jumps to the first and last tab with Home and End", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<Tabs tabs={tabs} activeTab="history" onChange={onChange} />);
+
+    screen.getAllByRole("tab")[1].focus();
+    await user.keyboard("{End}");
+    expect(onChange).toHaveBeenLastCalledWith("docs");
+
+    await user.keyboard("{Home}");
+    expect(onChange).toHaveBeenLastCalledWith("info");
   });
 });
 
 describe("TabPanel", () => {
   it("renders children when id matches activeTab", () => {
-    render(<TabPanel id="info" activeTab="info"><p>محتوا</p></TabPanel>);
+    render(
+      <TabPanel id="info" activeTab="info">
+        <p>محتوا</p>
+      </TabPanel>
+    );
     expect(screen.getByText("محتوا")).toBeInTheDocument();
   });
 
   it("does not render children when id does not match activeTab", () => {
-    render(<TabPanel id="history" activeTab="info"><p>محتوا</p></TabPanel>);
+    render(
+      <TabPanel id="history" activeTab="info">
+        <p>محتوا</p>
+      </TabPanel>
+    );
     expect(screen.queryByText("محتوا")).not.toBeInTheDocument();
   });
 
   it("has role tabpanel when visible", () => {
-    render(<TabPanel id="info" activeTab="info">محتوا</TabPanel>);
+    render(
+      <TabPanel id="info" activeTab="info">
+        محتوا
+      </TabPanel>
+    );
     expect(screen.getByRole("tabpanel")).toBeInTheDocument();
   });
 
   it("has aria-labelledby when visible", () => {
-    render(<TabPanel id="info" activeTab="info">محتوا</TabPanel>);
+    render(
+      <TabPanel id="info" activeTab="info">
+        محتوا
+      </TabPanel>
+    );
     expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "info");
   });
 
   it("applies custom className", () => {
     const { container } = render(
-      <TabPanel id="info" activeTab="info" className="custom-panel">محتوا</TabPanel>
+      <TabPanel id="info" activeTab="info" className="custom-panel">
+        محتوا
+      </TabPanel>
     );
     expect(container.firstChild).toHaveClass("custom-panel");
   });

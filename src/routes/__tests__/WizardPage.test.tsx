@@ -72,7 +72,7 @@ describe("WizardPage", () => {
     expect(screen.getByText("انتخاب بیمار")).toBeInTheDocument();
   });
 
-  it("shows patient step with back button that does not switch tabs", async () => {
+  it("stays on patient step with no back button on first step", async () => {
     const user = userEvent.setup();
     renderWizard();
 
@@ -80,11 +80,8 @@ describe("WizardPage", () => {
     await user.click(screen.getByRole("button", { name: "+" }));
     expect(screen.getByText("انتخاب بیمار")).toBeInTheDocument();
 
-    // Back button should be present but do nothing on first step
-    const backBtn = screen.getByRole("button", { name: "بازگشت" });
-    await user.click(backBtn);
-
-    // Should still be on patient step (no tab switch, no crash)
+    // First step has nothing to go back to — no dead back button rendered
+    expect(screen.queryByRole("button", { name: "بازگشت" })).not.toBeInTheDocument();
     expect(screen.getByText("انتخاب بیمار")).toBeInTheDocument();
   });
 });

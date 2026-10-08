@@ -19,6 +19,30 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
+/** Single-flight refresh: concurrent 401s share one POST so rotation+blacklist can't kill siblings. */
+let refreshPromise: Promise<void> | null = null;
+
+function doRefresh(): Promise<void> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const csrfToken = readCookie(CSRF_COOKIE_NAME);
+      const refreshHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (csrfToken) refreshHeaders[CSRF_HEADER_NAME] = csrfToken;
+      await axios.post(
+        `${API_URL}/auth/token/refresh/`,
+        {},
+        {
+          withCredentials: true,
+          headers: refreshHeaders,
+        }
+      );
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
 export const apiClient = axios.create({
   baseURL: API_URL,
   withCredentials: true,
@@ -55,21 +79,14 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const csrfToken = readCookie(CSRF_COOKIE_NAME);
-        const refreshHeaders: Record<string, string> = { "Content-Type": "application/json" };
-        if (csrfToken) refreshHeaders[CSRF_HEADER_NAME] = csrfToken;
-        await axios.post(
-          `${API_URL}/auth/token/refresh/`,
-          {},
-          {
-            withCredentials: true,
-            headers: refreshHeaders,
-          }
-        );
+        await doRefresh();
         return apiClient(originalRequest);
       } catch {
-        if (window.location.pathname !== `${BASE_PATH}/auth`) {
-          window.location.href = `${BASE_PATH}/auth`;
+        const authPath = `${BASE_PATH}/auth`;
+        if (window.location.pathname !== authPath) {
+          // Preserve where the employee was so login can return here instead of losing work.
+          const next = encodeURIComponent(window.location.pathname + window.location.search);
+          window.location.href = `${authPath}?next=${next}`;
         }
         return Promise.reject(error);
       }

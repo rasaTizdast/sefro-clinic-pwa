@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 
 import { useToast } from "../components/ui/Toast";
 import { type Role } from "../config/roles";
@@ -24,6 +24,7 @@ export function RequireAuth() {
 
 export function RedirectIfAuth() {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -34,7 +35,9 @@ export function RedirectIfAuth() {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    const next = new URLSearchParams(location.search).get("next");
+    const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    return <Navigate to={target} replace />;
   }
 
   return <Outlet />;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { BiPlus } from "react-icons/bi";
 import { CiEdit, CiTrash } from "react-icons/ci";
 
@@ -9,23 +9,21 @@ import { ServiceFormModal } from "../components/services/ServiceFormModal";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { Modal } from "../components/ui/Modal";
 import { Pagination } from "../components/ui/Pagination";
-import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
 import { TabPanel, Tabs } from "../components/ui/Tabs";
 import { Toggle } from "../components/ui/Toggle";
+import { PriceCell } from "../components/warehouse/PriceCell";
 import { useAuth } from "../contexts/AuthContext";
-import {
-  useDeleteService,
-  useServiceCategories,
-  useServicesList,
-  useUpdateService,
-} from "../hooks/api";
-import { formatPrice } from "../lib/format";
+import { useAllServices, useCurrentRate, useDeleteService, useUpdateService } from "../hooks/api";
+import { extractApiError } from "../lib/api-error";
+import { serviceDisplayToman } from "../lib/format";
+import { ALL_PER_PAGE } from "../services/fetch-all-pages";
 import type { CompensationRole } from "../types/finance";
 import type { Service } from "../types/service";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = ALL_PER_PAGE;
 
 const statusConfig: Record<string, { label: string; variant: "success" | "warning" }> = {
   active: { label: "فعال", variant: "success" },
@@ -42,26 +40,28 @@ const roleLabels: Record<CompensationRole, string> = {
 function Services() {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("services");
-  const [categoryFilter, setCategoryFilter] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [detailService, setDetailService] = useState<Service | null>(null);
+  const [deletingService, setDeletingService] = useState<Service | null>(null);
+  const [deleteError, setDeleteError] = useState("");
 
   const { user } = useAuth();
-  const { data: paginated, isLoading } = useServicesList({ page: currentPage, perPage: PAGE_SIZE });
-  const { data: categories } = useServiceCategories();
+  const { data: allServices, isLoading } = useAllServices();
+  const { data: currentRate } = useCurrentRate();
   const updateMutation = useUpdateService();
   const deleteMutation = useDeleteService();
 
   const isAdmin = user?.role === "admin";
 
-  const services = paginated?.data ?? [];
-  const filtered = categoryFilter
-    ? services.filter((s) => s.category && String(s.category.id) === categoryFilter)
-    : services;
-  const newServices = services.filter((s) => s.category && s.category.name === "جدید");
+  const rateValue = useMemo(() => {
+    const parsed = Number(currentRate?.rateTomanPerUsd ?? currentRate?.rate);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [currentRate]);
 
-  const totalPages = paginated?.totalPages ?? Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const filtered = useMemo(() => allServices ?? [], [allServices]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const paginatedServices = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
@@ -80,31 +80,20 @@ function Services() {
     setEditingService(null);
   }
 
-  function handleDelete(service: Service) {
-    deleteMutation.mutate(service.id);
+  function openDeleteModal(service: Service) {
+    setDeleteError("");
+    setDeletingService(service);
   }
 
-  function buildActions(service: Service) {
-    const items: Record<string, unknown>[] = [
-      {
-        label: "جزئیات",
-        onClick: () => setDetailService(service),
-      },
-      {
-        label: "ویرایش",
-        icon: <CiEdit className="size-4" />,
-        onClick: () => openEditModal(service),
-      },
-    ];
-    if (isAdmin) {
-      items.push({
-        label: "حذف",
-        icon: <CiTrash className="size-4" />,
-        danger: true,
-        onClick: () => handleDelete(service),
-      });
+  async function confirmDelete() {
+    if (!deletingService) return;
+    setDeleteError("");
+    try {
+      await deleteMutation.mutateAsync(deletingService.id);
+      setDeletingService(null);
+    } catch (err: unknown) {
+      setDeleteError(extractApiError(err));
     }
-    return items;
   }
 
   const columns: Column<Service>[] = [
@@ -133,12 +122,12 @@ function Services() {
       header: "قیمت",
       align: "end",
       render: (item) => (
-        <span>
-          <span className="font-medium">
-            {formatPrice(item.priceToman != null ? Number(item.priceToman) : item.price)} تومان
-          </span>{" "}
-          <span className="text-surface-400 text-xs">${item.priceUsd}</span>
-        </span>
+        <PriceCell
+          // Laser pays a static salary → its price must NOT float with the dollar.
+          usd={item.compensationRole === "laser" ? null : item.priceUsd}
+          toman={serviceDisplayToman(item)}
+          rate={rateValue}
+        />
       ),
     },
     {
@@ -146,7 +135,7 @@ function Services() {
       header: "اپراتور",
       align: "center",
       render: (item) => (
-        <Badge variant={item.compensationRole === "none" ? "default" : "success"} size="sm">
+        <Badge variant="success" size="sm">
           {roleLabels[item.compensationRole]}
         </Badge>
       ),
@@ -174,29 +163,32 @@ function Services() {
       key: "actions",
       header: "عملیات",
       align: "center",
-      width: "80px",
+      width: "200px",
       render: (item) => (
-        <Select
-          align="start"
-          trigger={
-            <Button variant="ghost" size="sm">
-              <svg
-                className="size-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 5v.01M12 12v.01M12 19v.01"
-                />
-              </svg>
+        <div className="flex items-center justify-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => setDetailService(item)}>
+            جزئیات
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            startIcon={<CiEdit className="size-4" />}
+            onClick={() => openEditModal(item)}
+          >
+            ویرایش
+          </Button>
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-danger-600 hover:text-danger-700 hover:bg-danger-50"
+              startIcon={<CiTrash className="size-4" />}
+              onClick={() => openDeleteModal(item)}
+            >
+              حذف
             </Button>
-          }
-          items={buildActions(item)}
-        />
+          )}
+        </div>
       ),
     },
   ];
@@ -225,27 +217,12 @@ function Services() {
         tabs={[
           { id: "services", label: "خدمات" },
           { id: "packages", label: "پکیج‌ها" },
-          { id: "new", label: "جدید" },
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
       />
 
       <TabPanel id="services" activeTab={activeTab}>
-        <div className="mb-4 w-full sm:w-64">
-          <Select
-            label="دسته‌بندی"
-            options={[
-              { value: "", label: "همه دسته‌ها" },
-              ...(categories ?? []).map((c) => ({ value: String(c.id), label: c.name })),
-            ]}
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
         <Card variant="outlined" padding="none" data-tour="srv-table">
           <Table
             columns={columns}
@@ -268,43 +245,48 @@ function Services() {
         <PackagesTab />
       </TabPanel>
 
-      <TabPanel id="new" activeTab={activeTab}>
-        <div className="mb-4 w-full sm:w-64">
-          <Select
-            label="دسته‌بندی"
-            options={[
-              { value: "", label: "همه دسته‌ها" },
-              ...(categories ?? []).map((c) => ({ value: String(c.id), label: c.name })),
-            ]}
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
-        <Card variant="outlined" padding="none" data-tour="srv-table">
-          <Table
-            columns={columns}
-            data={newServices?.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE) ?? []}
-            rowKey={(item) => item.id}
-            className="rounded-none border-0"
-            loading={isLoading}
-          />
-          <div className="border-surface-200 flex items-center justify-center border-t px-5 py-4">
-            <Pagination
-              currentPage={safePage}
-              totalPages={Math.max(1, Math.ceil(newServices.length / PAGE_SIZE))}
-              onPageChange={setCurrentPage}
-            />
-          </div>
-        </Card>
-      </TabPanel>
-
       {modalOpen && <ServiceFormModal service={editingService} onClose={closeModal} />}
       {detailService && (
         <ServiceDetailModal service={detailService} onClose={() => setDetailService(null)} />
       )}
+
+      <Modal
+        open={deletingService !== null}
+        onClose={() => {
+          setDeletingService(null);
+          setDeleteError("");
+        }}
+        title="حذف خدمت"
+        size="sm"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setDeletingService(null);
+                setDeleteError("");
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              انصراف
+            </Button>
+            <Button variant="danger" loading={deleteMutation.isPending} onClick={confirmDelete}>
+              حذف خدمت
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-surface-600 text-sm leading-relaxed">
+            آیا از حذف خدمت «{deletingService?.title}» مطمئن هستید؟ این عمل قابل بازگشت نیست.
+          </p>
+          {deleteError && (
+            <div className="bg-danger-50 text-danger-700 border-danger-200 rounded-lg border p-3 text-sm">
+              {deleteError}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

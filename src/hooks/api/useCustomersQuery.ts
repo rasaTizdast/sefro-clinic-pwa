@@ -14,6 +14,13 @@ export function useCustomersList(params?: PaginationParams) {
   });
 }
 
+export function useAllCustomers() {
+  return useQuery({
+    queryKey: queryKeys.customers.all,
+    queryFn: () => customersService.listAllCustomers(),
+  });
+}
+
 export function useCustomer(id: number) {
   return useQuery({
     queryKey: queryKeys.customers.detail(id),

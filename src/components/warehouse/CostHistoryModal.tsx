@@ -42,7 +42,7 @@ const columns: Column<ProductCostHistory>[] = [
 export function CostHistoryModal({ productId, productName, onClose }: CostHistoryModalProps) {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["finance", "costHistory", productId],
-    queryFn: () => inventoryFinanceService.listCostHistory(productId, { perPage: 50 }),
+    queryFn: () => inventoryFinanceService.listCostHistory(productId, { perPage: 20 }),
   });
 
   return (

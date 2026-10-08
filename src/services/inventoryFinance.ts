@@ -1,7 +1,8 @@
 import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
-import { tomanToUsd } from "../lib/currency";
+import { snapshotToman, tomanToUsd } from "../lib/currency";
 import { jalaliToGregorianISO } from "../lib/date";
+import { ceilUp } from "../lib/format";
 import { type PaginationParams, toPaginatedResponse, toQueryParams } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
 import type {
@@ -10,6 +11,8 @@ import type {
   ProductPurchase,
   ProductUsage,
 } from "../types/finance";
+import type { ConsumableSelection } from "../types/wizard";
+import { fetchAllPages } from "./fetch-all-pages";
 
 const DEFAULT_PER_PAGE = 20;
 
@@ -118,28 +121,35 @@ export function buildPurchasePayload(i: PurchaseInput): PurchasePayload {
   if (unitCostUsd === null) throw new Error("Exchange rate unavailable.");
 
   const quantity = Number(i.quantity) || 0;
-  // Single rounding from Toman values avoids double-rounding float drift
-  // (e.g. 333333 × 2.5 / 100000 → "8.33", not "8.32").
-  const totalCostUsd = ((i.unitCostToman * quantity) / (i.rate as number)).toFixed(2);
+  // The unit cost is already ceiled to cents (never rounds the entered Toman price
+  // down); the total is unit × quantity, ceiled to cents the same way — matching
+  // what the backend recomputes from unit_cost_usd × quantity.
+  const totalCostUsd = (ceilUp(Number(unitCostUsd) * quantity * 100) / 100).toFixed(2);
 
   return {
     product: i.productId,
-    quantity: quantity.toFixed(3),
-    unitCostUsd,
+    ...purchaseFields(i),
     totalCostUsd,
-    supplier: i.supplier ?? "",
+  };
+}
+
+/**
+ * The editable half of a purchase payload — shared by create and update.
+ * `totalCostUsd` is deliberately absent: it is derived from unit × quantity and
+ * is read-only on the backend, so a PATCH must not send it.
+ */
+function purchaseFields(i: Omit<PurchaseInput, "productId">) {
+  const unitCostUsd = tomanToUsd(i.unitCostToman, i.rate);
+  if (unitCostUsd === null) throw new Error("Exchange rate unavailable.");
+  return {
+    quantity: (Number(i.quantity) || 0).toFixed(3),
+    unitCostUsd,
+    supplier: (i.supplier ?? "").trim(),
     purchaseDate: jalaliToGregorianISO(i.purchaseDateJalali),
   };
 }
 
 export type PurchasesListParams = PaginationParams & { product?: number };
-
-export type UsagesListParams = PaginationParams & {
-  product?: number;
-  visit?: number;
-  service?: number;
-  packageSale?: number;
-};
 
 export type CostHistoryParams = PaginationParams;
 
@@ -165,31 +175,83 @@ export const createPurchase = async (input: PurchaseInput): Promise<ProductPurch
 };
 
 /**
- * Read-only usage log. `ProductUsageViewSet.get_queryset` only honours `visit`, `service`,
- * `product` and `package_sale` (alongside DRF pagination) — other params are ignored by the API.
+ * Edit an existing purchase. The backend reverses the original receipt (stock,
+ * `cost_usd` and the cost-history range) and re-applies it from these values, so
+ * the row and the product stay in agreement.
+ *
+ * `totalCostUsd` / `exchangeRateSnapshot` are server-owned — sending them is
+ * rejected as read-only, so only the editable fields go over the wire.
  */
-export const listUsages = async (
-  params?: PaginationParams & {
-    product?: number;
-    visit?: number;
-    service?: number;
-    packageSale?: number;
-  }
-): Promise<PaginatedResponse<ProductUsage>> => {
-  const page = params?.page ?? 1;
-  const perPage = params?.perPage ?? DEFAULT_PER_PAGE;
-  const query: Record<string, string | number> = toQueryParams({ ...params, page, perPage });
-  if (params?.product !== undefined) query.product = params.product;
-  if (params?.visit !== undefined) query.visit = params.visit;
-  if (params?.service !== undefined) query.service = params.service;
-  if (params?.packageSale !== undefined) query.package_sale = params.packageSale;
+export const updatePurchase = async (
+  id: number,
+  input: Omit<PurchaseInput, "productId">
+): Promise<ProductPurchase> => {
+  const { data } = await apiClient.patch(endpoints.finance.purchaseDetail(id), {
+    ...purchaseFields(input),
+  });
+  return toProductPurchase(data as RawProductPurchase);
+};
 
-  const { data } = await apiClient.get(endpoints.finance.usages, { params: query });
-  const paginated = toPaginatedResponse<RawProductUsage>(data as never, page, perPage);
-  return {
-    ...paginated,
-    data: paginated.data.map(toProductUsage),
-  };
+/**
+ * Delete a purchase. The backend rolls back the stock it added and reopens the
+ * previous cost range; it answers 400 when the quantity has since been consumed,
+ * so the error text is surfaced rather than swallowed.
+ */
+export const deletePurchase = (id: number) =>
+  apiClient.delete(endpoints.finance.purchaseDetail(id));
+
+/**
+ * Every purchase across all pages. `ProductPurchaseViewSet` declares no date
+ * filters and the API paginates with a fixed page size, so callers that need
+ * period totals (e.g. the analytics cost line) load the whole ledger once and
+ * filter client-side — the same approach `listAllUsages` takes.
+ */
+export const listAllPurchases = async (): Promise<ProductPurchase[]> => {
+  const rows = await fetchAllPages<RawProductPurchase>(endpoints.finance.purchases);
+  return rows.map(toProductPurchase);
+};
+
+export interface PurchaseCostTotal {
+  usd: number;
+  toman: number;
+  count: number;
+}
+
+/**
+ * Purchases inside an inclusive Gregorian `YYYY-MM-DD` range, summed at the rate
+ * each row snapshotted when it was recorded.
+ *
+ * This is cash that left the clinic to restock inventory — deliberately NOT the
+ * same thing as `هزینه محصول` (COGS), which only counts stock actually consumed.
+ * Adding the two together would double-count, so the UI shows them as separate
+ * lines rather than folding purchases into the profit bridge.
+ */
+export function sumPurchasesInRange(
+  purchases: ProductPurchase[],
+  range: { start: string; end: string }
+): PurchaseCostTotal {
+  let usd = 0;
+  let toman = 0;
+  let count = 0;
+  for (const purchase of purchases) {
+    const date = purchase.purchaseDate.slice(0, 10);
+    if (date < range.start || date > range.end) continue;
+    usd += Number(purchase.totalCostUsd) || 0;
+    toman += snapshotToman(purchase.totalCostUsd, purchase.exchangeRateSnapshot) ?? 0;
+    count += 1;
+  }
+  return { usd, toman, count };
+}
+
+/**
+ * Every usage row across all pages. `ProductUsageViewSet.get_queryset` honours only `visit`,
+ * `service`, `product` and `package_sale` (its `date_from`/`date_to` params are ignored), and
+ * the API paginates with a fixed page size (`per_page` is ignored) — so the usage tab loads the
+ * whole log once and filters (including by date) client-side over complete totals.
+ */
+export const listAllUsages = async (): Promise<ProductUsage[]> => {
+  const rows = await fetchAllPages<RawProductUsage>(endpoints.finance.usages);
+  return rows.map(toProductUsage);
 };
 
 /**
@@ -220,7 +282,7 @@ export interface ConsumptionRecord {
   quantity: string;
 }
 
-/** Flatten a per-service `ConsumptionSelection` into the row list the API records. */
+/** Flatten a per-service `ConsumptionSelection` into the row list for display/tests. */
 export function toConsumptionRecords(selection: ConsumptionSelection): ConsumptionRecord[] {
   return Object.entries(selection).flatMap(
     ([serviceId, rows]: [string, { product: number; quantity: string }[]]) =>
@@ -233,14 +295,88 @@ export function toConsumptionRecords(selection: ConsumptionSelection): Consumpti
 }
 
 /**
+ * Backend contract: POST /finance/visits/:id/record-consumption/
+ * body { selected_products: { "<serviceId>": [[productId, "qty"], ...] },
+ *        extra_products?: [[productId, "qty"], ...] }.
+ * Mandatory products are automatic server-side; selection groups pick exactly one.
+ * `extra_products` are billable non-recipe products (manual invoice extras).
+ */
+export function toSelectedProductsPayload(
+  selection: ConsumptionSelection
+): Record<string, [number, string][]> {
+  const payload: Record<string, [number, string][]> = {};
+  for (const [serviceId, rows] of Object.entries(selection)) {
+    const typedRows = rows as { product: number; quantity: string }[];
+    const pairs = typedRows
+      .filter(
+        (row: { product: number; quantity: string }) => row.product > 0 && Number(row.quantity) > 0
+      )
+      .map(
+        (row: { product: number; quantity: string }) =>
+          [row.product, String(row.quantity)] as [number, string]
+      );
+    if (pairs.length > 0) payload[String(Number(serviceId))] = pairs;
+  }
+  return payload;
+}
+
+export interface RecordConsumptionOptions {
+  /**
+   * Send the request even when the selection is empty. `record_visit_consumption`
+   * records the visit's mandatory recipe items server-side, so an empty body is
+   * the way to let the backend apply the recipe defaults (and deduct their stock)
+   * without the user touching a single quantity.
+   */
+  includeMandatoryOnly?: boolean;
+  /**
+   * Billable non-recipe products added to the invoice manually («محصولات این
+   * صورتحساب»). The backend deducts their stock and writes a cost snapshot so
+   * reports count them — sent as `extra_products: [[productId, "qty"], ...]`.
+   */
+  extraProducts?: ConsumableSelection[];
+}
+
+/** Flatten manual extras into the `[[productId, "qty"], ...]` wire pairs. */
+export function toExtraProductsPayload(extraProducts?: ConsumableSelection[]): [number, string][] {
+  return (extraProducts ?? [])
+    .filter((row) => row.product > 0 && Number(row.quantity) > 0)
+    .map((row) => [row.product, String(row.quantity)] as [number, string]);
+}
+
+/**
  * Record the consumables used during a visit (checkout consumption step).
- * No-op when the selection is empty — there is nothing to record.
+ * No-op when both the selection and `extraProducts` are empty unless
+ * `includeMandatoryOnly` is set.
  */
 export const recordConsumption = async (
   visitId: number,
-  selection: ConsumptionSelection
+  selection: ConsumptionSelection,
+  options?: RecordConsumptionOptions
 ): Promise<void> => {
-  const consumptions = toConsumptionRecords(selection);
-  if (consumptions.length === 0) return;
-  await apiClient.post(endpoints.finance.recordConsumption(visitId), { consumptions });
+  const selectedProducts = toSelectedProductsPayload(selection);
+  const extraProducts = toExtraProductsPayload(options?.extraProducts);
+  if (
+    Object.keys(selectedProducts).length === 0 &&
+    extraProducts.length === 0 &&
+    !options?.includeMandatoryOnly
+  ) {
+    return;
+  }
+  await apiClient.post(endpoints.finance.recordConsumption(visitId), {
+    selected_products: selectedProducts,
+    ...(extraProducts.length > 0 ? { extra_products: extraProducts } : {}),
+  });
+};
+
+/**
+ * How many consumption rows a visit already has.
+ * The backend refuses a second consumption per visit, so checkout needs this to
+ * know whether it should record the recipe or leave an existing record alone.
+ */
+export const countVisitConsumptions = async (visitId: number): Promise<number> => {
+  const { data } = await apiClient.get(endpoints.finance.usages, {
+    params: { visit: visitId },
+  });
+  const payload = data as { count?: number } | null;
+  return typeof payload?.count === "number" ? payload.count : 0;
 };

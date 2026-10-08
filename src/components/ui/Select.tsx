@@ -83,7 +83,10 @@ export function Select({
   const [searchQuery, setSearchQuery] = useState("");
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
 
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const setTriggerRef = useCallback((el: HTMLElement | null) => {
+    triggerRef.current = el;
+  }, []);
   const menuRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -141,7 +144,13 @@ export function Select({
     if (!isOpen) return;
 
     const handleResize = () => close();
-    const handleScroll = () => close();
+    const handleScroll = (event: Event) => {
+      // The menu itself scrolls (overflow-y-auto) — scrolling its options must
+      // not close it. Only scrolls *outside* the menu should dismiss it.
+      const target = event.target;
+      if (target instanceof Node && menuRef.current?.contains(target)) return;
+      close();
+    };
 
     window.addEventListener("resize", handleResize);
     window.addEventListener("scroll", handleScroll, true);
@@ -160,7 +169,9 @@ export function Select({
 
   function selectOption(index: number) {
     if (isActionMenu || !options) return;
-    const option = options[index];
+    // Index into what's actually rendered — with `searchable`, the menu shows
+    // `displayedOptions` (a filtered subset), so `options[index]` would be wrong.
+    const option = (displayedOptions ?? options)[index];
     if (!option) return;
 
     if (!isControlled) {
@@ -250,7 +261,7 @@ export function Select({
     }
   }
 
-  function handleTriggerKeyDown(e: KeyboardEvent<HTMLButtonElement>) {
+  function handleTriggerKeyDown(e: KeyboardEvent<HTMLElement>) {
     if (disabled) return;
     switch (e.key) {
       case "Enter":
@@ -490,22 +501,25 @@ export function Select({
 
       <div className="relative">
         {isActionMenu ? (
-          <button
-            ref={triggerRef}
-            type="button"
+          // NOTE: a <div> wrapper (not <button>) so trigger content may itself
+          // be a <Button> — nested <button> is invalid HTML and breaks hydration.
+          <div
+            ref={setTriggerRef}
             role="combobox"
+            tabIndex={disabled ? -1 : 0}
             aria-expanded={isOpen}
             aria-haspopup="menu"
             aria-controls={isOpen ? listboxId : undefined}
-            disabled={disabled}
+            aria-disabled={disabled || undefined}
             onClick={handleTriggerClick}
             onKeyDown={handleTriggerKeyDown}
+            className={disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
           >
             {trigger}
-          </button>
+          </div>
         ) : (
           <button
-            ref={triggerRef}
+            ref={setTriggerRef}
             id={selectId}
             type="button"
             role="combobox"

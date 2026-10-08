@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as apiClient from "../../lib/api-client";
-import { buildCheckoutPayload, checkout, getSale, listSales, refundSale } from "../sales";
+import {
+  buildCheckoutPayload,
+  checkout,
+  getSale,
+  listSales,
+  partitionVisitPayment,
+  refundSale,
+} from "../sales";
 
 vi.mock("../../lib/api-client", () => ({
   apiClient: {
@@ -135,6 +142,182 @@ describe("buildCheckoutPayload", () => {
 
     expect(p.components).toHaveLength(1);
     expect(p.components[0].method).toBe("card");
+  });
+
+  it("supports a three-way split: cash toman + cash dollar + card", () => {
+    // total 2,420,000 = 400,000 cash toman + 20 USD (2,000,000) + 20,000 card
+    const p = buildCheckoutPayload({
+      customerId: 1,
+      totalToman: 2_420_000,
+      rate: 100_000,
+      cashToman: 400_000,
+      cashUsd: "20",
+      cardToman: 20_000,
+    });
+
+    expect(p.amountUsd).toBe("24.20");
+    expect(p.components).toEqual([
+      { method: "cash_toman", amountUsd: "400000" },
+      { method: "cash_usd", amountUsd: "20.00" },
+      { method: "card", amountUsd: "0.20" },
+    ]);
+  });
+
+  it("supports dollar-only payment", () => {
+    const p = buildCheckoutPayload({
+      customerId: 1,
+      totalToman: 1_000_000,
+      rate: 100_000,
+      cashToman: 0,
+      cashUsd: "10",
+      cardToman: 0,
+    });
+
+    expect(p.amountUsd).toBe("10.00");
+    expect(p.components).toEqual([{ method: "cash_usd", amountUsd: "10.00" }]);
+  });
+
+  it("uses half-even rounding so amountUsd matches the backend conversion", () => {
+    // 1,000,000 ÷ 241,371 = 4.14299… — ceil gives 4.15 but the backend's
+    // Decimal.quantize('0.01') gives 4.14; the mismatch used to 400 the checkout.
+    const p = buildCheckoutPayload({
+      customerId: 1,
+      totalToman: 1_000_000,
+      rate: 241_371,
+      cashToman: 1_000_000,
+      cardToman: 0,
+    });
+
+    expect(p.amountUsd).toBe("4.14");
+    expect(p.components).toEqual([{ method: "cash_toman", amountUsd: "1000000" }]);
+  });
+
+  it("converts each toman component with half-even so the split still sums exactly", () => {
+    const p = buildCheckoutPayload({
+      customerId: 1,
+      totalToman: 1_000_000,
+      rate: 241_371,
+      cashToman: 400_000,
+      cardToman: 600_000,
+    });
+
+    // 400,000 ÷ 241,371 = 1.65711… → 1.66 ; 600,000 ÷ 241,371 = 2.48579… → 2.49
+    expect(p.amountUsd).toBe("4.15");
+    expect(p.components).toEqual([
+      { method: "cash_toman", amountUsd: "400000" },
+      { method: "card", amountUsd: "2.49" },
+    ]);
+  });
+});
+
+describe("partitionVisitPayment", () => {
+  const base = { totalToman: 2_700_000, serviceFeeToman: 2_000_000, rate: 100_000 };
+
+  it("splits an all-cash bill between the service and goods sales", () => {
+    const parts = partitionVisitPayment({
+      ...base,
+      cashToman: 2_700_000,
+      cardToman: 0,
+      cashUsd: 0,
+    });
+
+    expect(parts).toEqual({
+      service: { cashToman: 2_000_000, cardToman: 0, cashUsd: 0 },
+      goods: { cashToman: 700_000, cardToman: 0, cashUsd: 0 },
+    });
+  });
+
+  it("fills cash first, then card, and both parts sum to their totals", () => {
+    const parts = partitionVisitPayment({
+      totalToman: 3_000_000,
+      serviceFeeToman: 2_000_000,
+      rate: 100_000,
+      cashToman: 1_000_000,
+      cardToman: 2_000_000,
+      cashUsd: 0,
+    });
+
+    expect(parts).toEqual({
+      service: { cashToman: 1_000_000, cardToman: 1_000_000, cashUsd: 0 },
+      goods: { cashToman: 0, cardToman: 1_000_000, cashUsd: 0 },
+    });
+    expect(parts!.service.cashToman + parts!.service.cardToman).toBe(2_000_000);
+    expect(parts!.goods.cashToman + parts!.goods.cardToman).toBe(1_000_000);
+  });
+
+  it("keeps the whole USD leg on the service sale when it fits", () => {
+    const parts = partitionVisitPayment({
+      totalToman: 4_000_000,
+      serviceFeeToman: 3_000_000,
+      rate: 100_000,
+      cashToman: 1_000_000,
+      cardToman: 0,
+      cashUsd: 30,
+    });
+
+    expect(parts).toEqual({
+      service: { cashToman: 0, cardToman: 0, cashUsd: 30 },
+      goods: { cashToman: 1_000_000, cardToman: 0, cashUsd: 0 },
+    });
+    // Each side must satisfy buildCheckoutPayload's sum invariant.
+    expect(Math.ceil(30 * 100_000)).toBe(3_000_000);
+    expect(1_000_000).toBe(4_000_000 - 3_000_000);
+  });
+
+  it("keeps the whole USD leg on the goods sale when the fee is too small", () => {
+    const parts = partitionVisitPayment({
+      totalToman: 4_000_000,
+      serviceFeeToman: 1_000_000,
+      rate: 100_000,
+      cashToman: 1_000_000,
+      cardToman: 0,
+      cashUsd: 30,
+    });
+
+    expect(parts).toEqual({
+      service: { cashToman: 1_000_000, cardToman: 0, cashUsd: 0 },
+      goods: { cashToman: 0, cardToman: 0, cashUsd: 30 },
+    });
+    expect(Math.ceil(30 * 100_000)).toBe(3_000_000);
+  });
+
+  it("returns null when the USD leg cannot be placed exactly (heavy-USD bill)", () => {
+    const parts = partitionVisitPayment({
+      totalToman: 4_000_000,
+      serviceFeeToman: 2_500_000,
+      rate: 100_000,
+      cashToman: 500_000,
+      cardToman: 0,
+      cashUsd: 35,
+    });
+
+    expect(parts).toBeNull();
+  });
+
+  it("returns null when there is nothing to split", () => {
+    expect(
+      partitionVisitPayment({ ...base, cashToman: 2_700_000, cardToman: 0, cashUsd: 0 })
+    ).not.toBeNull();
+    expect(
+      partitionVisitPayment({
+        totalToman: 2_000_000,
+        serviceFeeToman: 2_000_000,
+        rate: 100_000,
+        cashToman: 2_000_000,
+        cardToman: 0,
+        cashUsd: 0,
+      })
+    ).toBeNull();
+    expect(
+      partitionVisitPayment({
+        totalToman: 2_000_000,
+        serviceFeeToman: 0,
+        rate: 100_000,
+        cashToman: 2_000_000,
+        cardToman: 0,
+        cashUsd: 0,
+      })
+    ).toBeNull();
   });
 });
 

@@ -34,6 +34,8 @@ async function mockAuthAs(page: Page, user: typeof ADMIN_USER) {
 async function mockFinanceEndpoints(page: Page) {
   await fulfill(page, "**/api/finance/sales/**", 200, { count: 0, results: [] });
   await fulfill(page, "**/api/finance/staff-payouts/**", 200, { count: 0, results: [] });
+  await fulfill(page, "**/api/finance/expenses/**", 200, { count: 0, results: [] });
+  await fulfill(page, "**/api/finance/expense-categories/**", 200, { count: 0, results: [] });
   await fulfill(page, "**/api/finance/packages/**", 200, { count: 0, results: [] });
   await fulfill(page, "**/api/finance/exchange-rates/**", 200, { count: 0, results: [] });
   await fulfill(page, "**/api/finance/service-items/**", 200, []);
@@ -53,7 +55,21 @@ async function mockFinanceEndpoints(page: Page) {
     provider: "backup_provider",
   });
   await fulfill(page, "**/api/service-categories/**", 200, { count: 0, results: [] });
+  await fulfill(page, "**/api/services/**", 200, { count: 0, results: [] });
+  await fulfill(page, "**/api/visits/**", 200, { count: 0, results: [] });
+  await fulfill(page, "**/api/inventory/products/**", 200, { count: 0, results: [] });
+  await fulfill(page, "**/api/auth/employees/list/**", 200, { count: 0, results: [] });
   await fulfill(page, "**/api/finance/staff-compensation-rules/**", 200, { count: 0, results: [] });
+  await fulfill(page, "**/api/finance/operating-expenses/summary/**", 200, {
+    period: { start: "", end: "" },
+    totalUsd: "0.00",
+    totalToman: "0",
+    count: 0,
+    byCategory: [],
+    byPaymentMethod: [],
+  });
+  await fulfill(page, "**/api/finance/operating-expenses/**", 200, { count: 0, results: [] });
+  await fulfill(page, "**/api/finance/operating-expense-categories/**", 200, []);
   await fulfill(page, "**/api/finance/reports/dashboard/**", 200, {
     period: { start: "2026-09-20", end: "2026-09-20" },
     sales_summary: {
@@ -98,9 +114,15 @@ test.describe("Finance role-based access — Employee", () => {
     await expect(page.getByRole("button", { name: "استرداد" })).not.toBeVisible();
   });
 
-  test("Sales tab still shows new-sale button for employee", async ({ page }) => {
+  test("Sales tab shows the unsettled visits card for employee", async ({ page }) => {
     await page.goto("/accounting");
-    await expect(page.getByRole("button", { name: "فروش جدید" })).toBeVisible();
+    await expect(page.getByText("نوبت‌های تکمیل‌شده و تسویه‌نشده")).toBeVisible();
+  });
+
+  test("Employee can view exchange-rate page without the save button", async ({ page }) => {
+    await page.goto("/exchange-rate");
+    await expect(page.getByRole("heading", { name: "نرخ ارز", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "ثبت نرخ جدید" })).not.toBeVisible();
   });
 });
 
@@ -114,22 +136,20 @@ test.describe("Finance role-based access — Admin", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "تنظیمات" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "کاربران" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "نرخ ارز" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "قوانین تسویه" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "نرخ ارز" })).not.toBeVisible();
+    // payout rules moved out of Settings into the accounting tab bar
+    await expect(page.getByRole("tab", { name: "قوانین تسویه" })).not.toBeVisible();
     await expect(page.getByRole("tab", { name: "دسته‌بندی خدمات" })).toBeVisible();
   });
 
-  test("Admin can navigate to exchange-rates tab", async ({ page }) => {
-    await page.goto("/settings");
-    await page.getByRole("tab", { name: "نرخ ارز" }).click();
-    await expect(page.getByRole("tab", { name: "نرخ ارز" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
+  test("Admin can open the standalone exchange-rate page and save a rate", async ({ page }) => {
+    await page.goto("/exchange-rate");
+    await expect(page.getByRole("heading", { name: "نرخ ارز", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "ثبت نرخ جدید" })).toBeVisible();
   });
 
   test("Admin can navigate to compensation-rules tab", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto("/accounting");
     await page.getByRole("tab", { name: "قوانین تسویه" }).click();
     await expect(page.getByRole("tab", { name: "قوانین تسویه" })).toHaveAttribute(
       "aria-selected",

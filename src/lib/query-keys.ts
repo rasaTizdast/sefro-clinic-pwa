@@ -13,6 +13,7 @@ export const queryKeys = {
   visits: {
     all: ["visits"] as const,
     list: (params?: Record<string, unknown>) => ["visits", "list", params] as const,
+    allPages: (params?: Record<string, unknown>) => ["visits", "allPages", params] as const,
     detail: (id: number) => ["visits", id] as const,
   },
   products: {
@@ -50,10 +51,15 @@ export const queryKeys = {
     all: ["sales"] as const,
     list: (params?: Record<string, unknown>) => ["sales", "list", params] as const,
     detail: (id: number) => ["sales", id] as const,
+    paidVisitIds: ["sales", "paidVisitIds"] as const,
+  },
+  payments: {
+    all: ["payments"] as const,
   },
   payouts: {
     all: ["payouts"] as const,
     list: (params?: Record<string, unknown>) => ["payouts", "list", params] as const,
+    allPages: (params?: Record<string, unknown>) => ["payouts", "allPages", params] as const,
     summary: (params?: Record<string, unknown>) => ["payouts", "summary", params] as const,
     rules: ["payouts", "rules"] as const,
   },
@@ -84,8 +90,22 @@ export const queryKeys = {
       ["finance", "profitByStaff", params] as const,
     dashboard: (params?: Record<string, unknown>) => ["finance", "dashboard", params] as const,
     purchases: (params?: Record<string, unknown>) => ["finance", "purchases", params] as const,
-    usages: (params?: Record<string, unknown>) => ["finance", "usages", params] as const,
+    allPurchases: () => ["finance", "purchases", "allPages"] as const,
+    usages: () => ["finance", "usages"] as const,
+    visitUsages: (visitId: number) => ["finance", "usages", "visit", visitId] as const,
     costHistory: (productId: number) => ["finance", "costHistory", productId] as const,
+    welcomePacks: {
+      all: ["finance", "welcomePacks"] as const,
+      list: (params?: Record<string, unknown>) =>
+        ["finance", "welcomePacks", "list", params] as const,
+      allPages: (params?: Record<string, unknown>) =>
+        ["finance", "welcomePacks", "allPages", params] as const,
+      detail: (id: number) => ["finance", "welcomePacks", "detail", id] as const,
+      usages: (params?: Record<string, unknown>) =>
+        ["finance", "welcomePacks", "usages", params] as const,
+      report: (params?: Record<string, unknown>) =>
+        ["finance", "welcomePacks", "report", params] as const,
+    },
     operatingExpenses: {
       list: (params?: Record<string, unknown>) =>
         ["finance", "operatingExpenses", "list", params] as const,
@@ -94,6 +114,14 @@ export const queryKeys = {
       summary: (params?: Record<string, unknown>) =>
         ["finance", "operatingExpenses", "summary", params] as const,
       detail: (id: number) => ["finance", "operatingExpenses", "detail", id] as const,
+    },
+    // Staff expense claims — separate tables from the clinic's operating expenses.
+    expenses: {
+      all: ["finance", "expenses"] as const,
+      list: (params?: Record<string, unknown>) => ["finance", "expenses", "list", params] as const,
+      allPages: (params?: Record<string, unknown>) =>
+        ["finance", "expenses", "allPages", params] as const,
+      categories: ["finance", "expenses", "categories"] as const,
     },
   },
 } as const;

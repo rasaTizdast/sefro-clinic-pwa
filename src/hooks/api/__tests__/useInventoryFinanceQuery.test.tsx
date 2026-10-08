@@ -16,16 +16,16 @@ import { queryKeys } from "../../../lib/query-keys";
 import * as inventoryFinanceService from "../../../services/inventoryFinance";
 import type { ProductCostHistory, ProductPurchase, ProductUsage } from "../../../types/finance";
 import {
+  useAllUsages,
   useCostHistory,
   useCreatePurchase,
   usePurchasesList,
-  useUsagesList,
 } from "../useInventoryFinanceQuery";
 
 vi.mock("../../../services/inventoryFinance", () => ({
   listPurchases: vi.fn(),
   createPurchase: vi.fn(),
-  listUsages: vi.fn(),
+  listAllUsages: vi.fn(),
   listCostHistory: vi.fn(),
 }));
 
@@ -94,23 +94,19 @@ describe("useInventoryFinanceQuery hooks", () => {
     expect(result.current.data?.data[0].totalCostUsd).toBe("150.00");
   });
 
-  it("useUsagesList passes the filters to listUsages", async () => {
-    vi.mocked(inventoryFinanceService.listUsages).mockResolvedValue({
-      data: [usage],
-      total: 1,
-      page: 1,
-      perPage: 20,
-      totalPages: 1,
-      hasNext: false,
-      hasPrev: false,
-    });
+  it("useAllUsages returns the whole usage log in one query", async () => {
+    vi.mocked(inventoryFinanceService.listAllUsages).mockResolvedValue([
+      usage,
+      { ...usage, id: 22 },
+    ]);
 
     const { wrapper } = createWrapper();
-    const { result } = renderHook(() => useUsagesList({ visit: 12 }), { wrapper });
+    const { result } = renderHook(() => useAllUsages(), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(inventoryFinanceService.listUsages).toHaveBeenCalledWith({ visit: 12 });
-    expect(result.current.data?.data[0].visit).toBe(12);
+    expect(inventoryFinanceService.listAllUsages).toHaveBeenCalledTimes(1);
+    expect(result.current.data).toHaveLength(2);
+    expect(result.current.data?.[0].visit).toBe(12);
   });
 
   it("useCostHistory fetches the cost history of one product", async () => {

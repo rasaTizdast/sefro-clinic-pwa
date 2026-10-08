@@ -8,7 +8,7 @@ import {
 import { tomanToUsd } from "../../lib/currency";
 import { jalaliToGregorianISO } from "../../lib/date";
 import { toLatinDigits } from "../../lib/digits";
-import { formatPrice } from "../../lib/format";
+import { ceilUp, formatPrice } from "../../lib/format";
 import type {
   CreateOperatingExpensePayload,
   OperatingExpense,
@@ -44,7 +44,7 @@ export function OperatingExpenseFormModal({ open, onClose, categories, expense }
   const [title, setTitle] = useState(expense?.title ?? "");
   const [description, setDescription] = useState(expense?.description ?? "");
   const [amountToman, setAmountToman] = useState(
-    expense && expense.exchangeRate ? String(Math.round(Number(expense.amountToman))) : ""
+    expense && expense.exchangeRate ? String(ceilUp(Number(expense.amountToman))) : ""
   );
   const [paymentMethod, setPaymentMethod] = useState<OperatingExpensePaymentMethod>(
     expense?.paymentMethod ?? "cash"

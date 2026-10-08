@@ -55,7 +55,8 @@ export const useLoginForm = () => {
       try {
         await login(normalizeIdentifier(identifier), password);
         toast.success("ورود موفق", "به پنل مدیریت خوش آمدید.");
-        navigate("/");
+        const next = new URLSearchParams(window.location.search).get("next");
+        navigate(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
         return {
           status: "success",
           errors: {},

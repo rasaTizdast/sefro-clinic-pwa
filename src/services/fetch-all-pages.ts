@@ -10,7 +10,7 @@ export const ALL_PER_PAGE = 100;
  */
 export async function fetchAllPages<T>(
   url: string,
-  params: Record<string, string | number> = {}
+  params: Record<string, string | number | boolean> = {}
 ): Promise<T[]> {
   const rows: T[] = [];
   let page = 1;

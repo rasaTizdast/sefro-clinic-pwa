@@ -11,7 +11,8 @@ test.describe("Accounting - Sales Tab", () => {
     await page.goto("/accounting");
     await expect(page.getByRole("heading", { name: "حسابداری" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "فروش" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "تسویه پرسنل" })).toBeVisible();
+    // Staff claims + payouts live behind the merged «پرسنل» tab now.
+    await expect(page.getByRole("tab", { name: "پرسنل", exact: true })).toBeVisible();
   });
 
   test("shows sales tab by default", async ({ page }) => {
@@ -21,17 +22,14 @@ test.describe("Accounting - Sales Tab", () => {
 
   test("can switch to payouts tab", async ({ page }) => {
     await page.goto("/accounting");
-    await page.getByRole("tab", { name: "تسویه پرسنل" }).click();
-    await expect(page.getByRole("tab", { name: "تسویه پرسنل" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
+    await page.getByRole("tab", { name: "پرسنل", exact: true }).click();
+    const payoutsTab = page.getByRole("tab", { name: "تسویه پرسنل" });
+    await payoutsTab.click();
+    await expect(payoutsTab).toHaveAttribute("aria-selected", "true");
   });
 
-  test("sales tab shows table with columns", async ({ page }) => {
+  test("sales tab shows the unsettled completed visits card", async ({ page }) => {
     await page.goto("/accounting");
-    await expect(page.getByRole("columnheader", { name: "تاریخ" })).toBeVisible();
-    await expect(page.getByRole("columnheader", { name: "مبلغ" })).toBeVisible();
-    await expect(page.getByRole("columnheader", { name: "وضعیت" })).toBeVisible();
+    await expect(page.getByText("نوبت‌های تکمیل‌شده و تسویه‌نشده")).toBeVisible();
   });
 });

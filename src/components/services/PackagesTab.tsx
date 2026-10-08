@@ -2,7 +2,8 @@ import { useState } from "react";
 import { BiPlus } from "react-icons/bi";
 
 import { useDeletePackage, usePackagesList } from "../../hooks/api";
-import { formatPrice } from "../../lib/format";
+import { toPersianDigits } from "../../lib/digits";
+import { formatPrice, parseTomanAmount } from "../../lib/format";
 import type { Package } from "../../types/finance";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -34,9 +35,13 @@ export function PackagesTab() {
       render: (item) => (
         <span>
           <span className="text-surface-900 font-medium">
-            {item.priceToman != null ? `${formatPrice(Number(item.priceToman))} تومان` : "—"}
+            {item.priceToman != null
+              ? `${formatPrice(parseTomanAmount(item.priceToman))} تومان`
+              : "—"}
           </span>{" "}
-          <span className="text-surface-400 text-xs">${item.priceUsd}</span>
+          <span className="text-surface-400 text-xs">
+            ${toPersianDigits(String(item.priceUsd))}
+          </span>
         </span>
       ),
     },

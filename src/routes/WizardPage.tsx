@@ -8,13 +8,26 @@ import WizardStepPatient from "../components/wizard/WizardStepPatient";
 import WizardStepPayment from "../components/wizard/WizardStepPayment";
 import WizardStepService from "../components/wizard/WizardStepService";
 import { useWizard } from "../contexts/WizardContext";
-import type { WizardStep, WizardTabData } from "../types/wizard";
+import type {
+  ConsumableSelection,
+  ServiceSelection,
+  WizardStep,
+  WizardTabData,
+} from "../types/wizard";
 
 function WizardPage() {
   const { tabs, activeTabId, createTab, closeTab, setActiveTabId, updateTab } = useWizard();
   const { success: toastSuccess } = useToast();
   const navigate = useNavigate();
   const activeTab = activeTabId ? (tabs.find((t) => t.id === activeTabId) ?? null) : null;
+
+  const handleUpdateTab = useCallback(
+    (updates: Partial<WizardTabData>) => {
+      if (!activeTabId) return;
+      updateTab(activeTabId, updates);
+    },
+    [activeTabId, updateTab]
+  );
 
   useEffect(() => {
     if (activeTabId && !tabs.find((t) => t.id === activeTabId)) {
@@ -93,6 +106,7 @@ function WizardPage() {
           <WizardStepContent
             tab={activeTab}
             onComplete={handleStepComplete}
+            onUpdateTab={handleUpdateTab}
             onBack={() => {
               if (!activeTabId) return;
               const stepOrder: WizardStep[] = ["patient", "service", "payment"];
@@ -119,13 +133,43 @@ function WizardPage() {
 function WizardStepContent({
   tab,
   onComplete,
+  onUpdateTab,
   onBack,
 }: {
   tab: WizardTabData;
   onComplete: (step: WizardStep, data: Partial<WizardTabData>) => void;
+  onUpdateTab: (updates: Partial<WizardTabData>) => void;
   onBack: () => void;
 }) {
   const { step } = tab;
+
+  // Stable identities so child effects that depend on update callbacks
+  // (recipe consumable seeding) do not re-run / clobber sibling keys every render.
+  const handleUpdateConsumables = useCallback(
+    (consumables: Record<string, ConsumableSelection[]>) => onUpdateTab({ consumables }),
+    [onUpdateTab]
+  );
+  const handleUpdateExtraProducts = useCallback(
+    (extraProducts: ConsumableSelection[]) => onUpdateTab({ extraProducts }),
+    [onUpdateTab]
+  );
+  const handleUpdateServices = useCallback(
+    (services: ServiceSelection[]) =>
+      onUpdateTab({
+        selectedServices: services,
+        selectedPackageId: services.find((s) => s.isPackage)?.packageId ?? null,
+      }),
+    [onUpdateTab]
+  );
+  const handleServiceComplete = useCallback(
+    (services: ServiceSelection[]) =>
+      onComplete("service", {
+        selectedServices: services,
+        selectedPackageId: services.find((s) => s.isPackage)?.packageId ?? null,
+        step: "payment",
+      }),
+    [onComplete]
+  );
 
   const steps: { key: WizardStep; label: string }[] = [
     { key: "patient", label: "بیمار" },
@@ -172,19 +216,26 @@ function WizardStepContent({
         <WizardStepService
           patient={tab.patient}
           selectedServices={tab.selectedServices}
+          consumables={tab.consumables ?? {}}
+          extraProducts={tab.extraProducts ?? []}
           onBack={() => onComplete("patient", { step: "patient" })}
-          onUpdateServices={(services) => onComplete("service", { selectedServices: services })}
-          onComplete={(services) =>
-            onComplete("service", { selectedServices: services, step: "payment" })
-          }
+          onUpdateServices={handleUpdateServices}
+          onUpdateConsumables={handleUpdateConsumables}
+          onUpdateExtraProducts={handleUpdateExtraProducts}
+          onComplete={handleServiceComplete}
         />
       )}
       {step === "payment" && (
         <WizardStepPayment
           patient={tab.patient}
           selectedServices={tab.selectedServices}
+          consumables={tab.consumables ?? {}}
+          extraProducts={tab.extraProducts ?? []}
+          welcomePack={tab.welcomePack}
+          onSelectWelcomePack={(welcomePack) => onUpdateTab({ welcomePack })}
           onBack={() => onComplete("service", { step: "service" })}
           onComplete={(payment) => onComplete("payment", { payment })}
+          onUpdatePatient={(patient) => onUpdateTab({ patient })}
         />
       )}
     </div>

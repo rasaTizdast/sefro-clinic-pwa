@@ -169,7 +169,7 @@ test.describe("Complete Patient → Visit → Payment Flow", () => {
     let patientCreated = false;
     let visitCreated = false;
     let visitStatus: "pending" | "confirmed" | "completed" = "pending";
-    let paymentCreated = false;
+    let checkoutCreated = false;
 
     const MOCK_PATIENT = {
       id: 9001,
@@ -249,6 +249,15 @@ test.describe("Complete Patient → Visit → Payment Flow", () => {
             },
           ]
         : [];
+      // Single-resource detail (GET /api/visits/9201/) must not return a list payload.
+      if (/\/api\/visits\/\d+\/$/.test(url)) {
+        await r.fulfill({
+          status: results.length ? 200 : 404,
+          contentType: "application/json",
+          body: JSON.stringify(results[0] ?? {}),
+        });
+        return;
+      }
       await r.fulfill({
         status: 200,
         contentType: "application/json",
@@ -257,13 +266,34 @@ test.describe("Complete Patient → Visit → Payment Flow", () => {
     });
 
     // --- Payments ---
-    await page.route("**/api/payments/**", async (r: any, req: any) => {
+    await page.route("**/api/payments/**", async (r: any) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ count: 0, results: [] }),
+      })
+    );
+
+    // --- Checkout (registered after setupCoreMocks so it wins over **/api/finance/**) ---
+    await page.route("**/api/finance/checkout/", async (r: any, req: any) => {
       if (req.method() === "POST") {
-        paymentCreated = true;
+        checkoutCreated = true;
         await r.fulfill({
           status: 201,
           contentType: "application/json",
-          body: JSON.stringify({ id: 9301, visit: 9201, amount: 300000, payment_method: "cash" }),
+          body: JSON.stringify({
+            id: 9301,
+            customer: 9001,
+            visit: 9201,
+            package: null,
+            amount_usd: "0.38",
+            discount_usd: "0.00",
+            exchange_rate: "800000.00",
+            amount_toman: "300000",
+            status: "paid",
+            idempotency_key: "uuid-e2e-flow",
+            created_at: "2026-09-20T08:00:00Z",
+          }),
         });
         return;
       }
@@ -350,15 +380,17 @@ test.describe("Complete Patient → Visit → Payment Flow", () => {
     await page.goto("/accounting");
     await page.waitForTimeout(1000);
 
-    await page.getByRole("button", { name: "فروش جدید" }).click();
-    await expect(page.getByRole("heading", { name: "انتخاب ویزیت" })).toBeVisible();
-    await page.getByText("مسیر کامل").first().click();
-    await expect(page.getByRole("heading", { name: "پرداخت" })).toBeVisible({ timeout: 5000 });
+    // The completed visit shows up as unsettled; settle it straight from its row.
+    await expect(page.getByText("نوبت‌های تکمیل‌شده و تسویه‌نشده")).toBeVisible({ timeout: 5000 });
+    await page.getByRole("button", { name: "تسویه" }).first().click();
+    await expect(page.getByRole("heading", { name: "تسویه و ثبت فروش" })).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.getByLabel("مبلغ کل (تومان)")).toHaveValue("۳۰۰٬۰۰۰");
 
-    await page.getByRole("button", { name: "ثبت پرداخت" }).click();
-    await expect(page.getByText("پرداخت با موفقیت ثبت شد")).toBeVisible({ timeout: 10000 });
-    expect(paymentCreated).toBe(true);
-
-    await page.getByRole("dialog").getByRole("button", { name: "بستن" }).first().click();
+    await page.getByRole("dialog").getByRole("button", { name: "ثبت فروش" }).click();
+    await expect(page.getByText("فروش ثبت شد")).toBeVisible({ timeout: 10000 });
+    expect(checkoutCreated).toBe(true);
+    await expect(page.getByRole("heading", { name: "تسویه و ثبت فروش" })).not.toBeVisible();
   });
 });

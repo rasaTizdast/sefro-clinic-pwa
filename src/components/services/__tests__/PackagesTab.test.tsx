@@ -33,40 +33,24 @@ vi.mock("../../../hooks/api", () => ({
   }),
   useSavePackage: () => ({ mutateAsync: saveMutateAsync, isPending: false }),
   useDeletePackage: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useServicesList: () => ({
-    data: {
-      data: [
-        { id: 1, title: "لیزر مو", price: 2000000, duration: 30, isActive: true, description: "" },
-      ],
-      total: 1,
-      page: 1,
-      perPage: 100,
-      totalPages: 1,
-      hasNext: false,
-      hasPrev: false,
-    },
+  useAllServices: () => ({
+    data: [
+      { id: 1, title: "لیزر مو", price: 2000000, duration: 30, isActive: true, description: "" },
+    ],
     isLoading: false,
   }),
-  useProductsList: () => ({
-    data: {
-      data: [
-        {
-          id: 2,
-          name: "ژل",
-          stock: 10,
-          unit: "عدد",
-          unitPrice: "100000",
-          description: "",
-          status: "available",
-        },
-      ],
-      total: 1,
-      page: 1,
-      perPage: 100,
-      totalPages: 1,
-      hasNext: false,
-      hasPrev: false,
-    },
+  useAllProducts: () => ({
+    data: [
+      {
+        id: 2,
+        name: "ژل",
+        stock: 10,
+        unit: "عدد",
+        unitPrice: "100000",
+        description: "",
+        status: "available",
+      },
+    ],
     isLoading: false,
   }),
   useCurrentRate: () => ({
@@ -81,7 +65,7 @@ describe("PackagesTab", () => {
 
     expect(screen.getAllByText("پکیج لیزر").length).toBeGreaterThan(0);
     expect(screen.getAllByText("۳٬۵۰۰٬۰۰۰ تومان").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("$35.00").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$۳۵.۰۰").length).toBeGreaterThan(0);
   });
 
   it("creates a package with converted priceUsd, serviceIds and items", async () => {

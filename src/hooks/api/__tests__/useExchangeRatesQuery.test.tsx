@@ -35,7 +35,7 @@ function createWrapper() {
 describe("useExchangeRatesQuery hooks", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("useCurrentRate fetches the rate and caches it for a minute", async () => {
+  it("useCurrentRate fetches the rate and refetches every 5 minutes", async () => {
     vi.mocked(exchangeRatesService.getCurrentRate).mockResolvedValue({
       rate: "985000.00",
       rateTomanPerUsd: "985000.00",
@@ -51,7 +51,28 @@ describe("useExchangeRatesQuery hooks", () => {
     expect(result.current.data?.rate).toBe("985000.00");
 
     const query = queryClient.getQueryCache().find({ queryKey: queryKeys.finance.currentRate });
-    expect(query?.options).toMatchObject({ staleTime: 60_000, retry: 1 });
+    expect(query?.options).toMatchObject({ staleTime: 5 * 60 * 1000, retry: 1 });
+    expect((query?.options as { refetchInterval?: number | false }).refetchInterval).toBe(
+      5 * 60 * 1000
+    );
+  });
+
+  it("useCurrentRate falls back to the backup rate when the primary source fails", async () => {
+    vi.mocked(exchangeRatesService.getCurrentRate).mockRejectedValue(new Error("503"));
+    vi.mocked(exchangeRatesService.getBackupRate).mockResolvedValue({
+      rate: "990000.00",
+      rateTomanPerUsd: "990000.00",
+      effectiveAt: null,
+      source: "backup",
+      provider: "bonbast",
+    });
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useCurrentRate(), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(exchangeRatesService.getBackupRate).toHaveBeenCalled();
+    expect(result.current.data?.rate).toBe("990000.00");
   });
 
   it("useExchangeRates passes the page param to listExchangeRates", async () => {
@@ -88,10 +109,16 @@ describe("useExchangeRatesQuery hooks", () => {
     const { result } = renderHook(() => useCreateExchangeRate(), { wrapper });
 
     await act(async () => {
-      await result.current.mutateAsync({ rate: "985000.00" });
+      await result.current.mutateAsync({
+        rate: "985000.00",
+        effective_at: "2026-09-20T08:00:00Z",
+      });
     });
 
-    expect(exchangeRatesService.createExchangeRate).toHaveBeenCalledWith({ rate: "985000.00" });
+    expect(exchangeRatesService.createExchangeRate).toHaveBeenCalledWith({
+      rate: "985000.00",
+      effective_at: "2026-09-20T08:00:00Z",
+    });
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: queryKeys.finance.exchangeRates,
     });
@@ -109,7 +136,9 @@ describe("useExchangeRatesQuery hooks", () => {
     const { result } = renderHook(() => useCreateExchangeRate(), { wrapper });
 
     await act(async () => {
-      await expect(result.current.mutateAsync({ rate: "0" })).rejects.toBeTruthy();
+      await expect(
+        result.current.mutateAsync({ rate: "0", effective_at: "2026-09-20T08:00:00Z" })
+      ).rejects.toBeTruthy();
     });
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("نرخ ارز نامعتبر است"));

@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { CiTrash } from "react-icons/ci";
 
-import { useCurrentRate, useProductsList, useSavePackage, useServicesList } from "../../hooks/api";
+import { useAllProducts, useAllServices, useCurrentRate, useSavePackage } from "../../hooks/api";
+import { extractApiError } from "../../lib/api-error";
 import { tomanToUsd } from "../../lib/currency";
-import { toLatinDigits } from "../../lib/digits";
-import { formatPrice } from "../../lib/format";
+import { formatPrice, parseTomanAmount } from "../../lib/format";
 import type { Package } from "../../types/finance";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -19,17 +19,16 @@ interface PackageFormModalProps {
   onClose: () => void;
 }
 
-const parseToman = (value: string): number => {
-  const latin = toLatinDigits(value.replace(/[^\d۰-۹٠-٩]/g, ""));
-  return Number(latin) || 0;
-};
+const parseToman = (value: string): number => parseTomanAmount(value);
 
 /** Package CRUD form: Toman price (converted to USD), service multi-select, product rows. */
 export function PackageFormModal({ pkg, onClose }: PackageFormModalProps) {
   const [name, setName] = useState(pkg?.name ?? "");
   const [description, setDescription] = useState(pkg?.description ?? "");
   const [priceToman, setPriceToman] = useState(
-    pkg?.priceToman != null && Number(pkg.priceToman) > 0 ? formatPrice(Number(pkg.priceToman)) : ""
+    pkg?.priceToman != null && Number(pkg.priceToman) > 0
+      ? formatPrice(parseTomanAmount(pkg.priceToman))
+      : ""
   );
   const [isActive, setIsActive] = useState(pkg?.isActive ?? true);
   const [serviceIds, setServiceIds] = useState<number[]>(pkg?.services ?? []);
@@ -37,8 +36,8 @@ export function PackageFormModal({ pkg, onClose }: PackageFormModalProps) {
   const [formError, setFormError] = useState("");
 
   const { data: currentRate, isLoading: rateLoading } = useCurrentRate();
-  const { data: servicesData } = useServicesList({ perPage: 100 });
-  const { data: productsData } = useProductsList({ perPage: 100 });
+  const { data: servicesData } = useAllServices();
+  const { data: productsData } = useAllProducts();
   const savePackage = useSavePackage();
 
   const rate = useMemo(() => {
@@ -82,14 +81,14 @@ export function PackageFormModal({ pkg, onClose }: PackageFormModalProps) {
       });
       onClose();
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "خطا در ذخیره پکیج");
+      setFormError(extractApiError(err));
     }
   };
 
   const productOptions = useMemo(
     () => [
       { value: "", label: "انتخاب محصول" },
-      ...(productsData?.data ?? []).map((p) => ({ value: String(p.id), label: p.name })),
+      ...(productsData ?? []).map((p) => ({ value: String(p.id), label: p.name })),
     ],
     [productsData]
   );
@@ -131,14 +130,17 @@ export function PackageFormModal({ pkg, onClose }: PackageFormModalProps) {
           label="قیمت (تومان)"
           value={priceToman}
           inputMode="numeric"
-          onChange={(e) => setPriceToman(e.target.value)}
+          onChange={(e) => {
+            const num = parseToman(e.target.value);
+            setPriceToman(num > 0 ? formatPrice(num) : "");
+          }}
           placeholder="مثال: ۳٬۵۰۰٬۰۰۰"
         />
 
         <div className="flex flex-col gap-2">
           <span className="text-surface-700 text-sm font-medium">خدمات پکیج</span>
           <div className="flex max-h-40 flex-col gap-1 overflow-y-auto">
-            {(servicesData?.data ?? []).map((service) => (
+            {(servicesData ?? []).map((service) => (
               <label key={service.id} className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"

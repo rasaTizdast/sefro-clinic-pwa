@@ -15,19 +15,23 @@ import { Input } from "../components/ui/Input";
 import { Pagination } from "../components/ui/Pagination";
 import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
-import type { Tab } from "../components/ui/Tabs";
-import { Tabs } from "../components/ui/Tabs";
 import {
+  useAllCustomers,
+  useAllPayments,
+  useAllVisits,
   useCreateCustomer,
-  useCustomersList,
   useDeleteCustomer,
   useUpdateCustomer,
 } from "../hooks/api";
 import { useQuickActions } from "../hooks/useQuickActions";
+import { useRateValue } from "../hooks/useRateValue";
+import { formatUsd, tomanToUsd } from "../lib/currency";
 import { formatJalaliDate } from "../lib/date";
-import { toPersianDigits } from "../lib/digits";
+import { toLatinDigits, toPersianDigits } from "../lib/digits";
 import { exportPatientsToExcel } from "../lib/excel";
-import { formatPrice } from "../lib/format";
+import { formatPrice, parseTomanAmount } from "../lib/format";
+import { ALL_PER_PAGE } from "../services/fetch-all-pages";
+import type { PaymentRow } from "../services/payments";
 import type { Patient, PatientFormData, PatientStatus } from "../types/patient";
 
 type StatusVariant = "success" | "warning" | "info";
@@ -39,35 +43,19 @@ const statusMap: Record<PatientStatus, { label: string; variant: StatusVariant }
   loyal: { label: "وفادار", variant: "success" },
 };
 
-const filterTabs: Tab[] = [
-  { id: "all", label: "همه" },
-  { id: "active", label: "فعال" },
-  { id: "inactive", label: "غیرفعال" },
-  { id: "new", label: "جدید" },
-];
-
-const PAGE_SIZE = 10;
+const PAGE_SIZE = ALL_PER_PAGE;
 
 function Patients() {
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const { registerAction } = useQuickActions();
 
-  const searchValue = search.trim() || undefined;
-
-  const {
-    data: paginated,
-    isLoading,
-    isError,
-    refetch,
-  } = useCustomersList({
-    page: currentPage,
-    perPage: PAGE_SIZE,
-    search: searchValue,
-  });
+  const { data: allPatients, isLoading, isError, refetch } = useAllCustomers();
+  const { data: allPayments } = useAllPayments();
+  const { data: allVisits } = useAllVisits();
+  const rate = useRateValue();
 
   const createMutation = useCreateCustomer();
   const updateMutation = useUpdateCustomer();
@@ -86,26 +74,49 @@ function Patients() {
     return unregister;
   }, [registerAction]);
 
-  const patients = useMemo(() => paginated?.data ?? [], [paginated?.data]);
-  const totalPages = paginated?.totalPages ?? 1;
-
-  const tabCounts = useMemo(() => {
-    const all = patients.length;
-    const active = patients.filter((p) => p.status === "active").length;
-    const inactive = patients.filter((p) => p.status === "inactive").length;
-    const newP = patients.filter((p) => p.status === "new").length;
-    return { all, active, inactive, new: newP };
-  }, [patients]);
-
-  const tabsWithBadges: Tab[] = filterTabs.map((tab) => ({
-    ...tab,
-    badge: tabCounts[tab.id as keyof typeof tabCounts],
-  }));
+  const patients = useMemo(() => allPatients ?? [], [allPatients]);
 
   const filteredPatients = useMemo(() => {
-    if (activeTab === "all") return patients;
-    return patients.filter((p) => p.status === activeTab);
-  }, [activeTab, patients]);
+    if (!search.trim()) return patients;
+    const searchLower = search.trim().toLowerCase();
+    return patients.filter(
+      (p) =>
+        `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchLower) ||
+        p.mobileNumber.includes(search.trim()) ||
+        p.nationalId.includes(search.trim()) ||
+        (p.fileSysId ?? "").includes(search.trim())
+    );
+  }, [patients, search]);
+
+  const lastPaymentMap = useMemo(() => {
+    const map = new Map<number, PaymentRow>();
+    for (const payment of allPayments ?? []) {
+      if (!payment.customer || !payment.paidAt) continue;
+      const existing = map.get(payment.customer);
+      if (!existing || !existing.paidAt || payment.paidAt > existing.paidAt) {
+        map.set(payment.customer, payment);
+      }
+    }
+    return map;
+  }, [allPayments]);
+
+  /** Earliest booked visit per patient — «عضویت» shows when they first came in. */
+  const firstVisitMap = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const visit of allVisits ?? []) {
+      if (!visit.customer || !visit.date) continue;
+      const current = map.get(visit.customer);
+      if (!current || visit.date < current) map.set(visit.customer, visit.date);
+    }
+    return map;
+  }, [allVisits]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPatients.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedPatients = filteredPatients.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
 
   const handleSavePatient = useCallback(
     async (data: PatientFormData) => {
@@ -172,13 +183,18 @@ function Patients() {
       header: "کل پرداختی",
       align: "end",
       width: "100px",
-      render: (item) => (
-        <span
-          className={item.totalPayments > 0 ? "text-surface-900 font-medium" : "text-surface-400"}
-        >
-          {item.totalPayments > 0 ? `${formatPrice(item.totalPayments)} تومان` : "—"}
-        </span>
-      ),
+      render: (item) => {
+        if (!(item.totalPayments > 0)) return <span className="text-surface-400">—</span>;
+        const usd = tomanToUsd(item.totalPayments, rate);
+        return (
+          <span className="text-surface-900 font-medium">
+            {`${formatPrice(item.totalPayments)} تومان`}
+            {usd != null && (
+              <span className="text-info-700 block text-xs font-normal">{formatUsd(usd)}</span>
+            )}
+          </span>
+        );
+      },
     },
     {
       key: "birthday",
@@ -187,7 +203,7 @@ function Patients() {
       width: "110px",
       render: (item) => (
         <span className={item.birthday ? "text-surface-700" : "text-surface-400"}>
-          {item.birthday ? formatJalaliDate(item.birthday) : "—"}
+          {item.birthday ? toPersianDigits(formatJalaliDate(item.birthday)) : "—"}
         </span>
       ),
     },
@@ -198,20 +214,45 @@ function Patients() {
       width: "110px",
       render: (item) => (
         <span className={item.lastVisit ? "text-surface-700" : "text-surface-400"}>
-          {formatJalaliDate(item.lastVisit)}
+          {item.lastVisit ? toPersianDigits(formatJalaliDate(item.lastVisit)) : "—"}
         </span>
       ),
     },
     {
-      key: "createdAt",
+      key: "lastPayment",
+      header: "مبلغ آخرین پرداخت",
+      align: "end",
+      width: "150px",
+      render: (item) => {
+        const payment = lastPaymentMap.get(item.id);
+        if (!payment) return <span className="text-surface-400">—</span>;
+        const toman = parseTomanAmount(payment.amount);
+        const usd = Number(toLatinDigits(payment.amountUsd || "0")) || 0;
+        return (
+          <span className="text-surface-900 font-medium" title={payment.paymentMethod}>
+            {toman > 0 ? `${formatPrice(toman)} تومان` : "—"}
+            {usd > 0 && (
+              <span className="text-info-700 block text-xs font-normal">{formatUsd(usd)}</span>
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      key: "firstVisit",
       header: "عضویت",
       align: "center",
       width: "90px",
-      render: (item) => (
-        <span className={item.createdAt ? "text-surface-700" : "text-surface-400"}>
-          {formatJalaliDate(item.createdAt)}
-        </span>
-      ),
+      render: (item) => {
+        // First booked visit (the day they actually came in); record-creation
+        // date is only the fallback for patients who have never visited.
+        const first = firstVisitMap.get(item.id) ?? item.createdAt;
+        return (
+          <span className={first ? "text-surface-700" : "text-surface-400"}>
+            {first ? toPersianDigits(formatJalaliDate(first)) : "—"}
+          </span>
+        );
+      },
     },
     {
       key: "status",
@@ -319,17 +360,6 @@ function Patients() {
           />
         </div>
 
-        <div data-tour="pat-tabs">
-          <Tabs
-            tabs={tabsWithBadges}
-            activeTab={activeTab}
-            onChange={(id) => {
-              setActiveTab(id);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
-
         <div className="p-4">
           {isLoading ? (
             <Table columns={columns} data={[]} loading rowKey={() => ""} />
@@ -356,9 +386,9 @@ function Patients() {
             />
           ) : (
             <div>
-              <Table columns={columns} data={filteredPatients} rowKey={(item) => item.id} />
+              <Table columns={columns} data={paginatedPatients} rowKey={(item) => item.id} />
               <Pagination
-                currentPage={currentPage}
+                currentPage={safePage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
                 className="mt-4"

@@ -8,6 +8,7 @@ export const routePermissions: Record<string, Role[]> = {
   "/warehouse": ["admin", "employee"],
   "/accounting": ["admin", "employee"],
   "/analytics": ["admin", "employee"],
+  "/exchange-rate": ["admin", "employee"],
   "/settings": ["admin", "employee"],
   "/logs": ["admin"],
 };

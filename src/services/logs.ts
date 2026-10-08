@@ -19,7 +19,7 @@ export const listLogs = async (
   params?: PaginationParams & { search?: string }
 ): Promise<PaginatedResponse<AuditLog>> => {
   const page = params?.page ?? 1;
-  const perPage = params?.perPage ?? 30;
+  const perPage = params?.perPage ?? 20;
   const { data } = await apiClient.get(endpoints.logs.list, {
     params: {
       page,

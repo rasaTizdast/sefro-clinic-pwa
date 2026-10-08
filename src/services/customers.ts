@@ -4,6 +4,7 @@ import { jalaliToShamsiApiDate } from "../lib/date";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
 import type { Patient, PatientFormData, PatientStatus } from "../types/patient";
+import { fetchAllPages } from "./fetch-all-pages";
 
 type RawPatient = Record<string, unknown> & {
   id: number;
@@ -83,6 +84,11 @@ export const listCustomers = async (
     ...paginated,
     data: paginated.data.map(toPatient),
   };
+};
+
+export const listAllCustomers = async (): Promise<Patient[]> => {
+  const rows = await fetchAllPages<RawPatient>(endpoints.customers.list);
+  return rows.map(toPatient);
 };
 
 export const getCustomer = async (id: number): Promise<Patient> => {

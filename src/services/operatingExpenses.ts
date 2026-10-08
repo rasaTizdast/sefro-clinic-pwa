@@ -16,6 +16,7 @@ import type {
   UpdateOperatingExpenseCategoryPayload,
   UpdateOperatingExpensePayload,
 } from "../types/finance";
+import { fetchAllPages } from "./fetch-all-pages";
 
 const DEFAULT_PER_PAGE = 20;
 
@@ -170,6 +171,15 @@ export const listOperatingExpenseCategories = async (
     ...paginated,
     data: paginated.data.map(toOperatingExpenseCategory),
   };
+};
+
+/** Every expense category across all pages, in display order. */
+export const listAllOperatingExpenseCategories = async (): Promise<OperatingExpenseCategory[]> => {
+  const rows = await fetchAllPages<RawOperatingExpenseCategory>(
+    endpoints.finance.operatingExpenseCategories,
+    { ordering: "sort_order" }
+  );
+  return rows.map(toOperatingExpenseCategory);
 };
 
 export const createOperatingExpenseCategory = async (

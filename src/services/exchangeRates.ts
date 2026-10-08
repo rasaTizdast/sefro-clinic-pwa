@@ -76,6 +76,59 @@ export const getCurrentRate = async (): Promise<CurrentRate> => {
   return toCurrentRate(data as RawCurrentRate);
 };
 
+const toPositiveRate = (raw: string | null | undefined): number | null => {
+  const parsed = Number(raw);
+  return raw != null && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+/**
+ * Client-side mirror of the backend's `get_rate()`: the newest *active* row that
+ * has already become effective. Checkout re-derives every cash component from
+ * `get_rate()`, so this is the value a sale must be priced with.
+ */
+const pickEffectiveRate = (rows: ExchangeRate[]): number | null => {
+  const now = Date.now();
+  for (const row of rows) {
+    if (!row.isActive) continue;
+    const effectiveAt = Date.parse(row.effectiveAt);
+    if (Number.isNaN(effectiveAt) || effectiveAt > now) continue;
+    const value = toPositiveRate(row.rate);
+    if (value !== null) return value;
+  }
+  return null;
+};
+
+/**
+ * The USD→Toman rate a checkout must be built with.
+ *
+ * `POST /checkout/` re-derives every `cash_toman` component with the server's own
+ * `get_rate()` and rejects the sale when the components stop adding up, so the
+ * client must quote a rate that matches the server *at submit time*: never a
+ * cached value (the rate query is 5 min stale) and never the BrsApi display
+ * fallback, whose provider differs from the one that seeds the DB.
+ *
+ * Reads the primary quote first — that call can insert a freshly fetched row —
+ * then mirrors `get_rate()` over the DB rows, which is exactly what the server
+ * will use. Returns null when neither source answers; callers must block the
+ * submit in that case instead of guessing.
+ */
+export const getBillingRate = async (): Promise<number | null> => {
+  let primaryRate: number | null = null;
+  try {
+    const current = await getCurrentRate();
+    primaryRate = toPositiveRate(current.rateTomanPerUsd ?? current.rate);
+  } catch {
+    // Primary down (timeout / 5xx / expired session) — the DB rows may still answer.
+  }
+  try {
+    const mirrored = pickEffectiveRate((await listExchangeRates({ page: 1 })).data);
+    if (mirrored !== null) return mirrored;
+  } catch {
+    // Mirror unavailable — fall through to the primary quote.
+  }
+  return primaryRate;
+};
+
 /** Fallback provider rate used when the primary source is unavailable. */
 export const getBackupRate = async (): Promise<CurrentRate & { provider: string }> => {
   const { data } = await apiClient.get(endpoints.finance.backupExchange);
@@ -86,6 +139,8 @@ export const getBackupRate = async (): Promise<CurrentRate & { provider: string 
 export const createExchangeRate = async (payload: {
   rate: string;
   source?: string;
+  /** Backend-required: ExchangeRate.effective_at is a plain DateTimeField with no default. */
+  effective_at: string;
 }): Promise<ExchangeRate> => {
   const { data } = await apiClient.post(endpoints.finance.exchangeRates, payload);
   return toRate(data as RawRate);

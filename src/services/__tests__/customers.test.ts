@@ -218,6 +218,43 @@ describe("customers service", () => {
     });
   });
 
+  describe("visitCount mapping", () => {
+    it("maps visitNumber to visitCount", async () => {
+      mock.get.mockResolvedValue({
+        data: {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              id: 1,
+              firstName: "علی",
+              lastName: "رضایی",
+              visitNumber: 7,
+              isNewCustomer: false,
+              isLoyalCustomer: false,
+            },
+          ],
+        },
+      });
+      const result = await listCustomers();
+      expect(result.data[0].visitCount).toBe(7);
+    });
+
+    it("defaults visitCount to 0 when visitNumber is absent", async () => {
+      mock.get.mockResolvedValue({
+        data: {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{ id: 1, firstName: "علی", lastName: "رضایی" }],
+        },
+      });
+      const result = await listCustomers();
+      expect(result.data[0].visitCount).toBe(0);
+    });
+  });
+
   describe("status mapping", () => {
     it("maps isNewCustomer to 'new'", async () => {
       mock.get.mockResolvedValue({

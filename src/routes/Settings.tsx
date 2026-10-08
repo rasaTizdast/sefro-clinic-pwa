@@ -2,8 +2,6 @@ import { useState } from "react";
 import { BiLock, BiPencil, BiPlus, BiTrash, BiUser } from "react-icons/bi";
 
 import { SearchButton } from "../components/SearchButton";
-import { CompensationRulesTab } from "../components/settings/CompensationRulesTab";
-import { ExchangeRatesTab } from "../components/settings/ExchangeRatesTab";
 import { ServiceCategoriesTab } from "../components/settings/ServiceCategoriesTab";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -25,8 +23,6 @@ import type { ClinicUser, UserRole } from "../types/settings";
 
 const settingsTabs = [
   { id: "users", label: "کاربران" },
-  { id: "exchange-rates", label: "نرخ ارز" },
-  { id: "compensation-rules", label: "قوانین تسویه" },
   { id: "service-categories", label: "دسته‌بندی خدمات" },
 ];
 
@@ -211,14 +207,6 @@ function Settings() {
             </>
           )}
         </div>
-      </TabPanel>
-
-      <TabPanel id="exchange-rates" activeTab={activeTab}>
-        <ExchangeRatesTab />
-      </TabPanel>
-
-      <TabPanel id="compensation-rules" activeTab={activeTab}>
-        <CompensationRulesTab />
       </TabPanel>
 
       <TabPanel id="service-categories" activeTab={activeTab}>

@@ -3,9 +3,9 @@ import { BiPlus, BiTrash } from "react-icons/bi";
 import { FiEdit2 } from "react-icons/fi";
 
 import {
+  useAllOperatingExpenseCategories,
   useCreateOperatingExpenseCategory,
   useDeleteOperatingExpenseCategory,
-  useOperatingExpenseCategories,
   useUpdateOperatingExpenseCategory,
 } from "../../hooks/api";
 import { Badge } from "../ui/Badge";
@@ -23,7 +23,7 @@ interface CategoryModalProps {
 
 export function OperatingExpenseCategoryModal({ open, onClose }: CategoryModalProps) {
   const toast = useToast();
-  const { data, isLoading } = useOperatingExpenseCategories({ perPage: 100 });
+  const { data, isLoading } = useAllOperatingExpenseCategories();
   const createCategory = useCreateOperatingExpenseCategory();
   const updateCategory = useUpdateOperatingExpenseCategory();
   const deleteCategory = useDeleteOperatingExpenseCategory();
@@ -80,7 +80,7 @@ export function OperatingExpenseCategoryModal({ open, onClose }: CategoryModalPr
     }
   };
 
-  const categories = data?.data ?? [];
+  const categories = data ?? [];
 
   return (
     <Modal open={open} onClose={onClose} title="مدیریت دسته‌بندی هزینه‌ها" size="lg">

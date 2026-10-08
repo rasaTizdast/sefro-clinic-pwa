@@ -22,6 +22,18 @@ export function useSale(id: number) {
   });
 }
 
+/**
+ * Visit ids that already have a paid sale. Key sits under the `sales` prefix so
+ * `useCheckout`'s invalidation refreshes it right after a sale is posted.
+ */
+export function usePaidVisitIds() {
+  return useQuery({
+    queryKey: queryKeys.sales.paidVisitIds,
+    queryFn: () => salesService.listPaidVisitIds(),
+    staleTime: 60_000,
+  });
+}
+
 export function useCheckout() {
   const queryClient = useQueryClient();
   const toast = useToast();

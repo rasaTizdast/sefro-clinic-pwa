@@ -7,6 +7,7 @@ import {
   getProfitByPackage,
   getProfitByService,
   getProfitByStaff,
+  toFinancialSummary,
   toReportParams,
 } from "../financeReports";
 
@@ -81,6 +82,123 @@ describe("financeReports service", () => {
     });
     expect(summary.revenue.usd).toBe("100.00");
     expect(summary.counts.paidSales).toBe(4);
+  });
+
+  it("keeps the welcome-pack cost the backend nets out of gross profit", async () => {
+    mock.get.mockResolvedValue({
+      data: {
+        period: { start: "2026-09-01", end: "2026-09-30" },
+        revenue: { usd: "100.00", toman: "10000000" },
+        productCost: { usd: "20.00", toman: "2000000" },
+        welcomePackCost: { usd: "4.13", toman: "413000" },
+        grossProfit: { usd: "75.87", toman: "7587000" },
+        expenses: { usd: "0.00", toman: "0" },
+        netProfit: { usd: "75.87", toman: "7587000" },
+        paymentMethods: { cash: "60.00", card: "40.00", wallet: "0.00" },
+        counts: {
+          appointments: 5,
+          packagesSold: 1,
+          productsSoldQuantity: "2.000",
+          paidSales: 4,
+          averageTransactionValue: "25.00",
+        },
+      },
+    });
+
+    const summary = await getFinancialSummary({ period: "this_month" });
+
+    expect(summary.welcomePackCost.usd).toBe("4.13");
+    expect(summary.welcomePackCost.toman).toBe("413000");
+  });
+
+  it("defaults a missing welcome-pack block to zero money", () => {
+    expect(toFinancialSummary({}).welcomePackCost).toEqual({ usd: "0.00", toman: "0" });
+  });
+
+  describe("staff compensation breakdown", () => {
+    it("maps the per-role split exactly as the backend grouped it", () => {
+      const summary = toFinancialSummary({
+        staffCompensation: {
+          cash: { usd: "20.00", toman: "2000000" },
+          product: { usd: "10.00", toman: "1000000" },
+          total: { usd: "30.00", toman: "3000000" },
+          payoutCount: 6,
+          byRole: {
+            doctor: {
+              role: "doctor",
+              count: 3,
+              cashUsd: "13.00",
+              cashToman: "1300000",
+              productUsd: "0.00",
+              productToman: "0",
+              totalUsd: "13.00",
+              totalToman: "1300000",
+            },
+            laser: {
+              role: "laser",
+              count: 1,
+              cashUsd: "2.00",
+              cashToman: "1200000",
+              productUsd: "10.00",
+              productToman: "0",
+              totalUsd: "12.00",
+              totalToman: "1200000",
+            },
+          },
+        },
+      });
+
+      expect(summary.staffCompensation.payoutCount).toBe(6);
+      expect(summary.staffCompensation.total.toman).toBe("3000000");
+      expect(Object.keys(summary.staffCompensation.byRole)).toEqual(["doctor", "laser"]);
+      expect(summary.staffCompensation.byRole.doctor?.totalToman).toBe("1300000");
+      expect(summary.staffCompensation.byRole.laser?.count).toBe(1);
+      // a role the backend did not send stays absent rather than becoming a zero
+      expect(summary.staffCompensation.byRole.facial).toBeUndefined();
+    });
+
+    it("defaults an absent staff block to zeroes with no roles", () => {
+      const staff = toFinancialSummary({}).staffCompensation;
+      expect(staff.total).toEqual({ usd: "0.00", toman: "0" });
+      expect(staff.payoutCount).toBe(0);
+      expect(staff.byRole).toEqual({});
+    });
+  });
+
+  it("maps the below-the-line buckets and net profit the backend computed", () => {
+    const summary = toFinancialSummary({
+      operatingExpenses: { usd: "20.00", toman: "2000000", count: 4 },
+      staffExpenseClaims: { usd: "5.00", toman: "500000", count: 2 },
+      belowTheLineTotal: { usd: "55.00", toman: "5500000" },
+      netProfit: { usd: "44.38", toman: "20739967" },
+    });
+
+    expect(summary.operatingExpenses).toEqual({ usd: "20.00", toman: "2000000", count: 4 });
+    expect(summary.staffExpenseClaims).toEqual({ usd: "5.00", toman: "500000", count: 2 });
+    expect(summary.belowTheLineTotal.toman).toBe("5500000");
+    expect(summary.netProfit.toman).toBe("20739967");
+  });
+
+  it("treats the legacy `expenses` key as staff claims", () => {
+    const summary = toFinancialSummary({ expenses: { usd: "5.00", toman: "500000" } });
+    expect(summary.expenses.toman).toBe("500000");
+    expect(summary.staffExpenseClaims.toman).toBe("500000");
+  });
+
+  it("keeps revenueBasis and costCoverage so the UI can warn on bad data", () => {
+    const summary = toFinancialSummary({
+      revenueBasis: "list_price",
+      costCoverage: { zeroCostRows: 3, productsMissingCost: [11] },
+    });
+    expect(summary.revenueBasis).toBe("list_price");
+    expect(summary.costCoverage.zeroCostRows).toBe(3);
+    expect(summary.costCoverage.productsMissingCost).toEqual([11]);
+  });
+
+  it("defaults revenueBasis to the sale ledger and coverage to clean", () => {
+    const summary = toFinancialSummary({});
+    expect(summary.revenueBasis).toBe("sale_ledger");
+    expect(summary.costCoverage).toEqual({ zeroCostRows: 0, productsMissingCost: [] });
   });
 
   it("getFinancialSummary sends Gregorian dates for a Jalali range", async () => {

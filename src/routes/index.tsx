@@ -28,6 +28,7 @@ export const router = createBrowserRouter(
             { path: "warehouse", lazy: lazyRoute(() => import("./Warehouse")) },
             { path: "accounting", lazy: lazyRoute(() => import("./Accounting")) },
             { path: "analytics", lazy: lazyRoute(() => import("./Analytics")) },
+            { path: "exchange-rate", lazy: lazyRoute(() => import("./ExchangeRate")) },
             { path: "settings", lazy: lazyRoute(() => import("./Settings")) },
             ...(import.meta.env.DEV
               ? [{ path: "design-system", lazy: lazyRoute(() => import("./DesignSystem")) }]

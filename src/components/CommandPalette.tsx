@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { BiCalendar, BiHome, BiSearch } from "react-icons/bi";
+import { BiCalendar, BiDollar, BiHome, BiSearch } from "react-icons/bi";
 import { CiMoneyBill, CiSettings } from "react-icons/ci";
 import { FaRegCalendarAlt, FaWarehouse } from "react-icons/fa";
 import { IoAnalytics } from "react-icons/io5";
@@ -25,6 +25,7 @@ const navActions: NavAction[] = [
   { id: "nav-services", label: "خدمات", icon: <MdMedicalServices />, path: "/services" },
   { id: "nav-analytics", label: "گزارش‌ها", icon: <IoAnalytics />, path: "/analytics" },
   { id: "nav-warehouse", label: "مدیریت انبار", icon: <FaWarehouse />, path: "/warehouse" },
+  { id: "nav-exchange-rate", label: "نرخ ارز", icon: <BiDollar />, path: "/exchange-rate" },
   { id: "nav-settings", label: "تنظیمات", icon: <CiSettings />, path: "/settings" },
   ...(import.meta.env.DEV
     ? [

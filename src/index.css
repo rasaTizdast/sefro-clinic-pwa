@@ -115,6 +115,20 @@ body {
   }
 }
 
+/* Price drift marker: three quick bounces (~1s total), then it stops on its own.
+   Pure CSS (finite iteration count) so React StrictMode's double-invoked effects
+   can never leave the arrow bouncing forever. */
+@keyframes price-bounce {
+  0%,
+  100% {
+    transform: translateY(-18%);
+  }
+
+  50% {
+    transform: translateY(0);
+  }
+}
+
 .recharts-wrapper:focus,
 .recharts-wrapper *:focus,
 .recharts-surface:focus,
@@ -232,13 +246,17 @@ body {
   --calendar-border-focus: var(--color-primary-500);
 }
 
-/* Center calendar popup when inside a modal dialog.
-   The dialog's CSS transform (translate) creates a new containing block,
-   trapping position:fixed children. Center within the dialog instead. */
-dialog .calendar-blue-theme.calendar-picker-modal {
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
+/* Keep the popup glued beneath its input on the accounting page. The library
+   positions it with position: fixed and JS-measured viewport coordinates;
+   anchoring it to the picker box instead guarantees it opens right under the
+   trigger (right-aligned in RTL) and scrolls along with the input. */
+.accounting-page .calendar-blue-theme.calendar-picker-modal {
+  position: absolute !important;
+  top: calc(100% + 4px) !important;
+  right: 0 !important;
+  left: auto !important;
+  width: max-content !important;
+  visibility: visible !important;
 }
 
 /* Dark overlay covering the entire page when the calendar is open */

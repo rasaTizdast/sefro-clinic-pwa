@@ -4,9 +4,9 @@ import * as apiClient from "../../lib/api-client";
 import {
   buildPurchasePayload,
   createPurchase,
+  listAllUsages,
   listCostHistory,
   listPurchases,
-  listUsages,
   recordConsumption,
   toConsumptionRecords,
   toProductCostHistory,
@@ -149,7 +149,7 @@ describe("buildPurchasePayload", () => {
     });
   });
 
-  it("quantizes the total to 2dp from the rounded unit cost", () => {
+  it("ceils the unit cost to cents and the total to unit × quantity", () => {
     const payload = buildPurchasePayload({
       productId: 5,
       quantity: "2.5",
@@ -158,8 +158,9 @@ describe("buildPurchasePayload", () => {
       purchaseDateJalali: "1405/06/29",
     });
 
-    expect(payload.unitCostUsd).toBe("3.33");
-    expect(payload.totalCostUsd).toBe("8.33");
+    // 333333 / 100000 = 3.33333 → ceil to "3.34"; 3.34 × 2.5 = 8.35 → "8.35"
+    expect(payload.unitCostUsd).toBe("3.34");
+    expect(payload.totalCostUsd).toBe("8.35");
     expect(payload.supplier).toBe("");
   });
 
@@ -234,37 +235,50 @@ describe("createPurchase", () => {
   });
 });
 
-describe("listUsages", () => {
+describe("listAllUsages", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("lists the paginated usages and maps them", async () => {
+  it("walks every page of the usage log and maps the rows", async () => {
+    mock.get
+      .mockResolvedValueOnce({
+        data: {
+          count: 2,
+          next: "/api/finance/product-usages/?page=2",
+          previous: null,
+          results: [rawUsage],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          count: 2,
+          next: null,
+          previous: "/api/finance/product-usages/?page=1",
+          results: [{ ...rawUsage, id: 22, product: 3 }],
+        },
+      });
+
+    const result = await listAllUsages();
+
+    expect(mock.get).toHaveBeenNthCalledWith(1, "/finance/product-usages/", {
+      params: { page: 1, per_page: 100 },
+    });
+    expect(mock.get).toHaveBeenNthCalledWith(2, "/finance/product-usages/", {
+      params: { page: 2, per_page: 100 },
+    });
+    expect(result.map((u) => u.id)).toEqual([21, 22]);
+    expect(result[1].product).toBe(3);
+  });
+
+  it("stops after the first page when there is no next link", async () => {
     mock.get.mockResolvedValue({
       data: { count: 1, next: null, previous: null, results: [rawUsage] },
     });
 
-    const result = await listUsages();
+    const result = await listAllUsages();
 
-    expect(mock.get).toHaveBeenCalledWith("/finance/product-usages/", {
-      params: { page: 1, per_page: 20 },
-    });
-    expect(result.data).toEqual([rawUsage]);
-  });
-
-  it("sends only the filters the endpoint supports", async () => {
-    mock.get.mockResolvedValue({ data: { count: 0, next: null, previous: null, results: [] } });
-
-    await listUsages({ visit: 12, service: 4, product: 2, packageSale: 9, page: 3 });
-
-    expect(mock.get).toHaveBeenCalledWith("/finance/product-usages/", {
-      params: {
-        page: 3,
-        per_page: 20,
-        visit: 12,
-        service: 4,
-        product: 2,
-        package_sale: 9,
-      },
-    });
+    expect(mock.get).toHaveBeenCalledTimes(1);
+    expect(result).toHaveLength(1);
+    expect(result[0].createdAt).toBe("2026-09-20T09:00:00Z");
   });
 });
 
@@ -295,13 +309,13 @@ describe("recordConsumption", () => {
     ]);
   });
 
-  it("POSTs the flattened rows to the visit record-consumption endpoint", async () => {
+  it("POSTs selected_products to the visit record-consumption endpoint", async () => {
     mock.post.mockResolvedValue({ data: {} });
 
     await recordConsumption(12, { 4: [{ product: 2, quantity: "1.500" }] });
 
     expect(mock.post).toHaveBeenCalledWith("/finance/visits/12/record-consumption/", {
-      consumptions: [{ service: 4, product: 2, quantity: "1.500" }],
+      selected_products: { 4: [[2, "1.500"]] },
     });
   });
 
@@ -309,5 +323,75 @@ describe("recordConsumption", () => {
     await recordConsumption(12, {});
 
     expect(mock.post).not.toHaveBeenCalled();
+  });
+
+  it("sends extra_products (manual invoice extras) alongside the recipe selection", async () => {
+    mock.post.mockResolvedValue({ data: {} });
+
+    await recordConsumption(
+      12,
+      { 4: [{ product: 2, quantity: "1.500" }] },
+      {
+        extraProducts: [
+          {
+            product: 99,
+            productName: "آلکاریسا",
+            quantity: "2",
+            priceToman: "100000",
+            priceUsd: "0",
+          },
+        ],
+      }
+    );
+
+    expect(mock.post).toHaveBeenCalledWith("/finance/visits/12/record-consumption/", {
+      selected_products: { 4: [[2, "1.500"]] },
+      extra_products: [[99, "2"]],
+    });
+  });
+
+  it("still posts when only extras are present (empty recipe selection)", async () => {
+    mock.post.mockResolvedValue({ data: {} });
+
+    await recordConsumption(
+      12,
+      {},
+      {
+        extraProducts: [
+          {
+            product: 99,
+            productName: "آلکاریسا",
+            quantity: "1",
+            priceToman: "50000",
+            priceUsd: "0",
+          },
+        ],
+      }
+    );
+
+    expect(mock.post).toHaveBeenCalledWith("/finance/visits/12/record-consumption/", {
+      selected_products: {},
+      extra_products: [[99, "1"]],
+    });
+  });
+
+  it("drops invalid extras and omits the key when nothing valid remains", async () => {
+    mock.post.mockResolvedValue({ data: {} });
+
+    await recordConsumption(
+      12,
+      {},
+      {
+        includeMandatoryOnly: true,
+        extraProducts: [
+          { product: 0, productName: "نامعتبر", quantity: "1", priceToman: "0", priceUsd: "0" },
+          { product: 77, productName: "صفر", quantity: "0", priceToman: "0", priceUsd: "0" },
+        ],
+      }
+    );
+
+    expect(mock.post).toHaveBeenCalledWith("/finance/visits/12/record-consumption/", {
+      selected_products: {},
+    });
   });
 });

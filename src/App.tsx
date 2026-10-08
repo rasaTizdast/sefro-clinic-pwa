@@ -1,4 +1,4 @@
-import { BiHome } from "react-icons/bi";
+import { BiDollar, BiHome } from "react-icons/bi";
 import { CiMoneyBill, CiSettings } from "react-icons/ci";
 import { FaRegCalendarAlt, FaWarehouse } from "react-icons/fa";
 import { IoAnalytics } from "react-icons/io5";
@@ -15,6 +15,7 @@ import { WalkthroughButton } from "./components/walkthrough/WalkthroughButton";
 import { CommandPaletteContext } from "./contexts/commandPalette";
 import { WizardProvider } from "./contexts/WizardContext";
 import { useCommandPalette } from "./hooks/useCommandPalette";
+import { useFloatingPriceSync } from "./hooks/useFloatingPriceSync";
 import { usePermissions } from "./hooks/usePermissions";
 import type { SidebarItem } from "./types/sidebar";
 
@@ -27,6 +28,7 @@ const items: SidebarItem[] = [
   { label: "خدمات", icon: <MdMedicalServices />, path: "/services", group: "primary" },
   { label: "گزارش‌ها", icon: <IoAnalytics />, path: "/analytics", group: "primary" },
   { label: "مدیریت انبار", icon: <FaWarehouse />, path: "/warehouse", group: "secondary" },
+  { label: "نرخ ارز", icon: <BiDollar />, path: "/exchange-rate", group: "secondary" },
   { label: "تنظیمات", icon: <CiSettings />, path: "/settings", group: "secondary" },
   ...(import.meta.env.DEV
     ? [
@@ -44,6 +46,7 @@ const items: SidebarItem[] = [
 function AppContent() {
   const { open, setOpen } = useCommandPalette();
   const { canViewLogs } = usePermissions();
+  useFloatingPriceSync();
   const visibleItems = canViewLogs ? items : items.filter((i) => i.path !== "/logs");
 
   return (

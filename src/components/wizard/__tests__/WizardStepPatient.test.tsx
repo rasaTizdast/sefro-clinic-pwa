@@ -138,14 +138,27 @@ describe("WizardStepPatient", () => {
     );
   });
 
-  it("calls onBack when back button is clicked", async () => {
+  it("hides back button when nothing to return to", () => {
+    render(<WizardStepPatient patient={emptyPatient} onBack={onBack} onComplete={onComplete} />, {
+      wrapper: createWrapper(),
+    });
+
+    expect(screen.queryByRole("button", { name: "بازگشت" })).not.toBeInTheDocument();
+    expect(onBack).not.toHaveBeenCalled();
+  });
+
+  it("back button closes new-patient form without calling onBack", async () => {
     const user = userEvent.setup();
     render(<WizardStepPatient patient={emptyPatient} onBack={onBack} onComplete={onComplete} />, {
       wrapper: createWrapper(),
     });
 
+    await user.click(screen.getByRole("button", { name: /بیمار جدید/ }));
+    expect(screen.getByLabelText("نام")).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "بازگشت" }));
-    expect(onBack).toHaveBeenCalledOnce();
+    expect(screen.queryByLabelText("نام")).not.toBeInTheDocument();
+    expect(onBack).not.toHaveBeenCalled();
   });
 
   it("disables continue when no patient selected", () => {

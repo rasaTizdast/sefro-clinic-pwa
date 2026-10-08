@@ -36,6 +36,7 @@ import {
   useReferralRate,
   useVisitReports,
 } from "../hooks/api";
+import { formatPrice } from "../lib/format";
 import { fillChartGaps } from "../lib/report-chart";
 import type {
   AppointmentStat,
@@ -119,14 +120,14 @@ function Analytics() {
     ? [
         {
           title: "مجموع مراجعین",
-          value: reports.customerCount?.toLocaleString("fa-IR") ?? "۰",
+          value: reports.customerCount != null ? formatPrice(Number(reports.customerCount)) : "۰",
           change: "",
           trend: "up",
           icon: <BiUser className="size-5" />,
         },
         {
           title: "درآمد کل",
-          value: reports.totalRevenue?.toLocaleString("fa-IR") ?? "۰",
+          value: reports.totalRevenue != null ? formatPrice(Number(reports.totalRevenue)) : "۰",
           change: "",
           trend: "up",
           icon: <BiDollar className="size-5" />,
@@ -140,7 +141,7 @@ function Analytics() {
         },
         {
           title: "میانگین رضایت",
-          value: avgSatisfaction ? `${avgSatisfaction.toFixed(1)}` : "—",
+          value: avgSatisfaction != null ? formatPrice(Number(avgSatisfaction)) : "—",
           change: "",
           trend: "flat",
           icon: <BiHeart className="size-5" />,
@@ -253,7 +254,7 @@ function Analytics() {
                     <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
                     <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                     <Tooltip
-                      formatter={(value) => [`${formatCurrency(Number(value))} تومان`, "درآمد"]}
+                      formatter={(value) => [formatPrice(Number(value)), "تعداد"]}
                       contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
                     />
                     <Line
@@ -295,7 +296,9 @@ function Analytics() {
                       verticalAlign="bottom"
                       height={36}
                       formatter={(value: string) => (
-                        <span style={{ color: "#334155", fontSize: 12 }}>{value}</span>
+                        <span style={{ color: "#334155", fontSize: 12 }}>
+                          {formatPrice(Number(value))}
+                        </span>
                       )}
                     />
                   </PieChart>
@@ -323,7 +326,7 @@ function Analytics() {
                     <XAxis dataKey="period" tick={{ fontSize: 12, fill: "#64748b" }} />
                     <YAxis tick={{ fontSize: 12, fill: "#64748b" }} allowDecimals={false} />
                     <Tooltip
-                      formatter={(value) => [Number(value), "مراجعه"]}
+                      formatter={(value) => [formatPrice(Number(value)), "مراجعه"]}
                       contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13 }}
                     />
                     <Bar dataKey="visits" fill="#2563eb" radius={[4, 4, 0, 0]} />

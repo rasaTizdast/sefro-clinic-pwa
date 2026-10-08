@@ -4,6 +4,7 @@ import * as apiClient from "../../lib/api-client";
 import {
   createExchangeRate,
   getBackupRate,
+  getBillingRate,
   getCurrentRate,
   listExchangeRates,
 } from "../exchangeRates";
@@ -143,15 +144,79 @@ describe("exchangeRates service", () => {
     });
   });
 
+  describe("getBillingRate", () => {
+    const past = () => new Date(Date.now() - 60_000).toISOString();
+    const future = () => new Date(Date.now() + 60_000).toISOString();
+
+    const quote = (rate: string) => ({
+      data: { rate, rate_toman_per_usd: rate, effective_at: past(), source: "external" },
+    });
+    const page = (results: Record<string, unknown>[]) => ({
+      data: { count: results.length, next: null, previous: null, results },
+    });
+
+    it("returns the DB row the server will read, not the primary quote", async () => {
+      // The primary quote can be a freshly fetched value the DB row mirror has
+      // already superseded — checkout validates against get_rate(), so mirror wins.
+      mock.get.mockResolvedValueOnce(quote("985000.00"));
+      mock.get.mockResolvedValueOnce(
+        page([{ ...rawRate, rate: "986000.00", effective_at: past(), is_active: true }])
+      );
+
+      expect(await getBillingRate()).toBe(986000);
+      expect(mock.get.mock.calls[0][0]).toBe("/reports/exchange-dollar/");
+      expect(mock.get.mock.calls[1][0]).toBe("/finance/exchange-rates/");
+    });
+
+    it("skips inactive and not-yet-effective rows", async () => {
+      mock.get.mockResolvedValueOnce(quote("985000.00"));
+      mock.get.mockResolvedValueOnce(
+        page([
+          { ...rawRate, rate: "990000.00", effective_at: future(), is_active: true },
+          { ...rawRate, rate: "987000.00", effective_at: past(), is_active: false },
+          { ...rawRate, rate: "986000.00", effective_at: past(), is_active: true },
+        ])
+      );
+
+      expect(await getBillingRate()).toBe(986000);
+    });
+
+    it("falls back to the primary quote when no DB row is usable yet", async () => {
+      mock.get.mockResolvedValueOnce(quote("985000.00"));
+      mock.get.mockResolvedValueOnce(page([{ ...rawRate, effective_at: future() }]));
+
+      expect(await getBillingRate()).toBe(985000);
+    });
+
+    it("falls back to the primary quote when the row list fails", async () => {
+      mock.get.mockResolvedValueOnce(quote("985000.00"));
+      mock.get.mockRejectedValueOnce(new Error("offline"));
+
+      expect(await getBillingRate()).toBe(985000);
+    });
+
+    it("returns null when neither source answers so callers can block the submit", async () => {
+      mock.get.mockRejectedValueOnce(new Error("timeout"));
+      mock.get.mockRejectedValueOnce(new Error("timeout"));
+
+      expect(await getBillingRate()).toBeNull();
+    });
+  });
+
   describe("createExchangeRate", () => {
     it("posts to /finance/exchange-rates/ and maps the created row", async () => {
       mock.post.mockResolvedValue({ data: rawRate });
 
-      const result = await createExchangeRate({ rate: "985000.00", source: "manual" });
+      const result = await createExchangeRate({
+        rate: "985000.00",
+        source: "manual",
+        effective_at: "2026-09-20T08:00:00Z",
+      });
 
       expect(mock.post).toHaveBeenCalledWith("/finance/exchange-rates/", {
         rate: "985000.00",
         source: "manual",
+        effective_at: "2026-09-20T08:00:00Z",
       });
       expect(result.id).toBe(7);
       expect(result.rate).toBe("985000.00");

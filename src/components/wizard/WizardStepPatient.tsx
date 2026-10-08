@@ -1,12 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { BiCheck, BiSearch } from "react-icons/bi";
 import { MdPersonAdd } from "react-icons/md";
 
-import { toPersianDigits } from "../../lib/digits";
-import { listCustomers } from "../../services/customers";
+import { useCustomersList } from "../../hooks/api/useCustomersQuery";
+import { extractApiError } from "../../lib/api-error";
+import { formatJalaliDate } from "../../lib/date";
+import { normalizeSearch, toPersianDigits } from "../../lib/digits";
+import { ceilUp, formatPrice } from "../../lib/format";
 import type { Patient } from "../../types/patient";
 import type { PatientData } from "../../types/wizard";
+import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { JalaliDatePicker } from "../ui/JalaliDatePicker";
@@ -25,15 +28,23 @@ export default function WizardStepPatient({ patient, onBack, onComplete }: Props
   );
   const [showNewForm, setShowNewForm] = useState(false);
 
-  const { data: searchResults, isFetching } = useQuery({
-    queryKey: ["wizard-patient-search", query],
-    queryFn: async () => {
-      const result = await listCustomers({ search: query, perPage: 20 });
-      return result.data;
-    },
-    enabled: query.length >= 2 && !showNewForm,
-    staleTime: 30_000,
-  });
+  const {
+    data: searchResult,
+    isFetching,
+    isError,
+    error,
+  } = useCustomersList(
+    query.trim().length >= 2 && !showNewForm
+      ? { search: normalizeSearch(query), perPage: 20 }
+      : undefined
+  );
+  const searchResults = query.trim().length >= 2 && !showNewForm ? (searchResult?.data ?? []) : [];
+  const showEmpty =
+    query.trim().length >= 2 &&
+    !showNewForm &&
+    !isFetching &&
+    !isError &&
+    searchResults.length === 0;
 
   const handleSelect = useCallback((p: Patient) => {
     setSelectedPatient({
@@ -60,6 +71,18 @@ export default function WizardStepPatient({ patient, onBack, onComplete }: Props
     }
   }, [selectedPatient, onComplete]);
 
+  const handleBack = useCallback(() => {
+    if (showNewForm) {
+      setShowNewForm(false);
+      return;
+    }
+    if (selectedPatient) {
+      setSelectedPatient(null);
+      return;
+    }
+    onBack();
+  }, [showNewForm, selectedPatient, onBack]);
+
   return (
     <div className="space-y-4">
       <h2 className="text-surface-900 text-lg font-bold">انتخاب بیمار</h2>
@@ -74,6 +97,12 @@ export default function WizardStepPatient({ patient, onBack, onComplete }: Props
             endIcon={<BiSearch className="text-surface-400 size-4" />}
           />
           {isFetching && <p className="text-surface-400 mt-1 text-sm">در حال جستجو...</p>}
+          {isError && <Alert variant="error">{extractApiError(error)}</Alert>}
+          {showEmpty && (
+            <p className="text-surface-400 border-surface-200 mt-1 rounded-lg border bg-white px-4 py-3 text-center text-sm">
+              بیماری یافت نشد — عبارت دیگری را امتحان کنید یا بیمار جدید ثبت کنید
+            </p>
+          )}
           {searchResults && searchResults.length > 0 && (
             <div className="border-surface-200 absolute z-10 mt-1 w-full rounded-lg border bg-white shadow-lg">
               {searchResults.map((p) => (
@@ -113,9 +142,15 @@ export default function WizardStepPatient({ patient, onBack, onComplete }: Props
               </p>
               <div className="text-success-600 mt-2 flex gap-4 text-xs">
                 <span>{toPersianDigits(String(selectedPatient.visitCount))} مراجعه</span>
-                <span>{toPersianDigits(String(selectedPatient.totalSpent))} مبلغ کل</span>
+                <span>
+                  {selectedPatient.totalSpent > 0
+                    ? `${formatPrice(ceilUp(selectedPatient.totalSpent))} تومان`
+                    : "—"}
+                </span>
                 {selectedPatient.lastVisit && (
-                  <span>آخرین مراجعه: {selectedPatient.lastVisit}</span>
+                  <span>
+                    آخرین مراجعه: {toPersianDigits(formatJalaliDate(selectedPatient.lastVisit))}
+                  </span>
                 )}
               </div>
             </div>
@@ -125,10 +160,12 @@ export default function WizardStepPatient({ patient, onBack, onComplete }: Props
       )}
 
       <div className="flex items-center justify-between pt-2">
-        <Button variant="outline" onClick={onBack}>
-          بازگشت
-        </Button>
-        <div className="flex gap-2">
+        {(showNewForm || selectedPatient) && (
+          <Button variant="outline" onClick={handleBack}>
+            بازگشت
+          </Button>
+        )}
+        <div className="ms-auto flex gap-2">
           {!showNewForm && (
             <Button
               variant="ghost"

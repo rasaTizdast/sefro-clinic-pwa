@@ -45,6 +45,7 @@ const expenses = [
 ];
 
 const listSpy = vi.fn();
+const summarySpy = vi.fn();
 
 vi.mock("react-calendar-datetime-picker", () => ({
   DtPicker: () => <input data-testid="dt-picker" readOnly />,
@@ -84,34 +85,48 @@ vi.mock("../../../hooks/api", () => ({
       isLoading: false,
     };
   },
-  useOperatingExpenseCategories: () => ({
-    data: {
-      data: categories,
-      total: 1,
-      page: 1,
-      perPage: 100,
-      totalPages: 1,
-      hasNext: false,
-      hasPrev: false,
-    },
+  useAllOperatingExpenseCategories: () => ({
+    data: categories,
     isLoading: false,
   }),
-  useOperatingExpenseSummary: () => ({
+  useOperatingExpenseSummary: (params: unknown) => {
+    summarySpy(params);
+    return {
+      data: {
+        period: { start: "2026-08-01", end: "2026-08-31" },
+        totalUsd: "150.00",
+        totalToman: "15000000",
+        count: 3,
+        byCategory: [
+          {
+            categoryId: 7,
+            categoryName: "اجاره",
+            totalUsd: "100.00",
+            totalToman: "10000000",
+            count: 2,
+          },
+        ],
+        byPaymentMethod: [{ paymentMethod: "bank_transfer", totalUsd: "150.00", count: 3 }],
+      },
+      isLoading: false,
+    };
+  },
+  useFinancialSummary: () => ({
     data: {
       period: { start: "2026-08-01", end: "2026-08-31" },
-      totalUsd: "150.00",
-      totalToman: "15000000",
-      count: 3,
-      byCategory: [
-        {
-          categoryId: 7,
-          categoryName: "اجاره",
-          totalUsd: "100.00",
-          totalToman: "10000000",
-          count: 2,
-        },
-      ],
-      byPaymentMethod: [],
+      revenue: { usd: "5000.00", toman: "50000000" },
+      productCost: { usd: "1000.00", toman: "10000000" },
+      grossProfit: { usd: "4000.00", toman: "40000000" },
+      expenses: { usd: "0.00", toman: "0" },
+      netProfit: { usd: "4000.00", toman: "40000000" },
+      paymentMethods: { cash: "0.00", card: "0.00", wallet: "0.00" },
+      counts: {
+        appointments: 0,
+        packagesSold: 0,
+        productsSoldQuantity: "0.000",
+        paidSales: 0,
+        averageTransactionValue: "0.00",
+      },
     },
     isLoading: false,
   }),
@@ -187,5 +202,29 @@ describe("OperatingExpensesTab", () => {
     expect(listSpy).toHaveBeenCalledWith(
       expect.objectContaining({ page: 1, perPage: 20, ordering: "-expense_date" })
     );
+  });
+
+  it("places the expense total inside the finance picture of the same period", () => {
+    renderTab();
+
+    expect(screen.getByText("موقعیت مالی · این ماه")).toBeInTheDocument();
+    expect(screen.getByText("هزینه‌های جاری")).toBeInTheDocument();
+    expect(screen.getByText(/از درآمد این ماه/)).toBeInTheDocument();
+    // Backend net_profit replaces the local "gross − operating" figure.
+    expect(screen.getByText("سود خالص")).toBeInTheDocument();
+    expect(screen.queryByText("سود پس از هزینه‌های جاری")).not.toBeInTheDocument();
+  });
+
+  it("sends the selected period to the summary query and relabels the total", async () => {
+    const user = userEvent.setup();
+    renderTab();
+
+    expect(summarySpy).toHaveBeenCalledWith({ period: "this_month" });
+
+    await user.click(screen.getByRole("combobox", { name: "بازه زمانی" }));
+    await user.click(screen.getByRole("option", { name: "ماه قبل" }));
+
+    expect(summarySpy).toHaveBeenCalledWith({ period: "prev_month" });
+    expect(screen.getByText("جمع تومان (ماه قبل)")).toBeInTheDocument();
   });
 });

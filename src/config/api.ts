@@ -58,6 +58,9 @@ export const endpoints = {
     refund: (id: number) => `/finance/sales/${id}/refund/`,
     checkout: "/finance/checkout/",
   },
+  payments: {
+    list: "/payments/",
+  },
   payouts: {
     list: "/finance/staff-payouts/",
     summary: "/finance/reports/staff-payout-summary/",
@@ -84,9 +87,15 @@ export const endpoints = {
     serviceItems: "/finance/service-items/",
     serviceItemDetail: (id: number) => `/finance/service-items/${id}/`,
     purchases: "/finance/product-purchases/",
+    purchaseDetail: (id: number) => `/finance/product-purchases/${id}/`,
     usages: "/finance/product-usages/",
     costHistory: "/finance/product-cost-history/",
     recordConsumption: (visitId: number) => `/finance/visits/${visitId}/record-consumption/`,
+    welcomePacks: "/finance/welcome-packs/",
+    welcomePackDetail: (id: number) => `/finance/welcome-packs/${id}/`,
+    welcomePackIssue: (id: number) => `/finance/welcome-packs/${id}/issue/`,
+    welcomePackUsages: "/finance/welcome-pack-usages/",
+    welcomePackReport: "/finance/reports/welcome-packs/",
     financialSummary: "/finance/reports/financial-summary/",
     profitByService: "/finance/reports/profit-by-service/",
     profitByPackage: "/finance/reports/profit-by-package/",
@@ -97,5 +106,12 @@ export const endpoints = {
     operatingExpenseSummary: "/finance/operating-expenses/summary/",
     operatingExpenseCategories: "/finance/operating-expense-categories/",
     operatingExpenseCategoryDetail: (id: number) => `/finance/operating-expense-categories/${id}/`,
+    // Staff expense claims: submit → approve → pay. Distinct from operating expenses.
+    expenses: "/finance/expenses/",
+    expenseDetail: (id: number) => `/finance/expenses/${id}/`,
+    expenseAction: (id: number, action: "submit" | "approve" | "reject" | "pay") =>
+      `/finance/expenses/${id}/${action}/`,
+    expenseCategories: "/finance/expense-categories/",
+    expenseCategoryDetail: (id: number) => `/finance/expense-categories/${id}/`,
   },
 } as const;

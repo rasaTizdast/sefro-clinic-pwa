@@ -82,6 +82,32 @@ describe("toPaginatedResponse", () => {
       hasPrev: false,
     });
   });
+
+  it("never advertises pages the server does not have when perPage differs from the server page size", () => {
+    const drfResponse = {
+      count: 32,
+      next: "http://localhost/api/items/?page=2",
+      previous: null,
+      results: [{ id: 1 }],
+    };
+
+    const result = toPaginatedResponse(drfResponse, 1, 8);
+    expect(result.totalPages).toBe(2);
+    expect(result.hasNext).toBe(true);
+  });
+
+  it("computes the last page against the server page size", () => {
+    const drfResponse = {
+      count: 45,
+      next: null,
+      previous: "http://localhost/api/items/?page=2",
+      results: [{ id: 1 }],
+    };
+
+    const result = toPaginatedResponse(drfResponse, 3, 50);
+    expect(result.totalPages).toBe(3);
+    expect(result.hasNext).toBe(false);
+  });
 });
 
 describe("toQueryParams", () => {

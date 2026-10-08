@@ -3,6 +3,7 @@ import { apiClient } from "../lib/api-client";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
 import type { Appointment, ReserveVisitPayload, UpdateVisitPayload } from "../types/appointment";
+import { fetchAllPages } from "./fetch-all-pages";
 
 type RawAppointment = Record<string, unknown> & {
   id: number;
@@ -81,6 +82,29 @@ export const listVisits = async (
 export const getVisit = async (id: number): Promise<Appointment> => {
   const { data } = await apiClient.get(endpoints.visits.detail(id));
   return toAppointment(data as RawAppointment);
+};
+
+export type ListAllVisitsParams = {
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  month?: number;
+  year?: number;
+};
+
+/**
+ * Every visit matching the filters, across all pages — the visits endpoint
+ * ignores `per_page`, so a single large request still returns 20 rows.
+ */
+export const listAllVisits = async (params?: ListAllVisitsParams): Promise<Appointment[]> => {
+  const query: Record<string, string | number> = {};
+  if (params?.status) query.status = params.status;
+  if (params?.dateFrom) query.dateFrom = params.dateFrom;
+  if (params?.dateTo) query.dateTo = params.dateTo;
+  if (params?.month != null) query.month = params.month;
+  if (params?.year != null) query.year = params.year;
+  const rows = await fetchAllPages<RawAppointment>(endpoints.visits.list, query);
+  return rows.map(toAppointment);
 };
 
 export const confirmVisit = (id: number) => apiClient.post(endpoints.visits.confirm(id));

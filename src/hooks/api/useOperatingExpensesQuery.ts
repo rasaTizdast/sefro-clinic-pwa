@@ -33,6 +33,14 @@ export function useOperatingExpenseCategories(params?: PaginationParams & { sear
   });
 }
 
+/** Every expense category — walks every server page (`per_page` is ignored). */
+export function useAllOperatingExpenseCategories() {
+  return useQuery({
+    queryKey: queryKeys.finance.operatingExpenses.categories(),
+    queryFn: () => service.listAllOperatingExpenseCategories(),
+  });
+}
+
 export function useOperatingExpenseSummary(query?: OperatingExpenseSummaryQuery) {
   return useQuery({
     queryKey: queryKeys.finance.operatingExpenses.summary(

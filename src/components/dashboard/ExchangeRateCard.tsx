@@ -1,20 +1,8 @@
 import { useCurrentRate } from "../../hooks/api";
+import { formatJalaliDate } from "../../lib/date";
 import { formatPrice } from "../../lib/format";
 import { Card, CardTitle } from "../ui/Card";
 import { Skeleton } from "../ui/Skeleton";
-
-function formatRateDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "";
-  try {
-    return new Date(dateStr).toLocaleDateString("fa-IR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  } catch {
-    return "";
-  }
-}
 
 export function ExchangeRateCard() {
   const { data: rate, isLoading } = useCurrentRate();
@@ -39,7 +27,7 @@ export function ExchangeRateCard() {
       </div>
       {rate?.source && <p className="text-surface-400 mt-1 text-xs">منبع: {rate.source}</p>}
       {rate?.effectiveAt && (
-        <p className="text-surface-500 mt-2 text-xs">تاریخ: {formatRateDate(rate.effectiveAt)}</p>
+        <p className="text-surface-500 mt-2 text-xs">تاریخ: {formatJalaliDate(rate.effectiveAt)}</p>
       )}
     </Card>
   );

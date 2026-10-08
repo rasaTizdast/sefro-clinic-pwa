@@ -4,6 +4,37 @@ export type PaymentMethod = "cash" | "cash_usd" | "cash_toman" | "card" | "walle
 
 export type OperatingExpensePaymentMethod = "cash" | "card" | "bank_transfer" | "other";
 
+/**
+ * Staff expense claim lifecycle. Only `approved` and `paid` claims reduce the
+ * financial summary's net profit (backend `EXPENSE_STATUSES`).
+ */
+export type ExpenseStatus = "draft" | "submitted" | "approved" | "rejected" | "paid" | "cancelled";
+
+export interface ExpenseCategory {
+  id: number;
+  name: string;
+  isActive: boolean;
+}
+
+export interface Expense {
+  id: number;
+  createdBy: number | null;
+  createdByName: string | null;
+  category: number;
+  categoryName: string | null;
+  amountUsd: string;
+  exchangeRateSnapshot: string | null;
+  amountToman: string;
+  description: string;
+  vendor: string;
+  expenseDate: string;
+  status: ExpenseStatus;
+  approvedBy: number | null;
+  approvedByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OperatingExpenseCategory {
   id: number;
   name: string;
@@ -299,13 +330,70 @@ export interface ProductCostHistory {
   createdAt: string;
 }
 
+export interface Money {
+  usd: string;
+  toman: string;
+}
+
+/** One role's slice of staff compensation, as grouped by the backend. */
+export interface StaffCompensationByRole {
+  role: string;
+  count: number;
+  cashUsd: string;
+  cashToman: string;
+  productUsd: string;
+  productToman: string;
+  totalUsd: string;
+  totalToman: string;
+}
+
+export interface StaffCompensation {
+  cash: Money;
+  product: Money;
+  total: Money;
+  payoutCount: number;
+  /** doctor / facial / laser — only the roles the backend actually returned rows for. */
+  byRole: Record<string, StaffCompensationByRole>;
+}
+
+export interface OperatingExpenseTotals extends Money {
+  count: number;
+}
+
+export interface StaffExpenseClaimTotals extends Money {
+  count: number;
+}
+
+export interface CostCoverage {
+  zeroCostRows: number;
+  productsMissingCost: number[];
+}
+
 export interface FinancialSummary {
   period: { start: string; end: string };
-  revenue: { usd: string; toman: string };
-  productCost: { usd: string; toman: string };
-  grossProfit: { usd: string; toman: string };
-  expenses: { usd: string; toman: string };
-  netProfit: { usd: string; toman: string };
+  revenue: Money;
+  /**
+   * `sale_ledger` = money actually collected (Sale rows).
+   * `list_price`  = potential only — never treat it as cash received.
+   */
+  revenueBasis: string;
+  productCost: Money;
+  /**
+   * Cost of the welcome packs issued in the period. The backend already nets
+   * this out of `grossProfit` but used to return it without the UI showing it,
+   * which made the gross-profit figure impossible to explain on screen.
+   */
+  welcomePackCost: Money;
+  grossProfit: Money;
+  /** Legacy alias of `staffExpenseClaims` — staff claims, not clinic overhead. */
+  expenses: Money;
+  staffCompensation: StaffCompensation;
+  operatingExpenses: OperatingExpenseTotals;
+  staffExpenseClaims: StaffExpenseClaimTotals;
+  /** staffCompensation + operatingExpenses + staffExpenseClaims. */
+  belowTheLineTotal: Money;
+  netProfit: Money;
+  costCoverage: CostCoverage;
   paymentMethods: { cash: string; card: string; wallet: string };
   counts: {
     appointments: number;
@@ -314,6 +402,23 @@ export interface FinancialSummary {
     paidSales: number;
     averageTransactionValue: string;
   };
+}
+
+/** `/finance/reports/welcome-packs/` — issued-pack counts and cost for a period. */ export interface WelcomePackReport {
+  period: { start: string; end: string };
+  /** One row per issuance event (a single event can cover quantity > 1). */
+  totalUsageCount: number;
+  totalPacksIssued: string;
+  totalCostUsd: string;
+  totalCostToman: string;
+  byPack: {
+    welcomePackId: number;
+    name: string;
+    count: number;
+    usageCount: number;
+    costUsd: string;
+    costToman: string;
+  }[];
 }
 
 export interface ProfitRow {
@@ -356,4 +461,53 @@ export interface FinanceDashboard {
 
 export interface ConsumptionSelection {
   [serviceId: number]: { product: number; quantity: string }[];
+}
+
+export interface WelcomePackItem {
+  id: number;
+  welcomePack: number;
+  product: number;
+  productName: string;
+  quantity: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WelcomePack {
+  id: number;
+  name: string;
+  description: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: number | null;
+  createdByName: string | null;
+  totalCostUsd: string;
+  totalCostToman: string | null;
+  exchangeRate: string | null;
+  items: WelcomePackItem[];
+}
+
+export interface WelcomePackUsage {
+  id: number;
+  welcomePack: number;
+  welcomePackName: string;
+  customer: number;
+  customerName: string | null;
+  visit: number | null;
+  issuedBy: number | null;
+  issuedByName: string | null;
+  quantity: string;
+  totalCostUsdSnapshot: string;
+  exchangeRateSnapshot: string;
+  totalCostTomanSnapshot: string;
+  issuedAt: string;
+  createdAt: string;
+}
+
+export interface IssueWelcomePackInput {
+  packId: number;
+  customer: number;
+  quantity?: string;
+  visit?: number | null;
 }

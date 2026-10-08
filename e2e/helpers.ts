@@ -76,4 +76,58 @@ export async function mockAllApiEndpoints(page: Page) {
   await fulfill(page, "**/api/work-time/**", 200, EMPTY_PAGINATED);
   await fulfill(page, "**/api/logs/**", 200, EMPTY_PAGINATED);
   await fulfill(page, "**/api/service-categories/**", 200, EMPTY_PAGINATED);
+
+  // Accounting tab bar + report cards (registered before the specific summary
+  // routes below: Playwright matches the most recently added route first)
+  await fulfill(page, "**/api/finance/sales/**", 200, EMPTY_PAGINATED);
+  await fulfill(page, "**/api/finance/product-usages/**", 200, EMPTY_PAGINATED);
+  await fulfill(page, "**/api/finance/product-purchases/**", 200, EMPTY_PAGINATED);
+  await fulfill(page, "**/api/finance/product-cost-history/**", 200, EMPTY_PAGINATED);
+  await fulfill(page, "**/api/finance/staff-payouts/**", 200, EMPTY_PAGINATED);
+  await fulfill(page, "**/api/finance/expenses/**", 200, EMPTY_PAGINATED);
+  await fulfill(page, "**/api/finance/expense-categories/**", 200, EMPTY_PAGINATED);
+  await fulfill(page, "**/api/finance/operating-expenses/**", 200, EMPTY_PAGINATED);
+  await fulfill(page, "**/api/finance/operating-expense-categories/**", 200, []);
+  await fulfill(page, "**/api/finance/reports/staff-payout-summary/**", 200, {
+    totalCashUsd: "0.00",
+    totalCashToman: "0",
+    totalProductValueUsd: "0.00",
+    totalProductValueToman: "0",
+    totalPayoutUsd: "0.00",
+    totalPayoutToman: "0",
+    payoutCount: 0,
+  });
+  await fulfill(page, "**/api/finance/operating-expenses/summary/**", 200, {
+    period: { start: "", end: "" },
+    totalUsd: "0.00",
+    totalToman: "0",
+    count: 0,
+    byCategory: [],
+    byPaymentMethod: [],
+  });
+  await fulfill(page, "**/api/finance/reports/financial-summary/**", 200, {
+    period: { start: "", end: "" },
+    revenue: { usd: "0.00", toman: "0" },
+    productCost: { usd: "0.00", toman: "0" },
+    welcomePackCost: { usd: "0.00", toman: "0" },
+    grossProfit: { usd: "0.00", toman: "0" },
+    expenses: { usd: "0.00", toman: "0" },
+    netProfit: { usd: "0.00", toman: "0" },
+    paymentMethods: { cash: "0.00", card: "0.00", wallet: "0.00" },
+    counts: {
+      appointments: 0,
+      packagesSold: 0,
+      productsSoldQuantity: "0.000",
+      paidSales: 0,
+      averageTransactionValue: "0.00",
+    },
+  });
+  await fulfill(page, "**/api/finance/reports/welcome-packs/**", 200, {
+    period: { start: "", end: "" },
+    totalUsageCount: 0,
+    totalPacksIssued: "0",
+    totalCostUsd: "0.00",
+    totalCostToman: "0",
+    byPack: [],
+  });
 }

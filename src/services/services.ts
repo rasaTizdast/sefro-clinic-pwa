@@ -4,6 +4,7 @@ import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
 import type { CompensationRole, ServiceCategory } from "../types/finance";
 import type { Service, ServiceConsumable } from "../types/service";
+import { fetchAllPages } from "./fetch-all-pages";
 
 type RawServiceConsumable = {
   product?: number;
@@ -109,6 +110,11 @@ export const listServices = async (
     ...paginated,
     data: paginated.data.map(toService),
   };
+};
+
+export const listAllServices = async (): Promise<Service[]> => {
+  const rows = await fetchAllPages<RawService>(endpoints.services.list);
+  return rows.map(toService);
 };
 
 export const getService = async (id: number): Promise<Service> => {

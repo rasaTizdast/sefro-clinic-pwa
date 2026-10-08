@@ -1,20 +1,32 @@
 import { CiMoneyBill } from "react-icons/ci";
-import { MdAttachMoney, MdPeople, MdShoppingCart } from "react-icons/md";
+import { MdAttachMoney, MdInventory, MdShoppingCart } from "react-icons/md";
 
-import { useFinanceDashboard } from "../../hooks/api";
+import { useFinancialSummary } from "../../hooks/api";
 import { formatPrice } from "../../lib/format";
+import { Alert } from "../ui/Alert";
 import { Card } from "../ui/Card";
 import { Skeleton } from "../ui/Skeleton";
 
-/** Format a USD amount with 2dp, stripping trailing zeros (e.g. $12 → $12, $12.50 stays). */
+/** USD with trailing zeros trimmed (e.g. $12 → $12, $12.50 stays). */
 function trimUsdZeros(value: string | number): string {
-  return Number(value)
-    .toFixed(2)
-    .replace(/\.?0+$/, "");
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "$0";
+  return `$${n.toFixed(2).replace(/\.?0+$/, "")}`;
 }
 
+/**
+ * Headline money for the dashboard.
+ *
+ * Revenue and net profit come from `/finance/reports/financial-summary/` — the
+ * canonical report — rather than `/finance/dashboard/`, whose revenue and cost
+ * aggregations are a separate implementation with a different status filter.
+ * Mixing the two would put two different "revenue" and "net profit" numbers on
+ * screen for the same day.
+ *
+ * Operational (non-financial) counts still come from the dashboard endpoint.
+ */
 export function FinanceKpiCards() {
-  const { data: dashboard, isLoading } = useFinanceDashboard({ period: "today" });
+  const { data: summary, isLoading, isError } = useFinancialSummary({ period: "today" });
 
   if (isLoading) {
     return (
@@ -29,37 +41,44 @@ export function FinanceKpiCards() {
     );
   }
 
-  if (!dashboard) return null;
+  // A fetch error must stay visible — silently vanishing looks like "no data".
+  if (isError) {
+    return (
+      <Alert variant="error" title="خطا در دریافت خلاصه مالی">
+        خلاصه مالی امروز بارگذاری نشد. اتصال سرور را بررسی کنید.
+      </Alert>
+    );
+  }
 
-  const { salesSummary, operational } = dashboard;
+  if (!summary) return null;
 
   const kpis = [
     {
       title: "درآمد امروز",
-      value: `${formatPrice(Number(salesSummary.revenueToman))} تومان`,
-      sub: `$${trimUsdZeros(salesSummary.revenueUsd)}`,
+      value: `${formatPrice(Number(summary.revenue.toman))} تومان`,
+      sub: trimUsdZeros(summary.revenue.usd),
       icon: <CiMoneyBill className="size-5" />,
       variant: "success" as const,
     },
     {
       title: "سود خالص",
-      value: `${formatPrice(Number(salesSummary.netProfitToman))} تومان`,
-      sub: `$${trimUsdZeros(salesSummary.netProfitUsd)}`,
+      value: `${formatPrice(Number(summary.netProfit.toman))} تومان`,
+      sub: trimUsdZeros(summary.netProfit.usd),
       icon: <MdAttachMoney className="size-5" />,
       variant: "info" as const,
     },
     {
       title: "تعداد فروش",
-      value: String(salesSummary.saleCount),
-      sub: `میانگین: $${trimUsdZeros(salesSummary.avgTicketUsd)}`,
+      value: String(summary.counts.paidSales),
+      sub: `میانگین: ${trimUsdZeros(summary.counts.averageTransactionValue)}`,
       icon: <MdShoppingCart className="size-5" />,
       variant: "warning" as const,
     },
     {
-      title: "مراجعین امروز",
-      value: String(operational.visitsCompleted),
-      sub: `${operational.newCustomers} بیمار جدید`,
-      icon: <MdPeople className="size-5" />,
+      title: "هزینه محصول امروز",
+      value: `${formatPrice(Number(summary.productCost.toman))} تومان`,
+      sub: trimUsdZeros(summary.productCost.usd),
+      icon: <MdInventory className="size-5" />,
       variant: "default" as const,
     },
   ];

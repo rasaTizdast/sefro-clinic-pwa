@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useToast } from "../../components/ui";
+import { extractApiError } from "../../lib/api-error";
 import type { PaginationParams } from "../../lib/pagination";
 import { queryKeys } from "../../lib/query-keys";
 import * as servicesService from "../../services/services";
@@ -10,6 +11,13 @@ export function useServicesList(params?: PaginationParams) {
     queryKey: queryKeys.services.list(params),
     queryFn: () => servicesService.listServices(params),
     placeholderData: (prev) => prev,
+  });
+}
+
+export function useAllServices() {
+  return useQuery({
+    queryKey: queryKeys.services.all,
+    queryFn: () => servicesService.listAllServices(),
   });
 }
 
@@ -29,6 +37,7 @@ export function useCreateService() {
     mutationFn: (data: Record<string, unknown>) => servicesService.createService(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.packages.all });
       toast.success("خدمت با موفقیت افزوده شد.");
     },
   });
@@ -43,6 +52,7 @@ export function useUpdateService() {
       servicesService.updateService(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.packages.all });
       toast.success("خدمت به‌روزرسانی شد.");
     },
   });
@@ -56,10 +66,12 @@ export function useDeleteService() {
     mutationFn: (id: number) => servicesService.deleteService(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.services.all });
+      // Package pickers also list services — refresh them so a deleted service disappears there too.
+      queryClient.invalidateQueries({ queryKey: queryKeys.packages.all });
       toast.success("خدمت حذف شد.");
     },
-    onError: () => {
-      toast.error("خطا در حذف خدمت");
+    onError: (error) => {
+      toast.error("خطا در حذف خدمت", extractApiError(error));
     },
   });
 }

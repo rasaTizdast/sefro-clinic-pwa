@@ -10,6 +10,7 @@ import type {
   StaffPayout,
   StaffPayoutSummary,
 } from "../types/finance";
+import { fetchAllPages } from "./fetch-all-pages";
 
 const DEFAULT_PER_PAGE = 20;
 
@@ -181,6 +182,23 @@ export const listPayouts = async (
     ...paginated,
     data: paginated.data.map(toStaffPayout),
   };
+};
+
+/**
+ * Every payout matching the filters — walks all server pages.
+ * `StaffPayoutViewSet` takes no date filter, so callers that need a period
+ * narrow the returned rows themselves (see `reportPeriodRange`).
+ */
+export const listAllPayouts = async (
+  params?: Omit<PayoutsListParams, "page" | "perPage">
+): Promise<StaffPayout[]> => {
+  const rows = await fetchAllPages<RawStaffPayout>(endpoints.payouts.list, {
+    ...(params?.staff !== undefined ? { staff: params.staff } : {}),
+    ...(params?.role ? { role: params.role } : {}),
+    ...(params?.status ? { status: params.status } : {}),
+    ...(params?.visit !== undefined ? { visit: params.visit } : {}),
+  });
+  return rows.map(toStaffPayout);
 };
 
 /** Unpaginated aggregate for the payouts report header. */

@@ -25,8 +25,9 @@ import { Card, CardTitle } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Skeleton } from "../components/ui/Skeleton";
 import { type Column, Table } from "../components/ui/Table";
-import { useCreateCustomer, useCustomersList, useVisitsList } from "../hooks/api";
+import { useAllCustomers, useAllVisits, useCreateCustomer } from "../hooks/api";
 import { useDashboardStats } from "../hooks/api/useDashboardQuery";
+import { toShamsiDateInput } from "../lib/date";
 import { toPersianDigits } from "../lib/digits";
 import type { Appointment } from "../types/appointment";
 import type { PageState, Trend } from "../types/common";
@@ -100,23 +101,24 @@ function Dashboard() {
   const [patientModalOpen, setPatientModalOpen] = useState(false);
   const createMutation = useCreateCustomer();
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  // The visits API filters on Shamsi dates — a Gregorian string is silently
+  // ignored and would return EVERY visit instead of today's.
+  const todayStr = toShamsiDateInput(new Date());
   const {
     data: dashboardStats,
     isLoading: statsLoading,
     isError: statsError,
   } = useDashboardStats();
-  const { data: todayVisits, isLoading: visitsLoading } = useVisitsList({
+  const { data: todayVisits, isLoading: visitsLoading } = useAllVisits({
     dateFrom: todayStr,
     dateTo: todayStr,
-    perPage: 50,
   });
-  const { data: customersData } = useCustomersList({ perPage: 200 });
+  const { data: customersData } = useAllCustomers();
 
   const customerNameMap = useMemo(() => {
     const map = new Map<number, string>();
-    if (customersData?.data) {
-      for (const c of customersData.data) {
+    if (customersData) {
+      for (const c of customersData) {
         map.set(c.id, `${c.firstName} ${c.lastName}`.trim());
       }
     }
@@ -125,7 +127,7 @@ function Dashboard() {
 
   const appointments = useMemo(
     () =>
-      (todayVisits?.data ?? []).map((a) => ({
+      (todayVisits ?? []).map((a) => ({
         ...a,
         customerName: a.customerName || (customerNameMap.get(a.customer) ?? ""),
       })),
@@ -310,12 +312,14 @@ function Dashboard() {
                 </span>
                 <span className="text-surface-900 text-2xl font-bold">{stat.value}</span>
               </div>
-              <div
-                className={`flex items-center gap-1 text-sm font-medium ${trendColor(stat.trend)}`}
-              >
-                {trendIcon(stat.trend)}
-                {stat.change}
-              </div>
+              {stat.change && (
+                <div
+                  className={`flex items-center gap-1 text-sm font-medium ${trendColor(stat.trend)}`}
+                >
+                  {trendIcon(stat.trend)}
+                  {stat.change}
+                </div>
+              )}
             </div>
           </Card>
         ))}

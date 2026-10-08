@@ -14,6 +14,13 @@ export function usePackagesList(params?: PaginationParams) {
   });
 }
 
+export function useAllPackages(params?: { search?: string }) {
+  return useQuery({
+    queryKey: [...queryKeys.packages.all, "allPages", params] as const,
+    queryFn: () => packagesService.listAllPackages(params),
+  });
+}
+
 export function usePackage(id: number) {
   return useQuery({
     queryKey: queryKeys.packages.detail(id),

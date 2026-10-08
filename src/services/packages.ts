@@ -57,6 +57,14 @@ export const getPackage = async (id: number): Promise<Package> => {
   return toPackage(data as RawPackage);
 };
 
+/** Every package across all pages (the endpoint ignores `per_page`). */
+export const listAllPackages = async (params?: { search?: string }): Promise<Package[]> => {
+  const query: Record<string, string | number> = {};
+  if (params?.search) query.search = params.search;
+  const rows = await fetchAllPages<RawPackage>(endpoints.packages.list, query);
+  return rows.map(toPackage);
+};
+
 export const deletePackage = async (id: number): Promise<void> => {
   await apiClient.delete(endpoints.packages.detail(id));
 };

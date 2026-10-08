@@ -26,15 +26,37 @@ const actionLabel: Record<AuditLog["action"], string> = {
   DELETE: "حذف",
 };
 
+/**
+ * The audit signal stores `"{app_label}.{model_name}"` (e.g. "inventory.product"),
+ * so the map is keyed by the full dotted name — a bare "product" key never matched
+ * and every row fell through to the raw technical name.
+ */
 const modelLabel: Record<string, string> = {
-  customer: "مشتری",
-  visit: "ویزیت",
-  payment: "پرداخت",
-  service: "خدمات",
-  product: "کالا",
-  employee: "کارمند",
-  user: "کاربر",
+  "customers.customer": "مشتری",
+  "customers.visit": "ویزیت",
+  "customers.payment": "پرداخت",
+  "customers.service": "خدمات",
+  "customers.servicecategory": "دسته‌بندی خدمت",
+  "inventory.product": "کالا",
+  "inventory.productusage": "مصرف کالا",
+  "finance.productpurchase": "خرید کالا",
+  "finance.productcosthistory": "تاریخچه قیمت کالا",
+  "finance.purchaseorder": "سفارش خرید",
+  "finance.purchaseorderitem": "قلم سفارش خرید",
+  "finance.sale": "فروش",
+  "finance.payment": "پرداخت",
+  "finance.package": "پکیج",
+  "finance.welcomepack": "ولکام‌پک",
+  "services.service": "خدمت",
+  "services.package": "پکیج",
+  "accounts.employee": "کارمند",
+  "accounts.user": "کاربر",
 };
+
+/** Fall back to the bare model name, then to the raw value. */
+function modelName(modelName: string): string {
+  return modelLabel[modelName] ?? modelLabel[modelName.split(".").pop() ?? ""] ?? modelName;
+}
 
 const columns: Column<AuditLog>[] = [
   {
@@ -56,7 +78,7 @@ const columns: Column<AuditLog>[] = [
     key: "modelName",
     header: "مدل",
     width: "110px",
-    render: (item) => modelLabel[item.modelName] ?? item.modelName,
+    render: (item) => modelName(item.modelName),
   },
   {
     key: "objectRepr",
@@ -79,7 +101,7 @@ function Logs() {
 
   const { data, isLoading, isError } = useLogsList({
     page,
-    perPage: 30,
+    perPage: 20,
     search: search || undefined,
   });
 

@@ -13,6 +13,14 @@ export function usePayoutsList(params?: payoutsService.PayoutsListParams) {
   });
 }
 
+/** Every payout matching the filters, unpaginated — period filtering happens client-side. */
+export function useAllPayouts(params?: Omit<payoutsService.PayoutsListParams, "page" | "perPage">) {
+  return useQuery({
+    queryKey: queryKeys.payouts.allPages(params as unknown as Record<string, unknown> | undefined),
+    queryFn: () => payoutsService.listAllPayouts(params),
+  });
+}
+
 /** Unpaginated aggregate for the selected period / staff / role. */
 export function usePayoutSummary(params?: payoutsService.PayoutSummaryParams) {
   return useQuery({

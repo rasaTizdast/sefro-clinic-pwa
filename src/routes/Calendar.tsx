@@ -13,6 +13,7 @@ import {
   BiTime,
 } from "react-icons/bi";
 
+import { VisitCheckoutModal } from "../components/accounting/VisitCheckoutModal";
 import { SearchButton } from "../components/SearchButton";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -20,22 +21,37 @@ import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
+import { Select } from "../components/ui/Select";
 import { Skeleton } from "../components/ui/Skeleton";
 import { Textarea } from "../components/ui/Textarea";
+import { UsdTag } from "../components/ui/UsdTag";
+import { ExtraProductsBlock } from "../components/wizard/ExtraProductsBlock";
+import { WelcomePackBlock } from "../components/wizard/WelcomePackBlock";
 import { useAuth } from "../contexts/AuthContext";
 import {
+  useAllCustomers,
+  useAllServices,
+  useAllVisits,
   useCancelVisit,
   useCompleteVisit,
   useConfirmVisit,
-  useCustomersList,
   useDeleteVisit,
+  usePaidVisitIds,
   useReserveVisit,
-  useServicesList,
   useUpdateVisit,
-  useVisitsList,
 } from "../hooks/api";
+import { useRateValue } from "../hooks/useRateValue";
+import { formatJalaliDate, formatTimeFa } from "../lib/date";
 import { toLatinDigits, toPersianDigits as toPersianDigitsLib } from "../lib/digits";
-import { formatPrice } from "../lib/format";
+import {
+  consumablesTotalToman,
+  formatPrice,
+  parseTomanAmount,
+  serviceLiveToman,
+} from "../lib/format";
+import { parseUsdInput } from "../lib/payment-split";
+import type { VisitExtras } from "../lib/visit-extras";
+import { clearVisitExtras, loadVisitExtras, saveVisitExtras } from "../lib/visit-extras";
 import type {
   Appointment,
   AppointmentStatus,
@@ -43,6 +59,8 @@ import type {
   WizardFormData,
   WizardStep,
 } from "../types/appointment";
+import type { Service } from "../types/service";
+import type { ConsumableSelection, WelcomePackSelection } from "../types/wizard";
 
 const PERSIAN_MONTHS = [
   "فروردین",
@@ -60,6 +78,12 @@ const PERSIAN_MONTHS = [
 ];
 
 const WEEKDAYS = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+
+/**
+ * The booking wizard has no recipe-selection step, so no product is reserved
+ * against a service yet — every catalog product stays pickable here.
+ */
+const EMPTY_ID_SET = new Set<number>();
 
 function toPersianDigits(num: number): string {
   return toPersianDigitsLib(num.toString());
@@ -147,6 +171,38 @@ function minutesToTimeStr(minutes: number): string {
 
 function minutesToTimeStrPersian(minutes: number): string {
   return toPersianDigitsLib(minutesToTimeStr(minutes));
+}
+
+const PERIOD_OPTIONS = [
+  { value: "صبح", label: "صبح" },
+  { value: "بعد از ظهر", label: "بعد از ظهر" },
+];
+
+const HOUR12_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+  value: String(i + 1),
+  label: toPersianDigitsLib(String(i + 1)),
+}));
+
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => ({
+  value: String(i),
+  label: toPersianDigitsLib(String(i).padStart(2, "0")),
+}));
+
+function parseFaTime(time: string): { period: string; hour12: string; minute: string } | null {
+  const match = /^(\d{1,2}):(\d{2})/.exec(toLatinDigits(time));
+  if (!match) return null;
+  const h = Number(match[1]);
+  return {
+    period: h < 12 ? "صبح" : "بعد از ظهر",
+    hour12: String(h % 12 === 0 ? 12 : h % 12),
+    minute: String(Number(match[2])),
+  };
+}
+
+function composeFaTime(period: string, hour12: number, minute: number): string {
+  const h24 =
+    period === "بعد از ظهر" ? (hour12 === 12 ? 12 : hour12 + 12) : hour12 === 12 ? 0 : hour12;
+  return `${String(h24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function getFreeBlocks(
@@ -240,33 +296,39 @@ function Calendar() {
   const [wizardStep, setWizardStep] = useState<WizardStep>("patient");
   const [form, setForm] = useState<WizardFormData>({
     patientId: null,
-    serviceId: null,
+    serviceIds: [],
     date: "",
     time: "",
     notes: "",
   });
   const [patientSearch, setPatientSearch] = useState("");
+  const [extraProducts, setExtraProducts] = useState<ConsumableSelection[]>([]);
+  const [welcomePack, setWelcomePack] = useState<WelcomePackSelection | null>(null);
+  // A chosen pack with no configured price blocks the booking until it is fixed.
+  // Toman alone is not decisive: a pack priced only in USD is still priced, so
+  // the selection is invalid only when BOTH currencies come back empty or zero.
+  const welcomePackInvalid =
+    welcomePack !== null &&
+    parseTomanAmount(welcomePack.totalCostToman ?? "0") <= 0 &&
+    parseUsdInput(welcomePack.totalCostUsd ?? "0") <= 0;
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editAppointment, setEditAppointment] = useState<Appointment | null>(null);
   const [editNotes, setEditNotes] = useState("");
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [checkoutVisitId, setCheckoutVisitId] = useState<number | null>(null);
+  const [checkoutExtras, setCheckoutExtras] = useState<VisitExtras | null>(null);
 
   const [mobileView, setMobileView] = useState<"timeline" | "list">("list");
 
   const persian = getPersianDate(viewDate);
 
-  const { data: paginatedPatients, isLoading: patientsLoading } = useCustomersList({
-    perPage: 100,
-  });
-  const { data: paginatedServices, isLoading: servicesLoading } = useServicesList({
-    perPage: 100,
-  });
-  const { data: paginatedVisits, isLoading: visitsLoading } = useVisitsList({
+  const { data: paginatedPatients, isLoading: patientsLoading } = useAllCustomers();
+  const { data: paginatedServices, isLoading: servicesLoading } = useAllServices();
+  const { data: paginatedVisits, isLoading: visitsLoading } = useAllVisits({
     year: persian.year,
     month: persian.month,
-    perPage: 200,
   });
   const { mutate: reserveVisit, isPending: isCreating } = useReserveVisit();
   const { mutate: updateVisitMutation, isPending: isUpdating } = useUpdateVisit();
@@ -274,10 +336,13 @@ function Calendar() {
   const { mutate: confirmVisit } = useConfirmVisit();
   const { mutate: completeVisit } = useCompleteVisit();
   const { mutate: cancelVisit } = useCancelVisit();
+  const { data: paidVisitIdList } = usePaidVisitIds();
+  const rate = useRateValue();
 
-  const patients = useMemo(() => paginatedPatients?.data ?? [], [paginatedPatients?.data]);
-  const services = useMemo(() => paginatedServices?.data ?? [], [paginatedServices?.data]);
-  const allAppointments = useMemo(() => paginatedVisits?.data ?? [], [paginatedVisits?.data]);
+  const patients = useMemo(() => paginatedPatients ?? [], [paginatedPatients]);
+  const services = useMemo(() => paginatedServices ?? [], [paginatedServices]);
+  const allAppointments = useMemo(() => paginatedVisits ?? [], [paginatedVisits]);
+  const paidVisitIds = useMemo(() => new Set(paidVisitIdList ?? []), [paidVisitIdList]);
 
   const todayStr = `${todayInfo.year}/${todayInfo.month}/${todayInfo.day}`;
 
@@ -376,33 +441,56 @@ function Calendar() {
   const selectedPatient = form.patientId
     ? (patients.find((p) => p.id === form.patientId) ?? null)
     : null;
-  const selectedService = form.serviceId
-    ? (services.find((s) => s.id === form.serviceId) ?? null)
-    : null;
+  const selectedServices = useMemo(
+    () =>
+      form.serviceIds
+        .map((id) => services.find((s) => s.id === id))
+        .filter((s): s is Service => s != null),
+    [form.serviceIds, services]
+  );
+  /** Total booked time — availability must cover every selected service. */
+  const totalDuration = useMemo(
+    () => selectedServices.reduce((sum, s) => sum + s.duration, 0),
+    [selectedServices]
+  );
+  const extraProductsTotal = useMemo(
+    () => consumablesTotalToman({}, extraProducts),
+    [extraProducts]
+  );
+  /** Service subtotal — every selected service, not just the first. */
+  const serviceFeeTotal = useMemo(
+    () => selectedServices.reduce((sum, s) => sum + serviceLiveToman(s, rate), 0),
+    [selectedServices, rate]
+  );
+  /** Everything on this invoice EXCEPT the welcome pack (charged separately). */
+  const bookingBillTotal = useMemo(
+    () => serviceFeeTotal + extraProductsTotal,
+    [serviceFeeTotal, extraProductsTotal]
+  );
 
   const availableBlocks = useMemo(() => {
-    if (!selectedService || !form.date) return [];
+    if (!totalDuration || !form.date) return [];
     const dayApps = allAppointments.filter((a) => a.date === form.date);
-    return getFreeBlocks(dayApps, selectedService.duration, DEFAULT_START_HOUR, DEFAULT_END_HOUR);
-  }, [selectedService, form.date, allAppointments]);
+    return getFreeBlocks(dayApps, totalDuration, DEFAULT_START_HOUR, DEFAULT_END_HOUR);
+  }, [totalDuration, form.date, allAppointments]);
 
   const availableStartTimes = useMemo(() => {
-    if (!availableBlocks.length || !selectedService) return [];
+    if (!availableBlocks.length || !totalDuration) return [];
     const slots: { time: string }[] = [];
     for (const block of availableBlocks) {
       let t = block.start;
-      while (t + selectedService.duration <= block.end) {
+      while (t + totalDuration <= block.end) {
         slots.push({ time: minutesToTimeStr(t) });
-        t += selectedService.duration;
+        t += totalDuration;
       }
     }
     return slots;
-  }, [availableBlocks, selectedService]);
+  }, [availableBlocks, totalDuration]);
 
   const stepDaysAvailability = useMemo(() => {
     const days: Record<string, boolean> = {};
     const daysInMonth = getPersianMonthDays(persian.month, persian.year);
-    if (!selectedService) {
+    if (!totalDuration) {
       for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${persian.year}/${persian.month}/${day}`;
         days[dateStr] = true;
@@ -413,11 +501,10 @@ function Calendar() {
       const dateStr = `${persian.year}/${persian.month}/${day}`;
       const dayApps = allAppointments.filter((a) => a.date === dateStr);
       days[dateStr] =
-        getFreeBlocks(dayApps, selectedService.duration, DEFAULT_START_HOUR, DEFAULT_END_HOUR)
-          .length > 0;
+        getFreeBlocks(dayApps, totalDuration, DEFAULT_START_HOUR, DEFAULT_END_HOUR).length > 0;
     }
     return days;
-  }, [persian.year, persian.month, allAppointments, selectedService]);
+  }, [persian.year, persian.month, allAppointments, totalDuration]);
 
   function handlePrevMonth() {
     setViewDate((prev) => navigateMonth(prev, -1));
@@ -440,23 +527,43 @@ function Calendar() {
 
   function handleOpenModal() {
     setWizardStep("patient");
-    setForm({ patientId: null, serviceId: null, date: "", time: "", notes: "" });
+    setForm({ patientId: null, serviceIds: [], date: "", time: "", notes: "" });
+    setExtraProducts([]);
+    setWelcomePack(null);
     setModalOpen(true);
   }
 
   function handleCloseModal() {
     setModalOpen(false);
     setWizardStep("patient");
+    setExtraProducts([]);
+    setWelcomePack(null);
+  }
+
+  /** Single entry point for opening checkout so stored extras are always loaded. */
+  function openCheckout(visitId: number) {
+    setCheckoutExtras(loadVisitExtras(visitId));
+    setCheckoutVisitId(visitId);
   }
 
   function handleFormChange(field: keyof WizardFormData, value: string | number | null) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  /** Multi-select toggle — a service is added on first click, removed on second. */
+  function handleToggleService(serviceId: number) {
+    setForm((prev) => ({
+      ...prev,
+      serviceIds: prev.serviceIds.includes(serviceId)
+        ? prev.serviceIds.filter((id) => id !== serviceId)
+        : [...prev.serviceIds, serviceId],
+    }));
+  }
+
   function handleWizardNext() {
     if (wizardStep === "patient" && form.patientId) {
       setWizardStep("service");
-    } else if (wizardStep === "service" && form.serviceId) {
+    } else if (wizardStep === "service" && form.serviceIds.length > 0) {
       setWizardStep("time");
     }
   }
@@ -470,16 +577,25 @@ function Calendar() {
   }
 
   function handleSubmitForm() {
-    if (!selectedPatient || !selectedService || !form.date || !form.time) return;
+    if (!selectedPatient || selectedServices.length === 0 || !form.date || !form.time) return;
+    if (welcomePackInvalid) return;
     const payload = {
       customer: selectedPatient.id,
-      services: [selectedService.id],
+      services: selectedServices.map((s) => s.id),
       date: form.date.replace(/\//g, "-"),
       time: form.time,
       notes: form.notes || undefined,
     };
     reserveVisit(payload, {
-      onSuccess: () => {
+      onSuccess: (res) => {
+        const visitId = Number((res as unknown as { data?: { id?: number } })?.data?.id ?? 0);
+        if (visitId > 0) {
+          saveVisitExtras(visitId, {
+            extraProducts,
+            welcomePack,
+            savedAt: Date.now(),
+          });
+        }
         handleCloseModal();
       },
       onError: (err) => {
@@ -527,10 +643,43 @@ function Calendar() {
   }
 
   function handleStatusAction(action: "confirm" | "complete" | "cancel", id: number) {
-    const callbacks = { onSuccess: () => setSelectedAppointment(null) };
-    if (action === "confirm") confirmVisit(id, callbacks);
-    else if (action === "complete") completeVisit(id, callbacks);
-    else if (action === "cancel") cancelVisit(id, callbacks);
+    if (action === "confirm") {
+      confirmVisit(id, { onSuccess: () => setSelectedAppointment(null) });
+    } else if (action === "complete") {
+      // A visit whose services carry a compensation role is expected to generate a
+      // staff payout on completion. The backend silently creates nothing when
+      // `staff` is null, so warn instead of letting the visit close with the
+      // operator's share quietly dropped. The role list is backend data — no
+      // percentage or rule is decided here.
+      const visit = allAppointments.find((v) => v.id === id);
+      const hasCompensableService =
+        visit?.services?.some((serviceId) => {
+          const service = paginatedServices?.find((s) => s.id === serviceId);
+          return service?.compensationRole
+            ? service.compensationRole !== "none" && service.compensationRole != null
+            : false;
+        }) ?? false;
+      if (hasCompensableService && !visit?.staff) {
+        const ok = window.confirm(
+          "این خدمت شامل موارد قابل تسویه پرسنل است، اما اپراتوری برای آن انتخاب نشده است.\n" +
+            "با تکمیل نوبت، هیچ فیش تسویه‌ای برای این پرسنل ساخته نمی‌شود.\n" +
+            "ادامه می‌دهید؟"
+        );
+        if (!ok) return;
+      }
+      completeVisit(id, {
+        onSuccess: () => {
+          setSelectedAppointment(null);
+          openCheckout(id);
+        },
+      });
+    } else if (action === "cancel") {
+      cancelVisit(id, { onSuccess: () => setSelectedAppointment(null) });
+    }
+  }
+
+  function handleCloseVisitCheckout() {
+    setCheckoutVisitId(null);
   }
 
   function getStepDaysInMonth(): number {
@@ -555,7 +704,7 @@ function Calendar() {
       week.push({
         day,
         date: dateStr,
-        available: selectedService ? (stepDaysAvailability[dateStr] ?? true) : true,
+        available: stepDaysAvailability[dateStr] ?? true,
       });
 
       if (week.length === 7) {
@@ -728,7 +877,9 @@ function Calendar() {
               </div>
             </div>
             <div className="text-surface-500 border-surface-100 mt-2 grid grid-cols-2 gap-2 border-t pt-2 text-xs">
-              <span>آخرین مراجعه: {selectedPatient.lastVisit}</span>
+              <span>
+                آخرین مراجعه: {toPersianDigitsLib(formatJalaliDate(selectedPatient.lastVisit))}
+              </span>
               <span>تعداد مراجعات: {toPersianDigits(selectedPatient.visitCount)}</span>
             </div>
           </Card>
@@ -747,11 +898,12 @@ function Calendar() {
         </p>
         <div className="mobile:grid-cols-2 grid grid-cols-1 gap-3">
           {activeServices.map((svc) => {
-            const isSelected = form.serviceId === svc.id;
+            const isSelected = form.serviceIds.includes(svc.id);
             return (
               <button
                 key={svc.id}
-                onClick={() => handleFormChange("serviceId", svc.id)}
+                aria-pressed={isSelected}
+                onClick={() => handleToggleService(svc.id)}
                 className={`focus-visible:ring-primary-600/40 relative cursor-pointer rounded-lg border p-3 text-right transition-all outline-none focus-visible:ring-2 ${
                   isSelected
                     ? "border-primary-500 bg-primary-50 shadow-sm"
@@ -768,25 +920,104 @@ function Calendar() {
                   {toPersianDigits(svc.duration)} دقیقه
                 </p>
                 <p className="text-primary-700 mt-1 text-xs font-medium">
-                  {formatPrice(svc.price)} تومان
+                  {formatPrice(serviceLiveToman(svc, rate))} تومان
                 </p>
               </button>
             );
           })}
+        </div>
+
+        <ExtraProductsBlock
+          extraProducts={extraProducts}
+          onChange={setExtraProducts}
+          reservedProductIds={EMPTY_ID_SET}
+        />
+
+        <WelcomePackBlock
+          welcomePack={welcomePack}
+          onChange={setWelcomePack}
+          billTotalToman={bookingBillTotal}
+        />
+
+        {welcomePackInvalid && (
+          <p className="text-warning-600 text-xs">
+            قیمت ولکام‌پک انتخاب‌شده تعیین نشده است — آن را اصلاح یا انتخابش را بردارید.
+          </p>
+        )}
+
+        <div className="border-surface-200 bg-surface-50 space-y-1.5 rounded-lg border px-3 py-2.5">
+          {selectedServices.length === 0 ? (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-surface-600 text-xs">خدمت انتخاب‌شده</span>
+              <span className="text-surface-900 text-sm font-medium">—</span>
+            </div>
+          ) : (
+            <>
+              <p className="text-surface-500 pb-0.5 text-xs">
+                خدمات انتخاب‌شده ({toPersianDigitsLib(String(selectedServices.length))})
+              </p>
+              {selectedServices.map((svc) => (
+                <div key={svc.id} className="flex items-center justify-between gap-2">
+                  <span className="text-surface-600 truncate text-xs">{svc.title}</span>
+                  <span className="text-surface-900 shrink-0 text-sm font-medium">
+                    {formatPrice(serviceLiveToman(svc, rate))} تومان
+                  </span>
+                </div>
+              ))}
+              <div className="border-surface-300 flex items-center justify-between gap-2 border-t pt-1.5">
+                <span className="text-surface-700 text-xs font-semibold">
+                  جمع خدمات ({toPersianDigitsLib(String(selectedServices.length))})
+                </span>
+                <span className="text-surface-900 text-sm font-semibold">
+                  {formatPrice(serviceFeeTotal)} تومان
+                </span>
+              </div>
+            </>
+          )}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-surface-600 text-xs">
+              محصولات اضافه ({toPersianDigitsLib(String(extraProducts.length))} قلم)
+            </span>
+            <span className="text-surface-900 text-sm font-medium">
+              {formatPrice(extraProductsTotal)} تومان
+            </span>
+          </div>
+          <div className="border-surface-300 flex items-center justify-between gap-2 border-t pt-1.5">
+            <span className="text-surface-700 text-sm font-semibold">
+              جمع کل
+              <span className="text-surface-400 font-normal"> (بدون ولکام‌پک)</span>
+            </span>
+            <span className="flex flex-col items-end">
+              <span className="text-primary-700 text-base font-bold">
+                {formatPrice(bookingBillTotal)} تومان
+              </span>
+              <UsdTag toman={bookingBillTotal} rate={rate} />
+            </span>
+          </div>
         </div>
       </div>
     );
   }
 
   function renderTimeStep() {
-    if (!selectedPatient || !selectedService) return null;
+    if (!selectedPatient || selectedServices.length === 0) return null;
 
     const occupiedTimes = form.date
       ? allAppointments.filter((a) => a.date === form.date).map((a) => a.time)
       : [];
 
-    function handleTimeInput(e: React.ChangeEvent<HTMLInputElement>) {
-      handleFormChange("time", e.target.value);
+    const fa = form.time ? parseFaTime(form.time) : null;
+
+    function applyFaTime(patch: { period?: string; hour12?: string; minute?: string }) {
+      const base = fa ?? { period: "صبح", hour12: "12", minute: "0" };
+      handleFormChange(
+        "time",
+        composeFaTime(
+          patch.period ?? base.period,
+          Number(patch.hour12 ?? base.hour12),
+          Number(patch.minute ?? base.minute)
+        )
+      );
     }
 
     const dateLabel = form.date
@@ -804,9 +1035,11 @@ function Calendar() {
               {selectedPatient.firstName} {selectedPatient.lastName}
             </span>
             <BiChevronLeft className="text-surface-300 size-4" />
-            <span className="text-primary-700 font-medium">{selectedService.title}</span>
-            <span className="text-surface-400 me-auto text-xs">
-              {toPersianDigits(selectedService.duration)} دقیقه
+            <span className="text-primary-700 min-w-0 truncate font-medium">
+              {selectedServices.map((s) => s.title).join("، ")}
+            </span>
+            <span className="text-surface-400 me-auto shrink-0 text-xs">
+              {toPersianDigits(totalDuration)} دقیقه
             </span>
           </div>
         </Card>
@@ -848,7 +1081,7 @@ function Calendar() {
                 if (!cell.date) return <div key={ci} className="h-8" />;
                 const isSelected = form.date === cell.date;
                 const isToday = cell.date === todayStr;
-                const hasAvailability = selectedService ? cell.available : true;
+                const hasAvailability = selectedServices.length > 0 ? cell.available : true;
                 const todayRing =
                   isToday && !isSelected ? "ring-2 ring-primary-300 ring-inset" : "";
                 return (
@@ -877,18 +1110,36 @@ function Calendar() {
 
         {form.date && (
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <label className="text-surface-700 mb-1.5 block text-xs font-medium">
-                  ساعت {dateLabel}
-                </label>
-                <Input
-                  type="time"
-                  value={form.time}
-                  onChange={handleTimeInput}
-                  containerClassName="w-full"
+            <div>
+              <p className="text-surface-700 mb-1.5 text-xs font-medium">ساعت {dateLabel}</p>
+              <div className="grid grid-cols-3 gap-2">
+                <Select
+                  label="دوره"
+                  placeholder="—"
+                  options={PERIOD_OPTIONS}
+                  value={fa?.period ?? ""}
+                  onChange={(e) => applyFaTime({ period: e.target.value })}
+                />
+                <Select
+                  label="ساعت"
+                  placeholder="—"
+                  options={HOUR12_OPTIONS}
+                  value={fa?.hour12 ?? ""}
+                  onChange={(e) => applyFaTime({ hour12: e.target.value })}
+                />
+                <Select
+                  label="دقیقه"
+                  placeholder="—"
+                  options={MINUTE_OPTIONS}
+                  value={fa ? String(Number(fa.minute)) : ""}
+                  onChange={(e) => applyFaTime({ minute: e.target.value })}
                 />
               </div>
+              {form.time && (
+                <p className="text-primary-700 mt-2 text-sm font-medium">
+                  {formatTimeFa(form.time)}
+                </p>
+              )}
             </div>
 
             {availableStartTimes.length > 0 && (
@@ -913,7 +1164,7 @@ function Calendar() {
                               : "border-surface-200 hover:border-surface-300 text-surface-600 hover:bg-surface-50"
                         }`}
                       >
-                        {minutesToTimeStrPersian(parseTimeToMinutes(slot))}
+                        {formatTimeFa(slot)}
                       </button>
                     );
                   })}
@@ -1109,7 +1360,7 @@ function Calendar() {
                         {apt.customerName}
                       </span>
                       <span className="block truncate leading-tight opacity-70">
-                        {apt.time}
+                        {formatTimeFa(apt.time)}
                         {blockPct > 6 && apt.duration > 0 && (
                           <> ({toPersianDigits(apt.duration)} دقیقه)</>
                         )}
@@ -1246,8 +1497,16 @@ function Calendar() {
 
           <div className="max-sm:hidden">
             <Card variant="outlined" padding="none">
-              <div className="border-surface-200 border-b px-4 py-2.5">
+              <div className="border-surface-200 flex items-center justify-between gap-2 border-b px-4 py-2">
                 <h3 className="text-surface-900 text-xs font-semibold">نوبت‌های امروز</h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  startIcon={<BiPlus className="size-4" />}
+                  onClick={handleOpenModal}
+                >
+                  ثبت نوبت
+                </Button>
               </div>
               {selectedDayAppointments.length === 0 ? (
                 <EmptyState
@@ -1275,8 +1534,16 @@ function Calendar() {
           <div className="sm:hidden">
             {mobileView === "list" && (
               <Card variant="outlined" padding="none">
-                <div className="border-surface-200 border-b px-4 py-2.5">
+                <div className="border-surface-200 flex items-center justify-between gap-2 border-b px-4 py-2">
                   <h3 className="text-surface-900 text-xs font-semibold">نوبت‌های امروز</h3>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    startIcon={<BiPlus className="size-4" />}
+                    onClick={handleOpenModal}
+                  >
+                    ثبت نوبت
+                  </Button>
                 </div>
                 {selectedDayAppointments.length === 0 ? (
                   <EmptyState
@@ -1332,7 +1599,7 @@ function Calendar() {
               <Button
                 variant="primary"
                 onClick={handleSubmitForm}
-                disabled={!form.time || isCreating}
+                disabled={!form.time || isCreating || welcomePackInvalid}
               >
                 {isCreating ? "در حال ثبت..." : "ثبت نوبت"}
               </Button>
@@ -1342,7 +1609,11 @@ function Calendar() {
               <Button variant="ghost" onClick={handleWizardBack}>
                 قبلی
               </Button>
-              <Button variant="primary" onClick={handleWizardNext} disabled={!form.serviceId}>
+              <Button
+                variant="primary"
+                onClick={handleWizardNext}
+                disabled={form.serviceIds.length === 0 || welcomePackInvalid}
+              >
                 بعدی
               </Button>
             </>
@@ -1430,7 +1701,7 @@ function Calendar() {
             <div>
               <p className="text-surface-500 mb-1 text-[11px] font-medium">زمان</p>
               <div className="text-surface-700 bg-surface-50 rounded-lg px-3 py-2.5 text-sm">
-                {editAppointment?.time ?? "—"}
+                {formatTimeFa(editAppointment?.time)}
                 {editAppointment != null && editAppointment.duration > 0 && (
                   <span className="text-surface-400 me-2">
                     ({toPersianDigits(editAppointment.duration)} دقیقه)
@@ -1475,6 +1746,16 @@ function Calendar() {
           آیا از حذف این نوبت مطمئن هستید؟ این عمل قابل بازگشت نیست.
         </p>
       </Modal>
+
+      {checkoutVisitId != null && (
+        <VisitCheckoutModal
+          visitId={checkoutVisitId}
+          onClose={handleCloseVisitCheckout}
+          extraProducts={checkoutExtras?.extraProducts ?? []}
+          welcomePack={checkoutExtras?.welcomePack ?? null}
+          onSuccess={() => clearVisitExtras(checkoutVisitId)}
+        />
+      )}
     </div>
   );
 
@@ -1497,7 +1778,7 @@ function Calendar() {
           <div className="mb-1 flex items-center justify-between gap-2">
             <div className="text-surface-500 flex items-center gap-1 text-[11px]">
               <BiTime className="size-3" />
-              <span>{appt.time}</span>
+              <span>{formatTimeFa(appt.time)}</span>
               {appt.duration > 0 && (
                 <span className="text-surface-400">({toPersianDigits(appt.duration)} دقیقه)</span>
               )}
@@ -1565,7 +1846,7 @@ function Calendar() {
                         variant="primary"
                         onClick={() => handleStatusAction("complete", appt.id)}
                       >
-                        انجام شد
+                        تمام شدن و تسویه
                       </Button>
                       <Button
                         size="sm"
@@ -1576,9 +1857,17 @@ function Calendar() {
                       </Button>
                     </>
                   )}
-                  {appt.status === "completed" && (
-                    <span className="text-success-600 text-xs font-medium">تسویه شده</span>
-                  )}
+                  {appt.status === "completed" &&
+                    (paidVisitIds.has(appt.id) ? (
+                      <span className="text-success-600 text-xs font-medium">پرداخت شده</span>
+                    ) : (
+                      <>
+                        <Button size="sm" variant="secondary" onClick={() => openCheckout(appt.id)}>
+                          تمام شدن و تسویه
+                        </Button>
+                        <span className="text-success-600 me-2 text-xs font-medium">انجام شده</span>
+                      </>
+                    ))}
                   <div className="me-auto" />
                   <Button
                     size="sm"
@@ -1623,7 +1912,7 @@ function Calendar() {
               </p>
             )}
             <p className="text-surface-500 mt-0.5 text-xs">
-              {appt.time}
+              {formatTimeFa(appt.time)}
               {appt.duration > 0 && ` (${toPersianDigits(appt.duration)} دقیقه)`}
             </p>
           </div>
@@ -1683,7 +1972,7 @@ function Calendar() {
                 variant="primary"
                 onClick={() => handleStatusAction("complete", appt.id)}
               >
-                انجام شد
+                تمام شدن و تسویه
               </Button>
               <Button
                 size="sm"
@@ -1694,9 +1983,17 @@ function Calendar() {
               </Button>
             </>
           )}
-          {appt.status === "completed" && (
-            <span className="text-success-600 text-xs font-medium">تسویه شده</span>
-          )}
+          {appt.status === "completed" &&
+            (paidVisitIds.has(appt.id) ? (
+              <span className="text-success-600 text-xs font-medium">پرداخت شده</span>
+            ) : (
+              <>
+                <Button size="sm" variant="secondary" onClick={() => openCheckout(appt.id)}>
+                  تمام شدن و تسویه
+                </Button>
+                <span className="text-success-600 text-xs font-medium">انجام شده</span>
+              </>
+            ))}
           <div className="me-auto" />
           <Button
             size="sm"

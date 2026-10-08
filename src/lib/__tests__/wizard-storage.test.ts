@@ -20,7 +20,12 @@ const mockTab: Omit<WizardTabData, "id" | "createdAt"> = {
     fileSysId: "",
   },
   selectedServices: [],
+  selectedPackageId: null,
+  consumables: {},
+  extraProducts: [],
+  welcomePack: null,
   payment: null,
+  visitId: null,
   step: "patient",
 };
 

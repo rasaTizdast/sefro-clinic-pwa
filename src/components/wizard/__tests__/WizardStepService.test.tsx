@@ -9,6 +9,7 @@ import WizardStepService from "../WizardStepService";
 
 const mockServicesList = vi.fn();
 const mockPackagesList = vi.fn();
+const mockUseAllProducts = vi.fn();
 
 vi.mock("../../../hooks/api/useServicesQuery", () => ({
   useServicesList: (...args: unknown[]) => mockServicesList(...args),
@@ -16,6 +17,18 @@ vi.mock("../../../hooks/api/useServicesQuery", () => ({
 
 vi.mock("../../../hooks/api/usePackagesQuery", () => ({
   usePackagesList: (...args: unknown[]) => mockPackagesList(...args),
+}));
+
+vi.mock("../../../hooks/api/useServiceItemsQuery", () => ({
+  useServiceItems: () => ({ data: [], isLoading: false }),
+}));
+
+vi.mock("../../../hooks/api/useProductsQuery", () => ({
+  useAllProducts: (...args: unknown[]) => mockUseAllProducts(...args),
+}));
+
+vi.mock("../../../hooks/useRateValue", () => ({
+  useRateValue: () => null,
 }));
 
 const mockPatient: PatientData = {
@@ -50,6 +63,36 @@ const mockPackages = [
   },
 ];
 
+const mockProducts = [
+  {
+    id: 50,
+    name: "سرم ویتامین",
+    stock: 5,
+    unit: "عدد",
+    unitPrice: "150000.00",
+    unitPriceUsd: "1.50",
+    description: "",
+  },
+  {
+    id: 51,
+    name: "ماسک صورت",
+    stock: 0,
+    unit: "عدد",
+    unitPrice: "200000.00",
+    unitPriceUsd: null,
+    description: "",
+  },
+];
+
+const selectedService1: ServiceSelection = {
+  serviceId: 1,
+  serviceName: "لیزر مو",
+  priceToman: "2000000",
+  priceUsd: "20.00",
+  isPackage: false,
+  packageId: null,
+};
+
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return ({ children }: { children: ReactNode }) => (
@@ -59,6 +102,8 @@ function createWrapper() {
 
 describe("WizardStepService", () => {
   const onUpdateServices = vi.fn();
+  const onUpdateConsumables = vi.fn();
+  const onUpdateExtraProducts = vi.fn();
   const onComplete = vi.fn();
   const onBack = vi.fn();
 
@@ -88,6 +133,11 @@ describe("WizardStepService", () => {
       },
       isLoading: false,
     });
+    mockUseAllProducts.mockReturnValue({
+      data: mockProducts,
+      isLoading: false,
+      error: null,
+    });
   });
 
   it("renders services list from API", async () => {
@@ -95,8 +145,12 @@ describe("WizardStepService", () => {
       <WizardStepService
         patient={mockPatient}
         selectedServices={[]}
+        consumables={{}}
+        extraProducts={[]}
         onBack={onBack}
         onUpdateServices={onUpdateServices}
+        onUpdateConsumables={onUpdateConsumables}
+        onUpdateExtraProducts={onUpdateExtraProducts}
         onComplete={onComplete}
       />,
       { wrapper: createWrapper() }
@@ -112,14 +166,18 @@ describe("WizardStepService", () => {
       <WizardStepService
         patient={mockPatient}
         selectedServices={[]}
+        consumables={{}}
+        extraProducts={[]}
         onBack={onBack}
         onUpdateServices={onUpdateServices}
+        onUpdateConsumables={onUpdateConsumables}
+        onUpdateExtraProducts={onUpdateExtraProducts}
         onComplete={onComplete}
       />,
       { wrapper: createWrapper() }
     );
 
-    await user.click(screen.getByRole("button", { name: "پکیج‌ها" }));
+    await user.click(screen.getByRole("tab", { name: "پکیج‌ها" }));
 
     expect(await screen.findByText("پکیج لیزر کامل")).toBeInTheDocument();
     expect(screen.getByText("۱۰ جلسه")).toBeInTheDocument();
@@ -131,8 +189,12 @@ describe("WizardStepService", () => {
       <WizardStepService
         patient={mockPatient}
         selectedServices={[]}
+        consumables={{}}
+        extraProducts={[]}
         onBack={onBack}
         onUpdateServices={onUpdateServices}
+        onUpdateConsumables={onUpdateConsumables}
+        onUpdateExtraProducts={onUpdateExtraProducts}
         onComplete={onComplete}
       />,
       { wrapper: createWrapper() }
@@ -170,14 +232,18 @@ describe("WizardStepService", () => {
       <WizardStepService
         patient={mockPatient}
         selectedServices={selected}
+        consumables={{}}
+        extraProducts={[]}
         onBack={onBack}
         onUpdateServices={onUpdateServices}
+        onUpdateConsumables={onUpdateConsumables}
+        onUpdateExtraProducts={onUpdateExtraProducts}
         onComplete={onComplete}
       />,
       { wrapper: createWrapper() }
     );
 
-    const deleteBtn = screen.getByRole("button", { name: "" });
+    const deleteBtn = screen.getByRole("button", { name: "حذف لیزر مو" });
     await user.click(deleteBtn);
 
     expect(onUpdateServices).toHaveBeenCalledWith([]);
@@ -201,8 +267,12 @@ describe("WizardStepService", () => {
       <WizardStepService
         patient={mockPatient}
         selectedServices={selected}
+        consumables={{}}
+        extraProducts={[]}
         onBack={onBack}
         onUpdateServices={onUpdateServices}
+        onUpdateConsumables={onUpdateConsumables}
+        onUpdateExtraProducts={onUpdateExtraProducts}
         onComplete={onComplete}
       />,
       { wrapper: createWrapper() }
@@ -230,8 +300,12 @@ describe("WizardStepService", () => {
       <WizardStepService
         patient={mockPatient}
         selectedServices={selected}
+        consumables={{}}
+        extraProducts={[]}
         onBack={onBack}
         onUpdateServices={onUpdateServices}
+        onUpdateConsumables={onUpdateConsumables}
+        onUpdateExtraProducts={onUpdateExtraProducts}
         onComplete={onComplete}
       />,
       { wrapper: createWrapper() }
@@ -248,8 +322,12 @@ describe("WizardStepService", () => {
       <WizardStepService
         patient={mockPatient}
         selectedServices={[]}
+        consumables={{}}
+        extraProducts={[]}
         onBack={onBack}
         onUpdateServices={onUpdateServices}
+        onUpdateConsumables={onUpdateConsumables}
+        onUpdateExtraProducts={onUpdateExtraProducts}
         onComplete={onComplete}
       />,
       { wrapper: createWrapper() }
@@ -266,8 +344,12 @@ describe("WizardStepService", () => {
       <WizardStepService
         patient={mockPatient}
         selectedServices={[]}
+        consumables={{}}
+        extraProducts={[]}
         onBack={onBack}
         onUpdateServices={onUpdateServices}
+        onUpdateConsumables={onUpdateConsumables}
+        onUpdateExtraProducts={onUpdateExtraProducts}
         onComplete={onComplete}
       />,
       { wrapper: createWrapper() }
@@ -275,5 +357,107 @@ describe("WizardStepService", () => {
 
     await user.click(screen.getByRole("button", { name: "بازگشت" }));
     expect(onBack).toHaveBeenCalledOnce();
+  });
+});
+
+describe("WizardStepService extra products (step 2 warehouse dropdown)", () => {
+  const onUpdateServices = vi.fn();
+  const onUpdateConsumables = vi.fn();
+  const onUpdateExtraProducts = vi.fn();
+  const onComplete = vi.fn();
+  const onBack = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockServicesList.mockReturnValue({
+      data: {
+        data: mockServices,
+        total: 2,
+        page: 1,
+        perPage: 50,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+      isLoading: false,
+    });
+    mockPackagesList.mockReturnValue({
+      data: {
+        data: mockPackages,
+        total: 1,
+        page: 1,
+        perPage: 50,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+      isLoading: false,
+    });
+    mockUseAllProducts.mockReturnValue({
+      data: mockProducts,
+      isLoading: false,
+      error: null,
+    });
+  });
+
+  function renderWithSelection() {
+    return render(
+      <WizardStepService
+        patient={mockPatient}
+        selectedServices={[selectedService1]}
+        consumables={{}}
+        extraProducts={[]}
+        onBack={onBack}
+        onUpdateServices={onUpdateServices}
+        onUpdateConsumables={onUpdateConsumables}
+        onUpdateExtraProducts={onUpdateExtraProducts}
+        onComplete={onComplete}
+      />,
+      { wrapper: createWrapper() }
+    );
+  }
+
+  it("lists warehouse products in the dropdown, including zero-stock ones", async () => {
+    const user = userEvent.setup();
+    renderWithSelection();
+
+    await user.click(await screen.findByRole("combobox"));
+
+    expect(await screen.findByRole("option", { name: /سرم ویتامین/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /ماسک صورت/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /موجودی ۰/ })).toBeInTheDocument();
+  });
+
+  it("blocks adding a product with zero stock and points to the warehouse", async () => {
+    const user = userEvent.setup();
+    renderWithSelection();
+
+    await user.click(await screen.findByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: /ماسک صورت/ }));
+    await user.click(screen.getByRole("button", { name: "افزودن محصول" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "موجودی این محصول کافی نیست — ابتدا از بخش انبار شارژ کنید"
+    );
+    expect(onUpdateExtraProducts).not.toHaveBeenCalled();
+  });
+
+  it("adds an in-stock product to the billable list", async () => {
+    const user = userEvent.setup();
+    renderWithSelection();
+
+    await user.click(await screen.findByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: /سرم ویتامین/ }));
+    await user.click(screen.getByRole("button", { name: "افزودن محصول" }));
+
+    expect(onUpdateExtraProducts).toHaveBeenCalledWith([
+      {
+        product: 50,
+        productName: "سرم ویتامین",
+        quantity: "1",
+        priceToman: "150000",
+        priceUsd: "1.50",
+      },
+    ]);
   });
 });
