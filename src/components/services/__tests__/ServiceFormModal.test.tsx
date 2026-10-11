@@ -37,7 +37,7 @@ vi.mock("../../../hooks/api", () => ({
 }));
 
 describe("ServiceFormModal", () => {
-  it("saves with price_usd converted from Toman plus category and role", async () => {
+  it("saves the Toman price and lets the backend derive price_usd", async () => {
     const user = userEvent.setup();
     render(
       <ToastProvider>
@@ -60,11 +60,13 @@ describe("ServiceFormModal", () => {
     expect(createMutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "لیزر مو",
-        priceUsd: "50.00",
+        price: 5000000,
         categoryId: 3,
         compensationRole: "facial",
       })
     );
+    // price_usd is the backend's job now — the form must not send a client rate conversion.
+    expect(createMutateAsync.mock.calls[0][0].priceUsd).toBeUndefined();
   });
 
   it("adds consumable rows and syncs them after saving the service", async () => {

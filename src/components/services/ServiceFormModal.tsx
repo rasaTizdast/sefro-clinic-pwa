@@ -143,7 +143,7 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
         title: parsed.data.title,
         duration: parsed.data.duration,
         price: parsed.data.priceToman,
-        priceUsd,
+        // No priceUsd: the backend derives the USD value from this Toman price at its current rate (ServiceSerializer.validate), so the pair can never disagree after an exchange-rate change.
         categoryId: categoryId ? Number(categoryId) : null,
         compensationRole: role,
         description: description.trim(),

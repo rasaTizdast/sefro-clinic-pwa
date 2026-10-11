@@ -89,7 +89,7 @@ const toBackendPayload = (data: Record<string, unknown>) => ({
   name: data.title,
   time: data.duration ? Number(data.duration) : 0,
   price: data.price ? Number(data.price) : 0,
-  // USD pricing converted from the Toman input; the backend derives price_toman from it
+  // Only sent when a caller explicitly knows the USD value; the service form sends the Toman price alone and the backend derives price_usd at its current rate.
   price_usd: data.priceUsd ?? null,
   category_id: data.categoryId ?? null,
   compensation_role: data.compensationRole ?? "none",
