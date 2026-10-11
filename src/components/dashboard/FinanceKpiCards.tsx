@@ -1,5 +1,5 @@
 import { CiMoneyBill } from "react-icons/ci";
-import { MdAttachMoney, MdInventory, MdShoppingCart } from "react-icons/md";
+import { MdAttachMoney, MdBusinessCenter, MdInventory, MdShoppingCart } from "react-icons/md";
 
 import { useFinancialSummary } from "../../hooks/api";
 import { formatPrice } from "../../lib/format";
@@ -30,8 +30,8 @@ export function FinanceKpiCards() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
           <Card key={i} variant="outlined" padding="lg">
             <Skeleton width="60%" height="1rem" />
             <Skeleton width="40%" height="2rem" className="mt-2" />
@@ -81,10 +81,17 @@ export function FinanceKpiCards() {
       icon: <MdInventory className="size-5" />,
       variant: "default" as const,
     },
+    {
+      title: "سهم کلینیک امروز",
+      value: `${formatPrice(Number(summary.clinicShare.toman))} تومان`,
+      sub: trimUsdZeros(summary.clinicShare.usd),
+      icon: <MdBusinessCenter className="size-5" />,
+      variant: "success" as const,
+    },
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       {kpis.map((kpi) => (
         <Card key={kpi.title} variant="outlined" padding="lg">
           <div className="flex items-start justify-between">
