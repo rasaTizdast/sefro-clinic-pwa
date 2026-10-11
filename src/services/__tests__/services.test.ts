@@ -58,14 +58,13 @@ describe("services service", () => {
         time: 30,
         price: 150000,
         price_usd: null,
-        category_id: null,
         compensation_role: "none",
         description: "",
         is_active: true,
       });
     });
 
-    it("sends price_usd, category_id and compensation_role", async () => {
+    it("sends price_usd and compensation_role", async () => {
       mock.post.mockResolvedValue({ data: { id: 2 } });
       await createService({
         title: "لیزر",
@@ -74,14 +73,12 @@ describe("services service", () => {
         description: "",
         isActive: true,
         priceUsd: "50.00",
-        categoryId: 3,
         compensationRole: "laser",
       });
       expect(mock.post).toHaveBeenCalledWith(
         "/services/",
         expect.objectContaining({
           price_usd: "50.00",
-          category_id: 3,
           compensation_role: "laser",
         })
       );
@@ -97,7 +94,6 @@ describe("services service", () => {
         time: 60,
         price: 300000,
         price_usd: null,
-        category_id: null,
         compensation_role: "none",
         description: "",
         is_active: true,
@@ -117,7 +113,7 @@ describe("services service", () => {
       expect(result.isActive).toBe(true);
     });
 
-    it("maps USD pricing, category, compensation role and consumables", async () => {
+    it("maps USD pricing, compensation role and consumables", async () => {
       mock.get.mockResolvedValue({
         data: {
           id: 2,
@@ -128,14 +124,6 @@ describe("services service", () => {
           priceUsd: "50.00",
           priceToman: "5000000",
           exchangeRate: "100000.00",
-          category: {
-            id: 3,
-            name: "لیزر",
-            slug: "laser",
-            description: "",
-            isActive: true,
-            sortOrder: 1,
-          },
           compensationRole: "laser",
           products: [
             {
@@ -155,7 +143,6 @@ describe("services service", () => {
       });
       const result = await getService(2);
       expect(result.priceUsd).toBe("50.00");
-      expect(result.category?.name).toBe("لیزر");
       expect(result.compensationRole).toBe("laser");
       expect(result.products).toHaveLength(1);
       expect(result.products[0].name).toBe("ژل");
@@ -166,7 +153,6 @@ describe("services service", () => {
       mock.get.mockResolvedValue({ data: { id: 3, name: "قدیمی", time: 20 } });
       const result = await getService(3);
       expect(result.priceUsd).toBe("0.00");
-      expect(result.category).toBeNull();
       expect(result.compensationRole).toBe("none");
       expect(result.products).toEqual([]);
     });

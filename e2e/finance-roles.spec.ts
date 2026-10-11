@@ -54,7 +54,6 @@ async function mockFinanceEndpoints(page: Page) {
     source: "backup",
     provider: "backup_provider",
   });
-  await fulfill(page, "**/api/service-categories/**", 200, { count: 0, results: [] });
   await fulfill(page, "**/api/services/**", 200, { count: 0, results: [] });
   await fulfill(page, "**/api/visits/**", 200, { count: 0, results: [] });
   await fulfill(page, "**/api/inventory/products/**", 200, { count: 0, results: [] });
@@ -103,7 +102,6 @@ test.describe("Finance role-based access — Employee", () => {
     await expect(page.getByRole("tab", { name: "کاربران" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "نرخ ارز" })).not.toBeVisible();
     await expect(page.getByRole("tab", { name: "قوانین تسویه" })).not.toBeVisible();
-    await expect(page.getByRole("tab", { name: "دسته‌بندی خدمات" })).not.toBeVisible();
   });
 
   test("Sales tab has no refund button for employee", async ({ page }) => {
@@ -139,7 +137,6 @@ test.describe("Finance role-based access — Admin", () => {
     await expect(page.getByRole("tab", { name: "نرخ ارز" })).not.toBeVisible();
     // payout rules moved out of Settings into the accounting tab bar
     await expect(page.getByRole("tab", { name: "قوانین تسویه" })).not.toBeVisible();
-    await expect(page.getByRole("tab", { name: "دسته‌بندی خدمات" })).toBeVisible();
   });
 
   test("Admin can open the standalone exchange-rate page and save a rate", async ({ page }) => {
@@ -152,15 +149,6 @@ test.describe("Finance role-based access — Admin", () => {
     await page.goto("/accounting");
     await page.getByRole("tab", { name: "قوانین تسویه" }).click();
     await expect(page.getByRole("tab", { name: "قوانین تسویه" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-  });
-
-  test("Admin can navigate to service-categories tab", async ({ page }) => {
-    await page.goto("/settings");
-    await page.getByRole("tab", { name: "دسته‌بندی خدمات" }).click();
-    await expect(page.getByRole("tab", { name: "دسته‌بندی خدمات" })).toHaveAttribute(
       "aria-selected",
       "true"
     );

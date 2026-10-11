@@ -280,15 +280,6 @@ export interface Package {
   items: { product: number; quantity: string }[];
 }
 
-export interface ServiceCategory {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  isActive: boolean;
-  sortOrder: number;
-}
-
 export interface ServiceItem {
   id: number;
   service: number;

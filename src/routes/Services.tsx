@@ -99,19 +99,6 @@ function Services() {
   const columns: Column<Service>[] = [
     { key: "title", header: "عنوان خدمت" },
     {
-      key: "category",
-      header: "دسته‌بندی",
-      align: "center",
-      render: (item) =>
-        item.category ? (
-          <Badge variant="info" size="sm">
-            {item.category.name}
-          </Badge>
-        ) : (
-          <span className="text-surface-400">—</span>
-        ),
-    },
-    {
       key: "duration",
       header: "مدت (دقیقه)",
       align: "center",

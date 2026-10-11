@@ -141,15 +141,6 @@ export function ServiceDetailModal({ service, onClose }: ServiceDetailModalProps
       <div className="flex flex-col gap-4">
         {/* Meta + description */}
         <div className="flex flex-wrap items-center gap-2">
-          {service.category ? (
-            <Badge variant="info" size="sm">
-              {service.category.name}
-            </Badge>
-          ) : (
-            <Badge variant="default" size="sm">
-              بدون دسته‌بندی
-            </Badge>
-          )}
           <Badge variant="default" size="sm">
             {formatPrice(service.duration)} دقیقه
           </Badge>

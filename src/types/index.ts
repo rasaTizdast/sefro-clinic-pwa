@@ -49,7 +49,6 @@ export type {
   ReportPeriod,
   Sale,
   SaleStatus,
-  ServiceCategory,
   ServiceItem,
   StaffCompensationRule,
   StaffPayout,

@@ -2,7 +2,7 @@ import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
-import type { CompensationRole, ServiceCategory } from "../types/finance";
+import type { CompensationRole } from "../types/finance";
 import type { Service, ServiceConsumable } from "../types/service";
 import { fetchAllPages } from "./fetch-all-pages";
 
@@ -12,15 +12,6 @@ type RawServiceConsumable = {
   quantity?: string;
   unitCostUsd?: string;
   totalCostUsd?: string;
-};
-
-type RawServiceCategory = {
-  id: number;
-  name?: string;
-  slug?: string;
-  description?: string;
-  isActive?: boolean;
-  sortOrder?: number;
 };
 
 type RawService = Record<string, unknown> & {
@@ -33,7 +24,6 @@ type RawService = Record<string, unknown> & {
   priceUsd?: string;
   priceToman?: string | null;
   exchangeRate?: string | null;
-  category?: RawServiceCategory | null;
   compensationRole?: CompensationRole;
   products?: RawServiceConsumable[];
   estimatedCostUsd?: string;
@@ -44,18 +34,6 @@ type RawService = Record<string, unknown> & {
 };
 
 const USD = "0.00";
-
-const toCategory = (raw: RawServiceCategory | null | undefined): ServiceCategory | null =>
-  raw == null
-    ? null
-    : {
-        id: raw.id,
-        name: raw.name ?? "",
-        slug: raw.slug ?? "",
-        description: raw.description ?? "",
-        isActive: raw.isActive ?? true,
-        sortOrder: raw.sortOrder ?? 0,
-      };
 
 const toConsumable = (raw: RawServiceConsumable): ServiceConsumable => ({
   product: raw.product ?? 0,
@@ -75,7 +53,6 @@ const toService = (raw: RawService): Service => ({
   priceUsd: raw.priceUsd ?? USD,
   priceToman: raw.priceToman ?? null,
   exchangeRate: raw.exchangeRate ?? null,
-  category: toCategory(raw.category),
   compensationRole: raw.compensationRole ?? "none",
   products: (raw.products ?? []).map(toConsumable),
   estimatedCostUsd: raw.estimatedCostUsd ?? USD,
@@ -91,7 +68,6 @@ const toBackendPayload = (data: Record<string, unknown>) => ({
   price: data.price ? Number(data.price) : 0,
   // Only sent when a caller explicitly knows the USD value; the service form sends the Toman price alone and the backend derives price_usd at its current rate.
   price_usd: data.priceUsd ?? null,
-  category_id: data.categoryId ?? null,
   compensation_role: data.compensationRole ?? "none",
   description: data.description ?? "",
   is_active: data.isActive ?? true,

@@ -1,4 +1,4 @@
-import type { CompensationRole, ServiceCategory } from "./finance";
+import type { CompensationRole } from "./finance";
 
 export interface ServiceConsumable {
   product: number;
@@ -19,7 +19,6 @@ export interface Service {
   priceUsd: string;
   priceToman: string | null;
   exchangeRate: string | null;
-  category: ServiceCategory | null;
   compensationRole: CompensationRole;
   products: ServiceConsumable[];
   estimatedCostUsd: string;
@@ -36,6 +35,5 @@ export interface ServiceFormData {
   description: string;
   isActive: boolean;
   priceUsd?: string;
-  categoryId?: number | null;
   compensationRole?: CompensationRole;
 }

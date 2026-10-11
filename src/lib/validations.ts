@@ -43,7 +43,6 @@ export const serviceFormSchema = z.object({
   // Toman price as entered; converted to USD with the current rate on save
   priceToman: z.coerce.number().positive("قیمت باید بزرگ‌تر از صفر باشد"),
   description: z.string().optional(),
-  categoryId: z.string().optional(),
   compensationRole: z.enum(compensationRoles).optional(),
 });
 

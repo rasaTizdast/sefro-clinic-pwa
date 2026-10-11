@@ -2,7 +2,6 @@ import { useState } from "react";
 import { BiLock, BiPencil, BiPlus, BiTrash, BiUser } from "react-icons/bi";
 
 import { SearchButton } from "../components/SearchButton";
-import { ServiceCategoriesTab } from "../components/settings/ServiceCategoriesTab";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -21,10 +20,7 @@ import {
 import { usePermissions } from "../hooks/usePermissions";
 import type { ClinicUser, UserRole } from "../types/settings";
 
-const settingsTabs = [
-  { id: "users", label: "کاربران" },
-  { id: "service-categories", label: "دسته‌بندی خدمات" },
-];
+const settingsTabs = [{ id: "users", label: "کاربران" }];
 
 const roleBadgeVariant: Record<UserRole, "success" | "info" | "warning"> = {
   مدیر: "success",
@@ -39,7 +35,7 @@ const statusMap: Record<ClinicUser["status"], { label: string; variant: "success
 
 function Settings() {
   const toast = useToast();
-  const { canManageUsers, canManageFinance } = usePermissions();
+  const { canManageUsers } = usePermissions();
   const [activeTab, setActiveTab] = useState("users");
 
   const { data: employees, isLoading: employeesLoading } = useEmployees();
@@ -56,10 +52,6 @@ function Settings() {
     lastName: "",
     phoneNumber: "",
   });
-
-  const visibleTabs = canManageFinance
-    ? settingsTabs
-    : settingsTabs.filter((t) => t.id === "users");
 
   const users: ClinicUser[] = Array.isArray(employees)
     ? employees.map((emp) => ({
@@ -179,7 +171,7 @@ function Settings() {
         <SearchButton />
       </div>
 
-      <Tabs tabs={visibleTabs} activeTab={activeTab} onChange={setActiveTab} />
+      <Tabs tabs={settingsTabs} activeTab={activeTab} onChange={setActiveTab} />
 
       <TabPanel id="users" activeTab={activeTab}>
         <div className="flex flex-col gap-4" data-tour="set-users">
@@ -207,10 +199,6 @@ function Settings() {
             </>
           )}
         </div>
-      </TabPanel>
-
-      <TabPanel id="service-categories" activeTab={activeTab}>
-        <ServiceCategoriesTab />
       </TabPanel>
 
       <Modal

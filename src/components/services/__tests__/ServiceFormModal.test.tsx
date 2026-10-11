@@ -13,9 +13,6 @@ vi.mock("../../../hooks/api", () => ({
     data: { rate: "100000", rateTomanPerUsd: "100000", effectiveAt: null, source: "manual" },
     isLoading: false,
   }),
-  useServiceCategories: () => ({
-    data: [{ id: 3, name: "لیزر", slug: "laser", description: "", isActive: true, sortOrder: 1 }],
-  }),
   useAllProducts: () => ({
     data: [
       {
@@ -51,8 +48,6 @@ describe("ServiceFormModal", () => {
 
     const selects = screen.getAllByRole("combobox");
     await user.click(selects[0]);
-    await user.click(await screen.findByText("لیزر", undefined, { timeout: 5000 }));
-    await user.click(selects[1]);
     await user.click(await screen.findByText("فیشال", undefined, { timeout: 5000 }));
 
     await user.click(screen.getByRole("button", { name: "ذخیره" }));
@@ -61,7 +56,6 @@ describe("ServiceFormModal", () => {
       expect.objectContaining({
         title: "لیزر مو",
         price: 5000000,
-        categoryId: 3,
         compensationRole: "facial",
       })
     );

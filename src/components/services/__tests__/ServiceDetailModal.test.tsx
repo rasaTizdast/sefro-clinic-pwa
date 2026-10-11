@@ -33,7 +33,6 @@ const baseService: Service = {
   priceUsd: "5.00",
   priceToman: "500000",
   exchangeRate: "100000",
-  category: null,
   compensationRole: "none",
   products: [
     { product: 10, name: "نیدل", quantity: "2", unitCostUsd: "1.00", totalCostUsd: "2.00" },

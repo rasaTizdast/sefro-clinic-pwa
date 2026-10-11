@@ -5,7 +5,6 @@ import {
   useAllProducts,
   useCreateService,
   useCurrentRate,
-  useServiceCategories,
   useSyncServiceItems,
   useUpdateService,
 } from "../../hooks/api";
@@ -38,8 +37,8 @@ const roleOptions = [
 const parseToman = (value: string): number => parseTomanAmount(value);
 
 /**
- * Service create/edit form: Toman price (converted to USD on save), category +
- * compensation-role selects, and repeatable «مواد مصرفی» rows synced after save.
+ * Service create/edit form: Toman price (converted to USD on save), compensation-role
+ * select, and repeatable «مواد مصرفی» rows synced after save.
  */
 export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
   const [title, setTitle] = useState(service?.title ?? "");
@@ -48,9 +47,6 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
     service ? formatPrice(serviceDisplayToman(service)) : ""
   );
   const [description, setDescription] = useState(service?.description ?? "");
-  const [categoryId, setCategoryId] = useState(
-    service?.category ? String(service.category.id) : ""
-  );
   const [role, setRole] = useState<CompensationRole>(service?.compensationRole ?? "doctor");
   const [isActive] = useState(service?.isActive ?? true);
   const [items, setItems] = useState<{ product: number; quantity: string }[]>(() =>
@@ -59,7 +55,6 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
   const [formError, setFormError] = useState("");
 
   const { data: currentRate, isLoading: rateLoading } = useCurrentRate();
-  const { data: categoriesData } = useServiceCategories();
   const { data: productsData } = useAllProducts();
   const createService = useCreateService();
   const updateService = useUpdateService();
@@ -75,14 +70,6 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
   const isPending = createService.isPending || updateService.isPending || syncItems.isPending;
   const priceNumber = parseToman(priceToman);
   const priceUsdPreview = priceNumber > 0 ? tomanToUsd(priceNumber, rate) : null;
-
-  const categoryOptions = useMemo(
-    () => [
-      { value: "", label: "بدون دسته‌بندی" },
-      ...(categoriesData ?? []).map((c) => ({ value: String(c.id), label: c.name })),
-    ],
-    [categoriesData]
-  );
 
   const productOptions = useMemo(
     () => [
@@ -126,7 +113,6 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
       duration: parseToman(duration),
       priceToman: parseToman(priceToman),
       description,
-      categoryId,
       compensationRole: role,
     });
     if (!parsed.success) {
@@ -144,7 +130,6 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
         duration: parsed.data.duration,
         price: parsed.data.priceToman,
         // No priceUsd: the backend derives the USD value from this Toman price at its current rate (ServiceSerializer.validate), so the pair can never disagree after an exchange-rate change.
-        categoryId: categoryId ? Number(categoryId) : null,
         compensationRole: role,
         description: description.trim(),
         isActive,
@@ -225,12 +210,6 @@ export function ServiceFormModal({ service, onClose }: ServiceFormModalProps) {
           </p>
         )}
         <div className="grid grid-cols-2 gap-4">
-          <Select
-            label="دسته‌بندی"
-            options={categoryOptions}
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-          />
           <Select
             label="نقش اپراتور"
             options={roleOptions}
