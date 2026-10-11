@@ -167,6 +167,61 @@ In `emptyForm` (lines 72-73):
 
 ````ts
   calculationType: "percent_revenue",
+  percentRevenue: "",
+```
+
+In `openEdit` (line 108): `percentRevenue: rule.percentRevenue ?? "",`
+In `handleSave` (lines 142-143):
+
+```ts
+    if (form.calculationType === "percent_revenue") {
+      payload.percent_revenue = form.percentRevenue || "0";
+```
+
+In the modal body (lines 282-291):
+
+```tsx
+          {form.calculationType === "percent_revenue" && (
+            <Input
+              label="درصد درآمد (%)"
+              type="text"
+              inputMode="numeric"
+              value={form.percentRevenue}
+              onChange={(e) => setForm((f) => ({ ...f, percentRevenue: e.target.value }))}
+              placeholder="مثال: ۳۰"
+            />
+          )}
+```
+
+- [ ] **Step 7: Update PayoutsTab label map**
+
+In `src/components/accounting/PayoutsTab.tsx` (lines 28-33):
+
+```ts
+/** How each role's payout is computed — the compensation rule's calculation basis. */
+const calculationLabels: Record<CalculationType, string> = {
+  percent_revenue: "درصد درآمد",
+  fixed_per_session: "مبلغ ثابت هر ویزیت",
+  monthly_salary: "ماهانه",
+};
+```
+
+- [ ] **Step 8: Run tests to verify they pass**
+
+Run: `pnpm test:unit src/services/__tests__/payouts.test.ts src/hooks/api/__tests__/usePayoutsQuery.test.tsx`
+Expected: PASS. Then run `pnpm typecheck` — Expected: PASS (the union type makes any leftover `"percent_profit"` a compile error).
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add src/types/finance.ts src/services/payouts.ts src/components/settings/CompensationRulesTab.tsx src/components/accounting/PayoutsTab.tsx src/services/__tests__/payouts.test.ts src/hooks/api/__tests__/usePayoutsQuery.test.tsx
+git commit -m "feat(settings): rename percent_profit compensation rule to percent_revenue"
+```
+
+**Status:** ✅ Done
+
+---
+
 ### Task 2: Invalidate payout queries after checkout and refund
 
 Backend checkout now re-runs visit payout settlement, so any open payouts view is stale the moment a sale posts.
@@ -247,6 +302,28 @@ And in `useRefundSale.onSuccess` (lines 68-73):
     onSuccess: (_sale, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["finance", "dashboard"] });
+      // A refund regenerates the visit's payouts (cancelled rows are never revived).
+      queryClient.invalidateQueries({ queryKey: queryKeys.payouts.all });
+      toast.success("وجه بازگردانده شد");
+    },
+```
+
+- [ ] **Step 4: Run the test to verify it passes**
+
+Run: `pnpm test:unit src/hooks/api/__tests__/useSalesQuery.test.tsx`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/hooks/api/useSalesQuery.ts src/hooks/api/__tests__/useSalesQuery.test.tsx
+git commit -m "fix(sales): invalidate payout cache after checkout and refund"
+```
+
+**Status:** ✅ Done
+
+---
 ### Task 3: Finance report parity — clinic share, profit-row fields, revenue-basis labels
 
 **Files:**
@@ -617,6 +694,27 @@ In `toWelcomePackItem` (lines 59-67) add after `quantity`:
   unitCostUsd: raw.unitCostUsd ?? null,
   unitCostToman: raw.unitCostToman ?? null,
   lineCostUsd: raw.lineCostUsd ?? null,
+  lineCostToman: raw.lineCostToman ?? null,
+  createdAt: raw.createdAt ?? "",
+  updatedAt: raw.updatedAt ?? "",
+});
+```
+
+- [ ] **Step 5: Run the test to verify it passes**
+
+Run: `pnpm test:unit src/services/__tests__/welcomePacks.test.ts`
+Expected: PASS. (UI surfacing of these fields is deliberately deferred — nothing renders per-item costs today; YAGNI.)
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/types/finance.ts src/services/welcomePacks.ts src/services/__tests__/welcomePacks.test.ts
+git commit -m "feat(warehouse): map welcome-pack item costs from the serializer"
+```
+
+**Status:** ✅ Done
+
+---
 ### Task 6: Dashboard KPI — clinic share (optional polish; depends on Task 3)
 
 **Files:**
