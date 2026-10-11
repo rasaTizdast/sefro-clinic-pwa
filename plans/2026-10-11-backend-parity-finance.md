@@ -521,6 +521,40 @@ In `src/components/analytics/ProfitBreakdownTab.tsx` `profitColumns`, replace th
             className={
               row.revenueBasis === "sale_ledger"
                 ? "text-info-600 mr-1 text-xs"
+                : "text-surface-400 mr-1 text-xs"
+            }
+          >
+            {row.revenueBasis === "sale_ledger"
+              ? "درآمد اخذشده"
+              : "درآمد بالقوه (قیمت لیست)"}
+          </span>
+        </span>
+      ),
+    },
+  ];
+}
+```
+
+- [ ] **Step 7: Run tests to verify they pass**
+
+Run: `pnpm test:unit src/components/analytics src/services/__tests__/financeReports.test.ts`
+
+Expected: PASS — the finance-report mapper tests assert `clinicShare`, the new profit-row
+cost fields and both `revenueBasis` values; the ProfitBreakdown and FinancialSummary tab
+tests assert the new KPI tile and the per-row revenue tag.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add src/types/finance.ts src/services/financeReports.ts src/components/analytics
+git commit -m "feat(reports): surface clinic share, profit-row cost fields and revenue basis"
+```
+
+**Status:** ✅ Done
+
+---
+
+
 ### Task 4: Stop sending a client-computed `price_usd` from the service form
 
 The backend now derives `price_usd` from the Toman price at the server's current rate (and validates inconsistent pairs). Sending a client-computed USD value only competes with that. The service mapper keeps its optional passthrough for callers that truly know the USD value; the modal stops sending one.
