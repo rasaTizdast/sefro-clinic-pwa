@@ -15,7 +15,7 @@ vi.mock("../../../components/ui", () => ({ useToast: () => toast }));
 import { queryKeys } from "../../../lib/query-keys";
 import * as salesService from "../../../services/sales";
 import type { Sale } from "../../../types/finance";
-import { useCheckout, useSale, useSalesList } from "../useSalesQuery";
+import { useCheckout, useRefundSale, useSale, useSalesList } from "../useSalesQuery";
 
 vi.mock("../../../services/sales", () => ({
   listSales: vi.fn(),
@@ -87,7 +87,7 @@ describe("useSalesQuery hooks", () => {
     expect(salesService.getSale).not.toHaveBeenCalled();
   });
 
-  it("useCheckout invalidates sales, finance dashboard and visits, then toasts success", async () => {
+  it("useCheckout invalidates sales, finance dashboard, visits and payouts, then toasts success", async () => {
     vi.mocked(salesService.checkout).mockResolvedValue(sale);
 
     const { wrapper, invalidateQueries } = createWrapper();
@@ -101,7 +101,21 @@ describe("useSalesQuery hooks", () => {
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.sales.all });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["finance", "dashboard"] });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.visits.all });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.payouts.all });
     expect(toast.success).toHaveBeenCalledWith("فروش ثبت شد");
+  });
+
+  it("useRefundSale invalidates payouts so settled amounts refresh", async () => {
+    vi.mocked(salesService.refundSale).mockResolvedValue(sale);
+
+    const { wrapper, invalidateQueries } = createWrapper();
+    const { result } = renderHook(() => useRefundSale(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ id: 12, payload: { reason: "مرجوعی" } });
+    });
+
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.payouts.all });
   });
 
   it("useCheckout toasts the extracted api error on failure", async () => {

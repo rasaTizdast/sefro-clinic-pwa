@@ -45,6 +45,8 @@ export function useCheckout() {
       // `finance.dashboard` is a key *factory* — invalidate its prefix so every period matches.
       queryClient.invalidateQueries({ queryKey: ["finance", "dashboard"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
+      // Checkout re-runs visit payout settlement server-side, so payout rows changed.
+      queryClient.invalidateQueries({ queryKey: queryKeys.payouts.all });
       toast.success("فروش ثبت شد");
     },
     onError: (error) => {
@@ -69,6 +71,8 @@ export function useRefundSale() {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.detail(id) });
       queryClient.invalidateQueries({ queryKey: ["finance", "dashboard"] });
+      // A refund regenerates the visit's payouts (cancelled rows are never revived).
+      queryClient.invalidateQueries({ queryKey: queryKeys.payouts.all });
       toast.success("وجه بازگردانده شد");
     },
     onError: (error) => {
