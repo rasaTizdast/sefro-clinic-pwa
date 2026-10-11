@@ -157,7 +157,7 @@ export type CompensationRole = "none" | "doctor" | "facial" | "laser";
 
 export type PayoutType = "cash" | "product" | "hybrid";
 
-export type CalculationType = "percent_profit" | "fixed_per_session" | "monthly_salary";
+export type CalculationType = "percent_revenue" | "fixed_per_session" | "monthly_salary";
 
 export type ReportPeriod = "today" | "this_week" | "this_month" | "prev_month" | "this_year";
 
@@ -214,7 +214,8 @@ export interface StaffCompensationRule {
   role: Exclude<CompensationRole, "none">;
   payoutType: PayoutType;
   calculationType: CalculationType;
-  percentProfit: string | null;
+  /** Percentage of collected service revenue the staff earns (backend `percent_revenue`). */
+  percentRevenue: string | null;
   fixedAmountUsd: string | null;
   fixedAmountToman: string | null;
   transportUsd: string;

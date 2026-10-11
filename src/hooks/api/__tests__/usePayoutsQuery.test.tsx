@@ -66,8 +66,8 @@ const rule: StaffCompensationRule = {
   id: 3,
   role: "doctor",
   payoutType: "cash",
-  calculationType: "percent_profit",
-  percentProfit: "30.00",
+  calculationType: "percent_revenue",
+  percentRevenue: "30.00",
   fixedAmountUsd: null,
   fixedAmountToman: null,
   transportUsd: "1.00",
@@ -149,7 +149,7 @@ describe("usePayoutsQuery hooks", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(payoutsService.listCompensationRules).toHaveBeenCalledWith({ role: "doctor" });
-    expect(result.current.data?.data[0].percentProfit).toBe("30.00");
+    expect(result.current.data?.data[0].percentRevenue).toBe("30.00");
   });
 
   it("useUpsertCompensationRule invalidates the rules query and toasts success", async () => {

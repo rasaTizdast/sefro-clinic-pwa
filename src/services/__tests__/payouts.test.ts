@@ -60,8 +60,8 @@ const rawRule = {
   id: 3,
   role: "doctor",
   payoutType: "cash",
-  calculationType: "percent_profit",
-  percentProfit: "30.00",
+  calculationType: "percent_revenue",
+  percentRevenue: "30.00",
   fixedAmountUsd: null,
   fixedAmountToman: null,
   transportUsd: "1.00",
@@ -144,8 +144,8 @@ describe("toCompensationRule", () => {
     const rule = toCompensationRule({ id: 1, role: "facial" } as never);
 
     expect(rule.payoutType).toBe("cash");
-    expect(rule.calculationType).toBe("percent_profit");
-    expect(rule.percentProfit).toBeNull();
+    expect(rule.calculationType).toBe("percent_revenue");
+    expect(rule.percentRevenue).toBeNull();
     expect(rule.fixedAmountUsd).toBeNull();
     expect(rule.transportUsd).toBe("0.00");
     expect(rule.transportToman).toBe("0");
@@ -258,7 +258,7 @@ describe("payouts service", () => {
         params: { page: 1, per_page: 20 },
       });
       expect(result.data[0].role).toBe("doctor");
-      expect(result.data[0].percentProfit).toBe("30.00");
+      expect(result.data[0].percentRevenue).toBe("30.00");
       expect(result.total).toBe(1);
     });
 

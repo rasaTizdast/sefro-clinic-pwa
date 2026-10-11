@@ -70,7 +70,7 @@ type RawCompensationRule = Record<string, unknown> & {
   role?: Exclude<CompensationRole, "none">;
   payoutType?: StaffCompensationRule["payoutType"];
   calculationType?: StaffCompensationRule["calculationType"];
-  percentProfit?: string | null;
+  percentRevenue?: string | null;
   fixedAmountUsd?: string | null;
   fixedAmountToman?: string | null;
   transportUsd?: string;
@@ -127,8 +127,8 @@ export const toCompensationRule = (raw: RawCompensationRule): StaffCompensationR
   id: raw.id,
   role: raw.role ?? "doctor",
   payoutType: raw.payoutType ?? "cash",
-  calculationType: raw.calculationType ?? "percent_profit",
-  percentProfit: raw.percentProfit ?? null,
+  calculationType: raw.calculationType ?? "percent_revenue",
+  percentRevenue: raw.percentRevenue ?? null,
   fixedAmountUsd: raw.fixedAmountUsd ?? null,
   fixedAmountToman: raw.fixedAmountToman ?? null,
   transportUsd: raw.transportUsd ?? USD,

@@ -27,7 +27,7 @@ const roleLabels: Record<CompensationRole, string> = {
 
 /** How each role's payout is computed — the compensation rule's calculation basis. */
 const calculationLabels: Record<CalculationType, string> = {
-  percent_profit: "درصد سود",
+  percent_revenue: "درصد درآمد",
   fixed_per_session: "مبلغ ثابت هر ویزیت",
   monthly_salary: "ماهانه",
 };

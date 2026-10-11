@@ -31,7 +31,7 @@ const payoutTypeOptions = [
 ];
 
 const calculationTypeOptions = [
-  { value: "percent_profit", label: "درصد سود" },
+  { value: "percent_revenue", label: "درصد درآمد" },
   { value: "fixed_per_session", label: "مبلغ ثابت هر ویزیت" },
   { value: "monthly_salary", label: "حقوق ماهانه" },
 ];
@@ -57,7 +57,7 @@ interface RuleForm {
   role: string;
   payoutType: string;
   calculationType: string;
-  percentProfit: string;
+  percentRevenue: string;
   fixedAmountToman: string;
   fixedAmountUsd: string;
   monthlySalaryToman: string;
@@ -69,8 +69,8 @@ interface RuleForm {
 const emptyForm: RuleForm = {
   role: "doctor",
   payoutType: "cash",
-  calculationType: "percent_profit",
-  percentProfit: "",
+  calculationType: "percent_revenue",
+  percentRevenue: "",
   fixedAmountToman: "",
   fixedAmountUsd: "",
   monthlySalaryToman: "",
@@ -105,7 +105,7 @@ export function CompensationRulesTab() {
       role: rule.role,
       payoutType: rule.payoutType,
       calculationType: rule.calculationType,
-      percentProfit: rule.percentProfit ?? "",
+      percentRevenue: rule.percentRevenue ?? "",
       fixedAmountToman: rule.fixedAmountToman ?? "",
       fixedAmountUsd: rule.fixedAmountUsd ?? "",
       monthlySalaryToman: rule.fixedAmountToman ?? "",
@@ -139,8 +139,8 @@ export function CompensationRulesTab() {
       transport_toman: Number(form.transportToman) || 0,
     };
 
-    if (form.calculationType === "percent_profit") {
-      payload.percent_profit = form.percentProfit || "0";
+    if (form.calculationType === "percent_revenue") {
+      payload.percent_revenue = form.percentRevenue || "0";
     } else if (form.calculationType === "fixed_per_session") {
       payload.fixed_amount_toman = form.fixedAmountToman || "0";
       if (form.fixedAmountUsd) payload.fixed_amount_usd = form.fixedAmountUsd;
@@ -279,13 +279,13 @@ export function CompensationRulesTab() {
             onChange={(e) => setForm((f) => ({ ...f, calculationType: e.target.value }))}
           />
 
-          {form.calculationType === "percent_profit" && (
+          {form.calculationType === "percent_revenue" && (
             <Input
-              label="درصد سود (%)"
+              label="درصد درآمد (%)"
               type="text"
               inputMode="numeric"
-              value={form.percentProfit}
-              onChange={(e) => setForm((f) => ({ ...f, percentProfit: e.target.value }))}
+              value={form.percentRevenue}
+              onChange={(e) => setForm((f) => ({ ...f, percentRevenue: e.target.value }))}
               placeholder="مثال: ۳۰"
             />
           )}
