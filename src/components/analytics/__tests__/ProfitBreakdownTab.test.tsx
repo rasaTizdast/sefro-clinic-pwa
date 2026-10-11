@@ -95,14 +95,51 @@ describe("ProfitBreakdownTab", () => {
     expect(screen.getByRole("columnheader", { name: "تعداد ویزیت" })).toBeInTheDocument();
   });
 
-  it("calls the list-price column potential revenue, not collected money", () => {
-    // The backend computes this column as Service.price_usd per visit, so it is
-    // the list price — it must not be labelled as cash received.
+  it("labels the revenue column neutrally and tags list-price rows as potential", () => {
+    // Default rows (no basis sent) are conservative: potential revenue.
     render(<ProfitBreakdownTab />);
+    expect(screen.getByRole("columnheader", { name: "درآمد" })).toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "درآمد بالقوه (قیمت لیست)" })
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("columnheader", { name: "درآمد" })).not.toBeInTheDocument();
+      screen.queryByRole("columnheader", { name: "درآمد بالقوه (قیمت لیست)" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("tags sale-ledger rows as collected money", () => {
+    state.serviceRows = [
+      {
+        serviceId: 1,
+        serviceName: "فیشال",
+        revenueUsd: "50.00",
+        productCostUsd: "10.00",
+        profitUsd: "40.00",
+        count: 1,
+        revenueBasis: "sale_ledger",
+      },
+    ];
+
+    render(<ProfitBreakdownTab />);
+
+    // The table renders a desktop row and a mobile card, so the tag appears twice.
+    expect(screen.getAllByText("دفتر فروش").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("قیمت لیست")).toHaveLength(0);
+  });
+
+  it("tags list-price rows as potential revenue", () => {
+    state.serviceRows = [
+      {
+        serviceId: 1,
+        serviceName: "فیشال",
+        revenueUsd: "50.00",
+        productCostUsd: "10.00",
+        profitUsd: "40.00",
+        count: 1,
+        revenueBasis: "list_price",
+      },
+    ];
+
+    render(<ProfitBreakdownTab />);
+
+    expect(screen.getAllByText("قیمت لیست").length).toBeGreaterThan(0);
   });
 
   it("calls the derived margin potential profit too", () => {

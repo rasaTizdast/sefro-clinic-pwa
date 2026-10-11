@@ -66,6 +66,7 @@ type RawFinancialSummary = Record<string, unknown> & {
   staffExpenseClaims?: { usd: string; toman: string; count?: number };
   belowTheLineTotal?: { usd: string; toman: string };
   netProfit?: { usd: string; toman: string };
+  clinicShare?: { usd: string; toman: string };
   costCoverage?: { zeroCostRows?: number; productsMissingCost?: number[] };
   paymentMethods?: { cash: string; card: string; wallet: string };
   counts?: {
@@ -93,6 +94,12 @@ type RawProfitRow = Record<string, unknown> & {
   revenueToman?: string;
   productCostToman?: string;
   profitToman?: string;
+  revenueBasis?: string;
+  operatorCompensationUsd?: string;
+  welcomePackCostUsd?: string;
+  recipeEstimateCostUsd?: string;
+  clinicShareUsd?: string;
+  welcomePackCostBasis?: string;
 };
 
 type RawFinanceDashboard = Record<string, unknown> & {
@@ -177,6 +184,7 @@ export const toFinancialSummary = (raw: RawFinancialSummary): FinancialSummary =
     },
     belowTheLineTotal: toMoney(raw.belowTheLineTotal),
     netProfit: toMoney(raw.netProfit),
+    clinicShare: toMoney(raw.clinicShare),
     costCoverage: {
       zeroCostRows: raw.costCoverage?.zeroCostRows ?? 0,
       productsMissingCost: raw.costCoverage?.productsMissingCost ?? [],
@@ -208,6 +216,12 @@ export const toProfitRow = (raw: RawProfitRow): ProfitRow => ({
   revenueToman: raw.revenueToman,
   productCostToman: raw.productCostToman,
   profitToman: raw.profitToman,
+  revenueBasis: raw.revenueBasis as ProfitRow["revenueBasis"],
+  operatorCompensationUsd: raw.operatorCompensationUsd,
+  welcomePackCostUsd: raw.welcomePackCostUsd,
+  recipeEstimateCostUsd: raw.recipeEstimateCostUsd,
+  clinicShareUsd: raw.clinicShareUsd,
+  welcomePackCostBasis: raw.welcomePackCostBasis,
 });
 
 export const toFinanceDashboard = (raw: RawFinanceDashboard): FinanceDashboard => ({
@@ -225,6 +239,8 @@ export const toFinanceDashboard = (raw: RawFinanceDashboard): FinanceDashboard =
     totalPayoutToman: TOMAN,
     saleCount: 0,
     avgTicketUsd: USD,
+    clinicShareUsd: USD,
+    clinicShareToman: TOMAN,
     paymentMethods: { cash: USD, card: USD, wallet: USD },
   },
   operational: raw.operational ?? { visitsCompleted: 0, newCustomers: 0, staffPayoutCount: 0 },

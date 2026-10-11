@@ -115,6 +115,15 @@ describe("financeReports service", () => {
     expect(toFinancialSummary({}).welcomePackCost).toEqual({ usd: "0.00", toman: "0" });
   });
 
+  it("keeps the clinic share the backend computed", () => {
+    const summary = toFinancialSummary({ clinicShare: { usd: "40.00", toman: "4000000" } });
+    expect(summary.clinicShare).toEqual({ usd: "40.00", toman: "4000000" });
+  });
+
+  it("defaults a missing clinic share to zero money", () => {
+    expect(toFinancialSummary({}).clinicShare).toEqual({ usd: "0.00", toman: "0" });
+  });
+
   describe("staff compensation breakdown", () => {
     it("maps the per-role split exactly as the backend grouped it", () => {
       const summary = toFinancialSummary({
@@ -253,6 +262,36 @@ describe("financeReports service", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].serviceName).toBe("فیشال");
     expect(rows[0].profitUsd).toBe("40.00");
+  });
+
+  it("maps the extended profit-row fields the backend now sends", async () => {
+    mock.get.mockResolvedValue({
+      data: [
+        {
+          serviceId: 1,
+          serviceName: "فیشال",
+          revenueUsd: "50.00",
+          productCostUsd: "10.00",
+          profitUsd: "40.00",
+          count: 2,
+          operatorCompensationUsd: "8.00",
+          welcomePackCostUsd: "2.00",
+          recipeEstimateCostUsd: "1.50",
+          clinicShareUsd: "28.50",
+          revenueBasis: "sale_ledger",
+          welcomePackCostBasis: "allocated_by_revenue_share",
+        },
+      ],
+    });
+
+    const rows = await getProfitByService({ period: "this_month" });
+
+    expect(rows[0].clinicShareUsd).toBe("28.50");
+    expect(rows[0].revenueBasis).toBe("sale_ledger");
+    expect(rows[0].welcomePackCostBasis).toBe("allocated_by_revenue_share");
+    expect(rows[0].operatorCompensationUsd).toBe("8.00");
+    expect(rows[0].welcomePackCostUsd).toBe("2.00");
+    expect(rows[0].recipeEstimateCostUsd).toBe("1.50");
   });
 
   it("getProfitByPackage / getProfitByStaff hit their endpoints", async () => {

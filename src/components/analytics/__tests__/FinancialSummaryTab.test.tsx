@@ -75,6 +75,8 @@ const summaryFixture = (overrides: Partial<FinancialSummary> = {}): FinancialSum
   staffExpenseClaims: { usd: "5.00", toman: "500000", count: 2 },
   belowTheLineTotal: { usd: "55.00", toman: "5500000" },
   netProfit: { usd: "44.38", toman: "20739967" },
+  // revenue 113.51 − product 10.00 − welcome pack 4.13 − staff compensation 30.00
+  clinicShare: { usd: "69.38", toman: "23239967" },
   costCoverage: { zeroCostRows: 0, productsMissingCost: [] },
   paymentMethods: { cash: "4.28", card: "2.00", wallet: "0.00" },
   counts: {

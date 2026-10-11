@@ -32,10 +32,11 @@ function profitColumns(
     { key: nameKey, header: nameHeader },
     {
       key: "revenueUsd",
-      // The backend computes this as `Service.price_usd` per visit — the LIST
-      // price — not money actually collected. It ignores discounts, packages and
-      // partial payments, so it must not read as cash in hand.
-      header: "درآمد بالقوه (قیمت لیست)",
+      // The backend tags every row with `revenue_basis`: `sale_ledger` rows are
+      // collected money, everything else is list-price potential revenue that
+      // ignores discounts, packages and partial payments. The row tag keeps the
+      // distinction visible even inside a mixed table.
+      header: "درآمد",
       align: "center",
       render: (row) => (
         <span className="text-surface-700 text-sm">
@@ -45,6 +46,15 @@ function profitColumns(
               ({formatPrice(Number(row.revenueToman))})
             </span>
           )}
+          <span
+            className={
+              row.revenueBasis === "sale_ledger"
+                ? "text-info-600 mr-1 text-xs"
+                : "text-surface-400 mr-1 text-xs"
+            }
+          >
+            {row.revenueBasis === "sale_ledger" ? "دفتر فروش" : "قیمت لیست"}
+          </span>
         </span>
       ),
     },

@@ -394,6 +394,8 @@ export interface FinancialSummary {
   /** staffCompensation + operatingExpenses + staffExpenseClaims. */
   belowTheLineTotal: Money;
   netProfit: Money;
+  /** Revenue − product cost − welcome-pack cost − staff compensation (backend `clinic_share`). */
+  clinicShare: Money;
   costCoverage: CostCoverage;
   paymentMethods: { cash: string; card: string; wallet: string };
   counts: {
@@ -438,6 +440,14 @@ export interface ProfitRow {
   revenueToman?: string;
   productCostToman?: string;
   profitToman?: string;
+  /** How the backend sourced revenue for this row: collected ledger money vs potential list price. */
+  revenueBasis?: "sale_ledger" | "list_price";
+  operatorCompensationUsd?: string;
+  welcomePackCostUsd?: string;
+  recipeEstimateCostUsd?: string;
+  clinicShareUsd?: string;
+  /** Welcome-pack cost attribution, e.g. `allocated_by_revenue_share`. */
+  welcomePackCostBasis?: string;
 }
 
 export interface FinanceDashboard {
@@ -455,6 +465,8 @@ export interface FinanceDashboard {
     totalPayoutToman: string;
     saleCount: number;
     avgTicketUsd: string;
+    clinicShareUsd: string;
+    clinicShareToman: string;
     paymentMethods: { cash: string; card: string; wallet: string };
   };
   operational: { visitsCompleted: number; newCustomers: number; staffPayoutCount: number };
