@@ -54,6 +54,38 @@ describe("welcomePacks service", () => {
       expect.objectContaining({ params: expect.objectContaining({ is_active: true }) })
     );
     expect(res.data[0].items[0].productName).toBe("ماسک");
+    expect(res.data[0].items[0].unitCostUsd).toBeNull();
+  });
+
+  it("maps the per-item cost the serializer now exposes", async () => {
+    mock.get.mockResolvedValue({
+      data: {
+        count: 1,
+        next: null,
+        previous: null,
+        results: [
+          {
+            ...rawPack,
+            items: [
+              {
+                ...rawPack.items[0],
+                unitCostUsd: "2.50",
+                unitCostToman: "250000",
+                lineCostUsd: "5.00",
+                lineCostToman: "500000",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const res = await listWelcomePacks();
+
+    expect(res.data[0].items[0].unitCostUsd).toBe("2.50");
+    expect(res.data[0].items[0].unitCostToman).toBe("250000");
+    expect(res.data[0].items[0].lineCostUsd).toBe("5.00");
+    expect(res.data[0].items[0].lineCostToman).toBe("500000");
   });
 
   it("creates a pack WITH nested items in a single backend request", async () => {

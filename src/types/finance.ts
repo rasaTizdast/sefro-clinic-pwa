@@ -482,6 +482,12 @@ export interface WelcomePackItem {
   product: number;
   productName: string;
   quantity: string;
+  /** Current catalog cost of one unit, computed by the serializer; null when unknown. */
+  unitCostUsd: string | null;
+  unitCostToman: string | null;
+  /** unitCost × quantity. */
+  lineCostUsd: string | null;
+  lineCostToman: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -20,6 +20,10 @@ type RawWelcomePackItem = Record<string, unknown> & {
   product?: number;
   productName?: string;
   quantity?: string;
+  unitCostUsd?: string | null;
+  unitCostToman?: string | null;
+  lineCostUsd?: string | null;
+  lineCostToman?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -62,6 +66,10 @@ export const toWelcomePackItem = (raw: RawWelcomePackItem): WelcomePackItem => (
   product: raw.product ?? 0,
   productName: raw.productName ?? "",
   quantity: raw.quantity ?? "0.000",
+  unitCostUsd: raw.unitCostUsd ?? null,
+  unitCostToman: raw.unitCostToman ?? null,
+  lineCostUsd: raw.lineCostUsd ?? null,
+  lineCostToman: raw.lineCostToman ?? null,
   createdAt: raw.createdAt ?? "",
   updatedAt: raw.updatedAt ?? "",
 });
