@@ -23,14 +23,14 @@
 
 | Phase | Topic                                                                  | Status         |
 | ----- | ---------------------------------------------------------------------- | -------------- |
-| 1     | `percent_profit` → `percent_revenue` rename (BREAKING)                 | ⬜ Not started |
-| 2     | Invalidate payout cache after checkout/refund                          | ⬜ Not started |
-| 3     | Finance report parity (clinic share, profit-row fields, revenue basis) | ⬜ Not started |
-| 4     | Let the backend derive `price_usd` for services                        | ⬜ Not started |
-| 5     | Welcome-pack per-item cost fields                                      | ⬜ Not started |
-| 6     | Dashboard KPI: clinic share (optional polish)                          | ⬜ Not started |
-| 7     | Remove service category from the frontend                              | ⬜ Not started |
-| 8     | Full verification (typecheck, lint, unit, build)                       | ⬜ Not started |
+| 1     | `percent_profit` → `percent_revenue` rename (BREAKING)                 | ✅ Done       |
+| 2     | Invalidate payout cache after checkout/refund                          | ✅ Done       |
+| 3     | Finance report parity (clinic share, profit-row fields, revenue basis) | ✅ Done       |
+| 4     | Let the backend derive `price_usd` for services                        | ✅ Done       |
+| 5     | Welcome-pack per-item cost fields                                      | ✅ Done       |
+| 6     | Dashboard KPI: clinic share (optional polish)                          | ✅ Done       |
+| 7     | Remove service category from the frontend                              | ✅ Done       |
+| 8     | Full verification (typecheck, lint, unit, build)                       | ✅ Done       |
 
 Legend: ⬜ Not started · 🔄 In progress · ✅ Done · ⛔ Blocked
 
@@ -525,7 +525,7 @@ git add src/components/services/ServiceFormModal.tsx src/services/services.ts sr
 git commit -m "fix(services): let the backend derive price_usd from the Toman price"
 ```
 
-**Status:** ⬜ Not started
+**Status:** ✅ Done
 
 ---
 
@@ -664,7 +664,7 @@ git add src/components/dashboard/FinanceKpiCards.tsx
 git commit -m "feat(dashboard): surface clinic share in the finance KPI cards"
 ```
 
-**Status:** ⬜ Not started
+**Status:** ✅ Done
 
 ---
 
@@ -768,7 +768,7 @@ git add -A src e2e
 git commit -m "refactor(services): remove service category from the frontend"
 ```
 
-**Status:** ⬜ Not started
+**Status:** ✅ Done
 
 ---
 
@@ -797,4 +797,4 @@ git add plans/2026-10-11-backend-parity-finance.md
 git commit -m "docs: mark backend-parity plan phases complete"
 ```
 
-**Status:** ⬜ Not started
+**Status:** ✅ Done
