@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { BiCheck, BiSearch } from "react-icons/bi";
+import { BiCheck, BiChevronDown, BiHistory, BiSearch } from "react-icons/bi";
 import { MdPersonAdd } from "react-icons/md";
 
 import { useCustomersList } from "../../hooks/api/useCustomersQuery";
@@ -9,6 +9,7 @@ import { normalizeSearch, toPersianDigits } from "../../lib/digits";
 import { ceilUp, formatPrice } from "../../lib/format";
 import type { Patient } from "../../types/patient";
 import type { PatientData } from "../../types/wizard";
+import { VisitHistoryList } from "../patients/VisitHistoryList";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
@@ -27,6 +28,7 @@ export default function WizardStepPatient({ patient, onBack, onComplete }: Props
     patient.id ? patient : null
   );
   const [showNewForm, setShowNewForm] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const {
     data: searchResult,
@@ -112,7 +114,7 @@ export default function WizardStepPatient({ patient, onBack, onComplete }: Props
                   onClick={() => handleSelect(p)}
                   className="hover:bg-surface-50 flex w-full items-center justify-between px-4 py-3 text-right transition-colors"
                 >
-                  <div>
+                  <div className="flex items-center gap-2">
                     <span className="text-surface-900 font-medium">
                       {p.firstName} {p.lastName}
                     </span>
@@ -156,6 +158,28 @@ export default function WizardStepPatient({ patient, onBack, onComplete }: Props
             </div>
             <BiCheck className="text-success-600 size-5" />
           </div>
+          {selectedPatient.id != null && (
+            <div className="border-success-200 mt-3 border-t pt-2">
+              <button
+                type="button"
+                onClick={() => setShowHistory((v) => !v)}
+                className="text-success-700 hover:text-success-900 flex w-full cursor-pointer items-center justify-between text-sm font-medium transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <BiHistory className="size-4" />
+                  ویزیت‌های قبلی
+                </span>
+                <BiChevronDown
+                  className={`size-4 transition-transform ${showHistory ? "rotate-180" : ""}`}
+                />
+              </button>
+              {showHistory && (
+                <div className="text-surface-800 mt-1">
+                  <VisitHistoryList customerId={selectedPatient.id} compact />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BiDownload, BiEdit, BiPlus, BiSearch, BiTrash } from "react-icons/bi";
+import { BiDownload, BiEdit, BiHistory, BiPlus, BiSearch, BiTrash } from "react-icons/bi";
 import { MdPersonAdd } from "react-icons/md";
 import { MdOutlinePeople } from "react-icons/md";
 import { PiDotsThreeVertical } from "react-icons/pi";
 
 import { PatientFormModal } from "../components/patients/PatientFormModal";
+import { VisitHistoryList } from "../components/patients/VisitHistoryList";
 import { SearchButton } from "../components/SearchButton";
 import { Alert } from "../components/ui/Alert";
 import { Badge } from "../components/ui/Badge";
@@ -12,6 +13,7 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Input } from "../components/ui/Input";
+import { Modal } from "../components/ui/Modal";
 import { Pagination } from "../components/ui/Pagination";
 import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
@@ -50,6 +52,7 @@ function Patients() {
   const [currentPage, setCurrentPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [historyPatient, setHistoryPatient] = useState<Patient | null>(null);
   const { registerAction } = useQuickActions();
 
   const { data: allPatients, isLoading, isError, refetch } = useAllCustomers();
@@ -290,6 +293,11 @@ function Patients() {
                 setModalOpen(true);
               },
             },
+            {
+              label: "ویزیت‌های قبلی",
+              icon: <BiHistory className="size-4" />,
+              onClick: () => setHistoryPatient(item),
+            },
             { divider: true },
             {
               label: "حذف",
@@ -421,6 +429,17 @@ function Patients() {
           }
           isPending={createMutation.isPending || updateMutation.isPending}
         />
+      )}
+
+      {historyPatient && (
+        <Modal
+          open
+          onClose={() => setHistoryPatient(null)}
+          title={`ویزیت‌های قبلی — ${historyPatient.firstName} ${historyPatient.lastName}`}
+          size="lg"
+        >
+          <VisitHistoryList customerId={historyPatient.id} />
+        </Modal>
       )}
     </div>
   );
