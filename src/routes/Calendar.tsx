@@ -43,13 +43,7 @@ import {
 import { useRateValue } from "../hooks/useRateValue";
 import { formatJalaliDate, formatTimeFa } from "../lib/date";
 import { toLatinDigits, toPersianDigits as toPersianDigitsLib } from "../lib/digits";
-import {
-  consumablesTotalToman,
-  formatPrice,
-  parseTomanAmount,
-  serviceLiveToman,
-} from "../lib/format";
-import { parseUsdInput } from "../lib/payment-split";
+import { consumablesTotalToman, formatPrice, serviceLiveToman } from "../lib/format";
 import type { VisitExtras } from "../lib/visit-extras";
 import { clearVisitExtras, loadVisitExtras, saveVisitExtras } from "../lib/visit-extras";
 import type {
@@ -304,13 +298,6 @@ function Calendar() {
   const [patientSearch, setPatientSearch] = useState("");
   const [extraProducts, setExtraProducts] = useState<ConsumableSelection[]>([]);
   const [welcomePack, setWelcomePack] = useState<WelcomePackSelection | null>(null);
-  // A chosen pack with no configured price blocks the booking until it is fixed.
-  // Toman alone is not decisive: a pack priced only in USD is still priced, so
-  // the selection is invalid only when BOTH currencies come back empty or zero.
-  const welcomePackInvalid =
-    welcomePack !== null &&
-    parseTomanAmount(welcomePack.totalCostToman ?? "0") <= 0 &&
-    parseUsdInput(welcomePack.totalCostUsd ?? "0") <= 0;
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editAppointment, setEditAppointment] = useState<Appointment | null>(null);
@@ -578,7 +565,6 @@ function Calendar() {
 
   function handleSubmitForm() {
     if (!selectedPatient || selectedServices.length === 0 || !form.date || !form.time) return;
-    if (welcomePackInvalid) return;
     const payload = {
       customer: selectedPatient.id,
       services: selectedServices.map((s) => s.id),
@@ -933,17 +919,7 @@ function Calendar() {
           reservedProductIds={EMPTY_ID_SET}
         />
 
-        <WelcomePackBlock
-          welcomePack={welcomePack}
-          onChange={setWelcomePack}
-          billTotalToman={bookingBillTotal}
-        />
-
-        {welcomePackInvalid && (
-          <p className="text-warning-600 text-xs">
-            قیمت ولکام‌پک انتخاب‌شده تعیین نشده است — آن را اصلاح یا انتخابش را بردارید.
-          </p>
-        )}
+        <WelcomePackBlock welcomePack={welcomePack} onChange={setWelcomePack} />
 
         <div className="border-surface-200 bg-surface-50 space-y-1.5 rounded-lg border px-3 py-2.5">
           {selectedServices.length === 0 ? (
@@ -1599,7 +1575,7 @@ function Calendar() {
               <Button
                 variant="primary"
                 onClick={handleSubmitForm}
-                disabled={!form.time || isCreating || welcomePackInvalid}
+                disabled={!form.time || isCreating}
               >
                 {isCreating ? "در حال ثبت..." : "ثبت نوبت"}
               </Button>
@@ -1612,7 +1588,7 @@ function Calendar() {
               <Button
                 variant="primary"
                 onClick={handleWizardNext}
-                disabled={form.serviceIds.length === 0 || welcomePackInvalid}
+                disabled={form.serviceIds.length === 0}
               >
                 بعدی
               </Button>

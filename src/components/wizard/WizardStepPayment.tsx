@@ -11,7 +11,6 @@ import { useReserveVisit } from "../../hooks/api/useVisitsQuery";
 import { useIssueWelcomePack } from "../../hooks/api/useWelcomePacksQuery";
 import { ensureFreshToken } from "../../lib/api-client";
 import { extractApiError } from "../../lib/api-error";
-import { formatUsd } from "../../lib/currency";
 import { toShamsiDateInput } from "../../lib/date";
 import { toPersianDigits } from "../../lib/digits";
 import {
@@ -122,23 +121,6 @@ export default function WizardStepPayment({
   const remaining = totalToman - paidTotal;
   const isComplete = isSplitComplete(totalToman, cashNum, cardNum, cashUsdNum, rate);
   const consumablesInvalid = hasInvalidConsumableQuantity(consumables, extraProducts);
-  // A chosen pack with no configured price blocks checkout until it is fixed.
-  // Toman alone is not decisive: a pack priced only in USD is still priced, so
-  // the selection is invalid only when BOTH currencies come back empty or zero.
-  const welcomePackInvalid =
-    welcomePack !== null &&
-    parseTomanInput(welcomePack.totalCostToman ?? "0") <= 0 &&
-    parseUsdInput(welcomePack.totalCostUsd ?? "0") <= 0;
-
-  // A pack priced only in USD still has a price — derive the displayed Toman
-  // amount from the current rate instead of showing ۰ تومان beside a real
-  // dollar figure. The server re-derives the final amount at issue time.
-  const tomanOf = (toman: string | null | undefined, usd: string | null | undefined): number => {
-    const direct = parseTomanInput(toman ?? "0");
-    if (direct > 0) return direct;
-    const usdNum = parseUsdInput(usd ?? "0");
-    return usdNum > 0 && rate !== null ? Math.round(usdNum * rate) : 0;
-  };
 
   // Only numeric service-id keys go to record-consumption (pkg:* keys are bill-only).
   const serviceIdKeySet = useMemo(() => new Set(serviceIds.map(String)), [serviceIds]);
@@ -182,10 +164,6 @@ export default function WizardStepPayment({
     if (!isComplete) return;
     if (consumablesInvalid) {
       toastError("تعداد مواد مصرفی نامعتبر است");
-      return;
-    }
-    if (welcomePackInvalid) {
-      toastError("قیمت ولکام‌پک انتخاب‌شده تعیین نشده است");
       return;
     }
 
@@ -402,11 +380,6 @@ export default function WizardStepPayment({
           تعداد برخی اقلام مواد مصرفی نامعتبر است — آنها را اصلاح کنید.
         </Alert>
       )}
-      {welcomePackInvalid && (
-        <Alert variant="warning">
-          قیمت ولکام‌پک انتخاب‌شده تعیین نشده است — آن را اصلاح یا انتخابش را بردارید.
-        </Alert>
-      )}
 
       {/* Services / package — customer charge */}
       <div className="border-surface-200 space-y-1 rounded-lg border p-3">
@@ -528,9 +501,7 @@ export default function WizardStepPayment({
                 { value: "", label: "یک ولکام‌پک انتخاب کنید" },
                 ...(packsData ?? []).map((p) => ({
                   value: String(p.id),
-                  label: `${p.name} — ${formatPrice(
-                    tomanOf(p.totalCostToman, p.totalCostUsd)
-                  )} تومان / ${formatUsd(p.totalCostUsd ?? "0")}`,
+                  label: p.name,
                 })),
               ]}
               value={welcomePack ? String(welcomePack.packId) : ""}
@@ -553,13 +524,6 @@ export default function WizardStepPayment({
               <div className="bg-surface-50 space-y-1 rounded-md p-2">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className="text-surface-700 font-medium">{welcomePack.packName}</span>
-                  <span className="text-primary-700 font-medium">
-                    {formatPrice(tomanOf(welcomePack.totalCostToman, welcomePack.totalCostUsd))}{" "}
-                    تومان
-                  </span>
-                  <span className="text-info-700 font-medium" dir="ltr">
-                    {formatUsd(welcomePack.totalCostUsd ?? "0")}
-                  </span>
                 </div>
                 <p className="text-surface-500 text-xs">
                   هزینه داخلی، تراکنش جداگانه هنگام صدور (نه بخشی از مبلغ پرداختی)
@@ -607,7 +571,7 @@ export default function WizardStepPayment({
           variant="primary"
           startIcon={<MdPayment className="size-4" />}
           onClick={handleFinish}
-          disabled={!isComplete || isPending || consumablesInvalid || welcomePackInvalid}
+          disabled={!isComplete || isPending || consumablesInvalid}
           loading={isPending}
         >
           ثبت نهایی
