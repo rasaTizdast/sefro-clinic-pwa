@@ -72,4 +72,13 @@ describe("Button", () => {
     expect(screen.queryByText("Search")).not.toBeInTheDocument();
     expect(screen.getByRole("button")).toBeInTheDocument();
   });
+
+  it("renders children (icons) inside an iconOnly button", () => {
+    render(
+      <Button iconOnly aria-label="Send">
+        <svg data-testid="icon" />
+      </Button>
+    );
+    expect(screen.getByTestId("icon")).toBeInTheDocument();
+  });
 });

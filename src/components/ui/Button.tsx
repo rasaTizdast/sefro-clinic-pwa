@@ -79,7 +79,7 @@ export function Button({
       ) : startIcon ? (
         <span className="shrink-0">{startIcon}</span>
       ) : null}
-      {!iconOnly && children && <span className="truncate">{children}</span>}
+      {children && <span className="truncate">{children}</span>}
       {!loading && endIcon && <span className="shrink-0">{endIcon}</span>}
     </button>
   );
