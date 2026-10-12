@@ -119,6 +119,16 @@ export const createExpense = async (input: ExpenseInput): Promise<Expense> => {
   return toExpense(data as RawExpense);
 };
 
+/**
+ * Direct status write via PATCH — `ExpenseSerializer.status` is writable.
+ * Used to auto-approve a freshly created claim so it counts immediately
+ * (the backend only sums `approved` + `paid` into net profit).
+ */
+export const updateExpenseStatus = async (id: number, status: ExpenseStatus): Promise<Expense> => {
+  const { data } = await apiClient.patch(endpoints.finance.expenseDetail(id), { status });
+  return toExpense(data as RawExpense);
+};
+
 /** `draft → submitted`. The employee-owned step. */
 export const submitExpense = async (id: number): Promise<Expense> => {
   const { data } = await apiClient.post(endpoints.finance.expenseAction(id, "submit"), {});

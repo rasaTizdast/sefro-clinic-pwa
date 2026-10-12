@@ -1,10 +1,7 @@
 import { useMemo, useState } from "react";
-import { BiCheck, BiPlus, BiXCircle } from "react-icons/bi";
-import { CiWallet } from "react-icons/ci";
-import { IoSend } from "react-icons/io5";
+import { BiPlus } from "react-icons/bi";
 
-import { useAllExpenseCategories, useAllExpenses, useExpenseAction } from "../../hooks/api";
-import { usePermissions } from "../../hooks/usePermissions";
+import { useAllExpenseCategories, useAllExpenses } from "../../hooks/api";
 import { jalaliToGregorianISO } from "../../lib/date";
 import { formatPrice } from "../../lib/format";
 import { ALL_PER_PAGE } from "../../services/fetch-all-pages";
@@ -17,7 +14,6 @@ import { JalaliDatePicker } from "../ui/JalaliDatePicker";
 import { Pagination } from "../ui/Pagination";
 import { Select } from "../ui/Select";
 import { type Column, Table } from "../ui/Table";
-import { Tooltip } from "../ui/Tooltip";
 import { SummaryMetric } from "./FinanceSummary";
 import { StaffExpenseFormModal } from "./StaffExpenseFormModal";
 
@@ -87,8 +83,10 @@ function StatusBadge({ status }: { status: ExpenseStatus }) {
  * Distinct from the clinic's own running costs in «هزینه‌های جاری»: the backend
  * keeps them apart and analytics shows both lines before net profit.
  *
- * Status/category/search/ordering are server filters; the Jalali date range runs
- * client-side because the API has no date params for claims.
+ * Claims are auto-approved on create (`useCreateExpense` PATCHes status), so
+ * there is no submit/approve/reject/pay action flow — every row counts toward
+ * net profit immediately. Status/category/search/ordering are server filters;
+ * the Jalali date range runs client-side because the API has no date params.
  */
 export function StaffExpensesTab() {
   const [page, setPage] = useState(1);
@@ -99,9 +97,6 @@ export function StaffExpensesTab() {
   const [dateFrom, setDateFrom] = useState<string | null>(null);
   const [dateTo, setDateTo] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [pendingId, setPendingId] = useState<number | null>(null);
-
-  const { canManageFinance } = usePermissions();
 
   const { data: categoriesData } = useAllExpenseCategories();
   const filters = {
@@ -114,7 +109,6 @@ export function StaffExpensesTab() {
   // The list endpoint has no period/aggregate of its own, so every view (totals
   // and table) is derived from the full claim log filtered here.
   const { data: allClaims, isLoading } = useAllExpenses(filters);
-  const action = useExpenseAction();
 
   const categories = categoriesData ?? [];
 
@@ -141,13 +135,11 @@ export function StaffExpensesTab() {
   const totals = useMemo(() => {
     const rows = filtered;
     const counted = rows.filter((row) => COUNTED_STATUSES.includes(row.status));
-    const pending = rows.filter((row) => row.status === "submitted");
     return {
       count: rows.length,
       countedCount: counted.length,
       countedToman: counted.reduce((sum, row) => sum + Number(row.amountToman), 0),
       countedUsd: counted.reduce((sum, row) => sum + Number(row.amountUsd), 0),
-      pendingCount: pending.length,
     };
   }, [filtered]);
 
@@ -159,15 +151,6 @@ export function StaffExpensesTab() {
     setDateFrom(null);
     setDateTo(null);
     setPage(1);
-  };
-
-  const runAction = async (id: number, act: "submit" | "approve" | "reject" | "pay") => {
-    setPendingId(id);
-    try {
-      await action.mutateAsync({ id, action: act });
-    } finally {
-      setPendingId(null);
-    }
   };
 
   const columns: Column<Expense>[] = [
@@ -221,78 +204,6 @@ export function StaffExpensesTab() {
       align: "center",
       render: (item) => <StatusBadge status={item.status} />,
     },
-    {
-      key: "actions",
-      header: "عملیات",
-      align: "center",
-      width: "120px",
-      render: (item) => {
-        const busy = pendingId === item.id || action.isPending;
-        if (item.status === "draft") {
-          return (
-            <Tooltip content="ارسال برای تأیید" side="top">
-              <Button
-                variant="ghost"
-                size="sm"
-                iconOnly
-                aria-label={`ارسال مطالبه ${item.id}`}
-                disabled={busy}
-                onClick={() => runAction(item.id, "submit")}
-              >
-                <IoSend className="size-4" />
-              </Button>
-            </Tooltip>
-          );
-        }
-        if (item.status === "submitted" && canManageFinance) {
-          return (
-            <div className="flex justify-center gap-1.5">
-              <Tooltip content="تأیید" side="top">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  iconOnly
-                  aria-label={`تأیید مطالبه ${item.id}`}
-                  disabled={busy}
-                  onClick={() => runAction(item.id, "approve")}
-                >
-                  <BiCheck className="text-success-600 size-4" />
-                </Button>
-              </Tooltip>
-              <Tooltip content="رد" side="top">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  iconOnly
-                  aria-label={`رد مطالبه ${item.id}`}
-                  disabled={busy}
-                  onClick={() => runAction(item.id, "reject")}
-                >
-                  <BiXCircle className="text-danger-600 size-4" />
-                </Button>
-              </Tooltip>
-            </div>
-          );
-        }
-        if (item.status === "approved" && canManageFinance) {
-          return (
-            <Tooltip content="ثبت پرداخت" side="top">
-              <Button
-                variant="ghost"
-                size="sm"
-                iconOnly
-                aria-label={`پرداخت مطالبه ${item.id}`}
-                disabled={busy}
-                onClick={() => runAction(item.id, "pay")}
-              >
-                <CiWallet className="text-primary-600 size-4" />
-              </Button>
-            </Tooltip>
-          );
-        }
-        return <span className="text-surface-300">—</span>;
-      },
-    },
   ];
 
   return (
@@ -307,17 +218,12 @@ export function StaffExpensesTab() {
             ${totals.countedUsd.toFixed(2)}
           </p>
         </div>
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <SummaryMetric label="کل مطالبات" value={formatPrice(totals.count)} />
           <SummaryMetric
             label="مؤثر بر سود"
             value={formatPrice(totals.countedCount)}
             hint="تأیید یا پرداخت‌شده"
-          />
-          <SummaryMetric
-            label="در انتظار تأیید"
-            value={formatPrice(totals.pendingCount)}
-            hint={totals.pendingCount > 0 ? "نیاز به بررسی مدیر" : undefined}
           />
           <SummaryMetric
             label="میانگین هر مطالبه"

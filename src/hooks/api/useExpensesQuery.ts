@@ -38,10 +38,15 @@ export function useCreateExpense() {
   const toast = useToast();
 
   return useMutation({
-    mutationFn: (input: expensesService.ExpenseInput) => expensesService.createExpense(input),
+    mutationFn: async (input: expensesService.ExpenseInput) => {
+      const created = await expensesService.createExpense(input);
+      // Auto-approve so the claim counts immediately — the backend only sums
+      // approved + paid into net profit, and there is no separate review step.
+      return expensesService.updateExpenseStatus(created.id, "approved");
+    },
     onSuccess: () => {
       invalidateExpenses(queryClient);
-      toast.success("مطالبه ثبت شد", "برای بررسی، آن را ارسال کنید");
+      toast.success("مطالبه ثبت و تأیید شد", "مبلغ به‌طور خودکار از سود خالص کم شد");
     },
     onError: (error) => {
       toast.error(extractApiError(error));

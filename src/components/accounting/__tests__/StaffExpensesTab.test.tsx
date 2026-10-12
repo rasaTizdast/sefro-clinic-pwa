@@ -9,10 +9,7 @@ const state = vi.hoisted(() => ({
   claims: [] as Expense[],
   categories: [] as ExpenseCategory[],
   isLoading: false,
-  canManageFinance: true,
 }));
-
-const actionMutateAsync = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("../../../hooks/api", () => ({
   useExpensesList: () => ({
@@ -26,17 +23,12 @@ vi.mock("../../../hooks/api", () => ({
   }),
   useAllExpenses: () => ({ data: state.claims }),
   useAllExpenseCategories: () => ({ data: state.categories }),
-  useExpenseAction: () => ({ mutateAsync: actionMutateAsync, isPending: false }),
   useCurrentRate: () => ({ data: { rate: "100000", rateTomanPerUsd: "100000" } }),
   useCreateExpense: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCreateExpenseCategory: () => ({
     mutateAsync: vi.fn().mockResolvedValue({ id: 9 }),
     isPending: false,
   }),
-}));
-
-vi.mock("../../../hooks/usePermissions", () => ({
-  usePermissions: () => ({ canManageFinance: state.canManageFinance }),
 }));
 
 // The form modal pulls in lib/date (jalaali-js is CJS and breaks named ESM imports
@@ -91,7 +83,6 @@ beforeEach(() => {
   state.claims = [];
   state.categories = [{ id: 1, name: "ایاب و ذهاب", isActive: true }];
   state.isLoading = false;
-  state.canManageFinance = true;
 });
 
 describe("StaffExpensesTab", () => {
@@ -115,40 +106,14 @@ describe("StaffExpensesTab", () => {
     expect(screen.getByText("$8.00")).toBeInTheDocument();
   });
 
-  it("lets a submitter send their own draft", async () => {
-    const user = userEvent.setup();
-    state.claims = [claim({ id: 7, status: "draft" })];
-
-    render(<StaffExpensesTab />);
-    // The table renders a desktop row and a mobile card, so the action is doubled.
-    await user.click(screen.getAllByRole("button", { name: "ارسال مطالبه 7" })[0]);
-
-    expect(actionMutateAsync).toHaveBeenCalledWith({ id: 7, action: "submit" });
-  });
-
-  it("gives an admin approve, reject and pay actions", async () => {
-    const user = userEvent.setup();
-    state.claims = [claim({ id: 1, status: "submitted" }), claim({ id: 2, status: "approved" })];
+  it("shows no per-row action buttons — claims are auto-approved on create", () => {
+    state.claims = [claim({ id: 7, status: "draft" }), claim({ id: 8, status: "approved" })];
 
     render(<StaffExpensesTab />);
 
-    await user.click(screen.getAllByRole("button", { name: "تأیید مطالبه 1" })[0]);
-    expect(actionMutateAsync).toHaveBeenLastCalledWith({ id: 1, action: "approve" });
-
-    await user.click(screen.getAllByRole("button", { name: "رد مطالبه 1" })[0]);
-    expect(actionMutateAsync).toHaveBeenLastCalledWith({ id: 1, action: "reject" });
-
-    await user.click(screen.getAllByRole("button", { name: "پرداخت مطالبه 2" })[0]);
-    expect(actionMutateAsync).toHaveBeenLastCalledWith({ id: 2, action: "pay" });
-  });
-
-  it("hides the approval actions from non-admins", () => {
-    state.canManageFinance = false;
-    state.claims = [claim({ id: 1, status: "submitted" })];
-
-    render(<StaffExpensesTab />);
-
-    expect(screen.queryAllByRole("button", { name: "تأیید مطالبه 1" })).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: /ارسال مطالبه/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /تأیید مطالبه/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /پرداخت مطالبه/ })).not.toBeInTheDocument();
   });
 
   it("filters by status and shows the row count", async () => {
