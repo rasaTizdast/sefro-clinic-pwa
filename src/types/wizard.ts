@@ -67,6 +67,8 @@ export interface WizardTabData {
   /** Backend visit id once created — cleared on successful submit/reset. */
   visitId: number | null;
   step: WizardStep;
+  /** Set when the check-in flow finished — shows the "visit done" panel. */
+  completed?: boolean;
   createdAt: number;
 }
 

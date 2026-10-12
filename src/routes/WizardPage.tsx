@@ -1,6 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { MdClose, MdPerson } from "react-icons/md";
-import { useNavigate } from "react-router";
+import { MdCheckCircle, MdClose, MdPerson } from "react-icons/md";
 
 import { Button } from "../components/ui/Button";
 import { useToast } from "../components/ui/Toast";
@@ -18,7 +17,6 @@ import type {
 function WizardPage() {
   const { tabs, activeTabId, createTab, closeTab, setActiveTabId, updateTab } = useWizard();
   const { success: toastSuccess } = useToast();
-  const navigate = useNavigate();
   const activeTab = activeTabId ? (tabs.find((t) => t.id === activeTabId) ?? null) : null;
 
   const handleUpdateTab = useCallback(
@@ -47,15 +45,15 @@ function WizardPage() {
       if (!updates.step && nextStep[step]) {
         updates.step = nextStep[step];
       }
+      if (step === "payment") {
+        updates.completed = true;
+      }
       updateTab(activeTabId, updates);
       if (step === "payment") {
         toastSuccess("پذیرش با موفقیت ثبت شد");
-        closeTab(activeTabId);
-        setActiveTabId(null);
-        navigate("/");
       }
     },
-    [activeTabId, updateTab, toastSuccess, closeTab, setActiveTabId, navigate]
+    [activeTabId, updateTab, toastSuccess]
   );
 
   return (
@@ -103,19 +101,41 @@ function WizardPage() {
 
       <div className="flex-1 overflow-y-auto p-4">
         {activeTab ? (
-          <WizardStepContent
-            tab={activeTab}
-            onComplete={handleStepComplete}
-            onUpdateTab={handleUpdateTab}
-            onBack={() => {
-              if (!activeTabId) return;
-              const stepOrder: WizardStep[] = ["patient", "service", "payment"];
-              const currentIdx = stepOrder.indexOf(activeTab.step ?? "patient");
-              if (currentIdx > 0) {
-                updateTab(activeTabId, { step: stepOrder[currentIdx - 1] });
-              }
-            }}
-          />
+          activeTab.completed ? (
+            <div className="text-surface-700 mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-4 text-center">
+              <span className="bg-success-100 text-success-600 flex size-16 items-center justify-center rounded-full">
+                <MdCheckCircle className="size-10" />
+              </span>
+              <p className="text-surface-900 text-xl font-bold">
+                پذیرش {activeTab.patient.firstName || "این بیمار"} تمام شد
+              </p>
+              <p className="text-surface-500 text-sm">
+                پذیرش با موفقیت ثبت شد. می‌توانید پذیرش بیمار بعدی را آغاز کنید.
+              </p>
+              <div className="flex items-center gap-3">
+                <Button variant="primary" onClick={() => createTab()}>
+                  پذیرش بیمار جدید
+                </Button>
+                <Button variant="ghost" onClick={() => activeTabId && closeTab(activeTabId)}>
+                  بستن
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <WizardStepContent
+              tab={activeTab}
+              onComplete={handleStepComplete}
+              onUpdateTab={handleUpdateTab}
+              onBack={() => {
+                if (!activeTabId) return;
+                const stepOrder: WizardStep[] = ["patient", "service", "payment"];
+                const currentIdx = stepOrder.indexOf(activeTab.step ?? "patient");
+                if (currentIdx > 0) {
+                  updateTab(activeTabId, { step: stepOrder[currentIdx - 1] });
+                }
+              }}
+            />
+          )
         ) : (
           <div className="text-surface-400 flex h-full flex-col items-center justify-center gap-4">
             <MdPerson className="size-16 opacity-30" />
