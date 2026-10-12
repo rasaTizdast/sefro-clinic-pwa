@@ -50,6 +50,20 @@ export const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+/**
+ * Proactively rotate the session cookies before a burst of unsafe requests
+ * (checkout posts customer → visit → consumption → sale in one click; the first
+ * 401 mid-burst can fail siblings before the single-flight refresh lands).
+ * Never throws — an expired session still falls through to the 401 interceptor.
+ */
+export async function ensureFreshToken(): Promise<void> {
+  try {
+    await doRefresh();
+  } catch {
+    // Session really is dead; the upcoming request's 401 will redirect to login.
+  }
+}
+
 apiClient.interceptors.request.use((config) => {
   if (config.data && config.data instanceof FormData === false) {
     config.data = toSnakeCase(config.data) as Record<string, unknown>;

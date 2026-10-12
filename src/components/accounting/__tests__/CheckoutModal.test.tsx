@@ -13,6 +13,12 @@ const toastWarning = vi.fn();
 
 const state = vi.hoisted(() => ({ recordedUsages: 0 }));
 
+// handleSubmit awaits a proactive token refresh; without a backend that real
+// request stalls and leaks between tests, so stub it out.
+vi.mock("../../../lib/api-client", () => ({
+  ensureFreshToken: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("../../../hooks/api", () => ({
   useCurrentRate: () => ({
     data: { rate: "100000.00", rateTomanPerUsd: "100000", effectiveAt: null, source: "manual" },

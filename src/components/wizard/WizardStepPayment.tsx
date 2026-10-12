@@ -9,6 +9,7 @@ import { useRecordConsumption } from "../../hooks/api/useInventoryFinanceQuery";
 import { useAllProducts } from "../../hooks/api/useProductsQuery";
 import { useReserveVisit } from "../../hooks/api/useVisitsQuery";
 import { useIssueWelcomePack } from "../../hooks/api/useWelcomePacksQuery";
+import { ensureFreshToken } from "../../lib/api-client";
 import { extractApiError } from "../../lib/api-error";
 import { formatUsd } from "../../lib/currency";
 import { toShamsiDateInput } from "../../lib/date";
@@ -187,6 +188,11 @@ export default function WizardStepPayment({
       toastError("قیمت ولکام‌پک انتخاب‌شده تعیین نشده است");
       return;
     }
+
+    // Fresh session cookies first — this flow posts customer → visit →
+    // consumption → checkout back to back and a stale token can fail the
+    // later requests after the earlier ones already succeeded.
+    await ensureFreshToken();
 
     // Never price the sale from the cached quote: checkout re-derives every
     // cash component with the server's own rate and rejects the sale when the

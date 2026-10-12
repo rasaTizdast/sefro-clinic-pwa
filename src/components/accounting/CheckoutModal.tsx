@@ -9,6 +9,7 @@ import {
   useRecordConsumption,
   useVisitConsumptionCount,
 } from "../../hooks/api";
+import { ensureFreshToken } from "../../lib/api-client";
 import { extractApiError } from "../../lib/api-error";
 import { formatUsd, tomanToUsd } from "../../lib/currency";
 import { toLatinDigits } from "../../lib/digits";
@@ -131,6 +132,9 @@ export function CheckoutModal({
   const handleSubmit = async () => {
     setFormError("");
     try {
+      // Fresh session cookies first — this submit posts several mutations back
+      // to back and a stale token can fail the later ones mid-flight.
+      await ensureFreshToken();
       // Visit checkouts split into two sales: services (visit-bound → counted by
       // compensation) and goods (visit-less → never touch operator profit).
       const feeShare =
