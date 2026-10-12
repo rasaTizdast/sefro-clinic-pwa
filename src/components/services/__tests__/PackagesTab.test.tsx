@@ -39,20 +39,6 @@ vi.mock("../../../hooks/api", () => ({
     ],
     isLoading: false,
   }),
-  useAllProducts: () => ({
-    data: [
-      {
-        id: 2,
-        name: "ژل",
-        stock: 10,
-        unit: "عدد",
-        unitPrice: "100000",
-        description: "",
-        status: "available",
-      },
-    ],
-    isLoading: false,
-  }),
   useCurrentRate: () => ({
     data: { rate: "100000", rateTomanPerUsd: "100000", effectiveAt: null, source: "manual" },
     isLoading: false,
@@ -68,7 +54,7 @@ describe("PackagesTab", () => {
     expect(screen.getAllByText("$۳۵.۰۰").length).toBeGreaterThan(0);
   });
 
-  it("creates a package with converted priceUsd, serviceIds and items", async () => {
+  it("creates a package with converted priceUsd and serviceIds", async () => {
     const user = userEvent.setup();
     render(<PackagesTab />);
 
@@ -81,11 +67,6 @@ describe("PackagesTab", () => {
 
     await user.click(screen.getByText("لیزر مو"));
 
-    await user.click(screen.getByRole("button", { name: "+ افزودن ردیف" }));
-    const comboboxes = screen.getAllByRole("combobox");
-    await user.click(comboboxes[comboboxes.length - 1]);
-    await user.click(screen.getByText("ژل"));
-
     await user.click(screen.getByRole("button", { name: "ذخیره" }));
 
     expect(saveMutateAsync).toHaveBeenCalledWith(
@@ -93,9 +74,10 @@ describe("PackagesTab", () => {
         name: "پکیج تست",
         priceUsd: "50.00",
         serviceIds: [1],
-        items: [{ product: 2, quantity: "1.000" }],
       })
     );
+    // Consumable recipes are managed elsewhere — the form must not send (or wipe) them.
+    expect(saveMutateAsync.mock.calls[0][0]).not.toHaveProperty("items");
   });
 
   it("asks for confirmation before deleting a package", async () => {

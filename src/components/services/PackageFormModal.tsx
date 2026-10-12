@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import { CiTrash } from "react-icons/ci";
 
-import { useAllProducts, useAllServices, useCurrentRate, useSavePackage } from "../../hooks/api";
+import { useAllServices, useCurrentRate, useSavePackage } from "../../hooks/api";
 import { extractApiError } from "../../lib/api-error";
 import { tomanToUsd } from "../../lib/currency";
 import { formatPrice, parseTomanAmount } from "../../lib/format";
@@ -10,7 +9,6 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
-import { Select } from "../ui/Select";
 import { Textarea } from "../ui/Textarea";
 import { Toggle } from "../ui/Toggle";
 
@@ -21,7 +19,7 @@ interface PackageFormModalProps {
 
 const parseToman = (value: string): number => parseTomanAmount(value);
 
-/** Package CRUD form: Toman price (converted to USD), service multi-select, product rows. */
+/** Package CRUD form: Toman price (converted to USD) and service multi-select. */
 export function PackageFormModal({ pkg, onClose }: PackageFormModalProps) {
   const [name, setName] = useState(pkg?.name ?? "");
   const [description, setDescription] = useState(pkg?.description ?? "");
@@ -32,12 +30,10 @@ export function PackageFormModal({ pkg, onClose }: PackageFormModalProps) {
   );
   const [isActive, setIsActive] = useState(pkg?.isActive ?? true);
   const [serviceIds, setServiceIds] = useState<number[]>(pkg?.services ?? []);
-  const [items, setItems] = useState<{ product: number; quantity: string }[]>(pkg?.items ?? []);
   const [formError, setFormError] = useState("");
 
   const { data: currentRate, isLoading: rateLoading } = useCurrentRate();
   const { data: servicesData } = useAllServices();
-  const { data: productsData } = useAllProducts();
   const savePackage = useSavePackage();
 
   const rate = useMemo(() => {
@@ -54,14 +50,6 @@ export function PackageFormModal({ pkg, onClose }: PackageFormModalProps) {
     setServiceIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
   };
 
-  const addItemRow = () => setItems((prev) => [...prev, { product: 0, quantity: "1.000" }]);
-
-  const updateItem = (index: number, patch: Partial<{ product: number; quantity: string }>) => {
-    setItems((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
-  };
-
-  const removeItem = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
-
   const handleSave = async () => {
     setFormError("");
     const priceUsd = tomanToUsd(totalToman, rate);
@@ -70,6 +58,7 @@ export function PackageFormModal({ pkg, onClose }: PackageFormModalProps) {
       return;
     }
     try {
+      // No `items` key: omitting it keeps the backend recipe untouched.
       await savePackage.mutateAsync({
         ...(pkg ? { id: pkg.id } : {}),
         name: name.trim(),
@@ -77,21 +66,12 @@ export function PackageFormModal({ pkg, onClose }: PackageFormModalProps) {
         priceUsd,
         isActive,
         serviceIds,
-        items: items.filter((row) => row.product > 0),
       });
       onClose();
     } catch (err: unknown) {
       setFormError(extractApiError(err));
     }
   };
-
-  const productOptions = useMemo(
-    () => [
-      { value: "", label: "انتخاب محصول" },
-      ...(productsData ?? []).map((p) => ({ value: String(p.id), label: p.name })),
-    ],
-    [productsData]
-  );
 
   return (
     <Modal
@@ -151,43 +131,6 @@ export function PackageFormModal({ pkg, onClose }: PackageFormModalProps) {
               </label>
             ))}
           </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <span className="text-surface-700 text-sm font-medium">مواد مصرفی پکیج</span>
-            <Button variant="ghost" size="sm" onClick={addItemRow}>
-              + افزودن ردیف
-            </Button>
-          </div>
-          {items.map((row, index) => (
-            <div key={index} className="flex items-end gap-2">
-              <div className="grow">
-                <Select
-                  label="محصول"
-                  options={productOptions}
-                  value={row.product ? String(row.product) : ""}
-                  onChange={(e) => updateItem(index, { product: Number(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="w-28">
-                <Input
-                  label="مقدار"
-                  value={row.quantity}
-                  inputMode="decimal"
-                  onChange={(e) => updateItem(index, { quantity: e.target.value })}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => removeItem(index)}
-                aria-label="حذف ردیف"
-                className="text-danger-600 hover:bg-danger-50 cursor-pointer rounded-md p-2 transition-colors"
-              >
-                <CiTrash className="size-4" />
-              </button>
-            </div>
-          ))}
         </div>
 
         <Toggle label="فعال" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
