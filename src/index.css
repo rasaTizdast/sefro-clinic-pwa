@@ -267,3 +267,33 @@ body {
   background: rgba(0, 0, 0, 0.45);
   pointer-events: none;
 }
+
+/* «خروجی PDF» opens the print dialog: keep only the active tab panel and let
+   the scrollable main content fill the printed page instead of one viewport. */
+@media print {
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .app-shell {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  .scrollable-content {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+}

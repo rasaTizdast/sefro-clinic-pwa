@@ -51,7 +51,7 @@ function AppContent() {
 
   return (
     <CommandPaletteContext.Provider value={{ open, setOpen }}>
-      <div className="flex h-screen gap-3 overflow-hidden p-2 pb-24 md:p-3 md:pb-3">
+      <div className="app-shell flex h-screen gap-3 overflow-hidden p-2 pb-24 md:p-3 md:pb-3">
         <PwaUpdater />
         <LoadingBar />
         <Sidebar items={visibleItems} />

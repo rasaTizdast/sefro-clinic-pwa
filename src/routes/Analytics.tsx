@@ -1,5 +1,5 @@
 import jalaali from "jalaali-js";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { BiDollar, BiDownload, BiHeart, BiUser } from "react-icons/bi";
 import { IoDocumentTextOutline } from "react-icons/io5";
 import { PiClockCounterClockwise } from "react-icons/pi";
@@ -36,6 +36,7 @@ import {
   useReferralRate,
   useVisitReports,
 } from "../hooks/api";
+import { type ExportSheet, exportSheetsToExcel, todayStamp } from "../lib/analytics-export";
 import { formatPrice } from "../lib/format";
 import { fillChartGaps } from "../lib/report-chart";
 import type {
@@ -169,6 +170,53 @@ function Analytics() {
     : [];
   const serviceCategoryData: ServiceCategoryStat[] = reports?.serviceCategoryStats ?? [];
 
+  /**
+   * The financial tab owns its data (and its own period selectors), so it
+   * registers sheet providers here. Only the mounted (selected) tab has
+   * providers — the export therefore never mixes the two tabs.
+   */
+  const financialExporters = useRef(new Set<() => ExportSheet[]>());
+  const registerFinancialExport = useCallback((provider: () => ExportSheet[]) => {
+    financialExporters.current.add(provider);
+    return () => {
+      financialExporters.current.delete(provider);
+    };
+  }, []);
+
+  const handleExcelExport = () => {
+    const stamp = todayStamp();
+    if (analyticsTab === "overview") {
+      exportSheetsToExcel(
+        [
+          { name: "شاخص‌ها", rows: kpiStats.map((s) => ({ شاخص: s.title, مقدار: s.value })) },
+          {
+            name: "درآمد ماهانه",
+            rows: monthlyRevenue.map((m) => ({ ماه: m.month, درآمد: m.revenue })),
+          },
+          {
+            name: "وضعیت نوبت‌ها",
+            rows: appointmentStatusData.map((a) => ({ وضعیت: a.name, تعداد: a.value })),
+          },
+          {
+            name: "مقایسه مراجعه",
+            rows: visitComparisonData.map((v) => ({ دوره: v.period, مراجعه: v.visits })),
+          },
+          {
+            name: "دسته‌بندی خدمات",
+            rows: serviceCategoryData.map((c) => ({ دسته: c.name, تعداد: c.value })),
+          },
+        ],
+        `analytics_overview_${stamp}.xlsx`
+      );
+      return;
+    }
+    const sheets = [...financialExporters.current].flatMap((provider) => provider());
+    exportSheetsToExcel(sheets, `analytics_financial_${stamp}.xlsx`);
+  };
+
+  /** PDF = the browser print dialog; print CSS keeps only the active tab panel. */
+  const handlePdfExport = () => window.print();
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-6">
@@ -200,11 +248,19 @@ function Analytics() {
             گزارش‌ها و آمار
           </h1>
         </div>
-        <div className="mt-3 flex items-center gap-3 sm:mt-0">
-          <Button variant="outline" startIcon={<BiDownload className="size-5" />}>
+        <div className="mt-3 flex items-center gap-3 sm:mt-0" data-print-hide>
+          <Button
+            variant="outline"
+            startIcon={<BiDownload className="size-5" />}
+            onClick={handleExcelExport}
+          >
             خروجی Excel
           </Button>
-          <Button variant="primary" startIcon={<IoDocumentTextOutline className="size-5" />}>
+          <Button
+            variant="primary"
+            startIcon={<IoDocumentTextOutline className="size-5" />}
+            onClick={handlePdfExport}
+          >
             خروجی PDF
           </Button>
           <SearchButton />
@@ -377,8 +433,8 @@ function Analytics() {
 
       <TabPanel id="financial" activeTab={analyticsTab}>
         <div className="flex flex-col gap-8">
-          <FinancialSummaryTab />
-          <ProfitBreakdownTab />
+          <FinancialSummaryTab registerExport={registerFinancialExport} />
+          <ProfitBreakdownTab registerExport={registerFinancialExport} />
         </div>
       </TabPanel>
     </div>

@@ -219,7 +219,7 @@ describe("FinancialSummaryTab — backend as the single source of truth", () => 
     expect(row).toContain("$4.13");
     expect(row).toContain("چیزی پرداخت نمی‌کنند");
     // present exactly once in the whole tab
-    expect(screen.getAllByText("هزینه بسته خوش‌آمدید")).toHaveLength(1);
+    expect(screen.getAllByText("هزینه ولکام‌پک")).toHaveLength(1);
   });
 
   it("keeps the restocking cash-out separate from the profit bridge", () => {

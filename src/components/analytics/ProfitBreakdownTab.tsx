@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   useAllPayouts,
@@ -6,6 +6,7 @@ import {
   useProfitByService,
   useProfitByStaff,
 } from "../../hooks/api";
+import type { ExportSheet } from "../../lib/analytics-export";
 import { formatPrice } from "../../lib/format";
 import { REPORT_PERIOD_OPTIONS, reportPeriodRange } from "../../lib/report-period";
 import type { ProfitRow, ReportPeriod, StaffPayout } from "../../types/finance";
@@ -132,7 +133,12 @@ function useStaffPayoutTotals(period: ReportPeriod): Map<number, StaffPayoutTota
   }, [payouts, period]);
 }
 
-export function ProfitBreakdownTab() {
+export function ProfitBreakdownTab({
+  registerExport,
+}: {
+  /** Hands the Analytics page a sheet provider; returns the unregister fn. */
+  registerExport?: (provider: () => ExportSheet[]) => () => void;
+}) {
   const [activeTab, setActiveTab] = useState("service");
   const [period, setPeriod] = useState<ReportPeriod>("this_month");
 
@@ -197,6 +203,48 @@ export function ProfitBreakdownTab() {
     }
     return [...rows.values()];
   }, [staffData, payoutTotals]);
+
+  /** Sheets handed to the Analytics Excel export — only the breakdown tables. */
+  const buildExportSheets = useCallback((): ExportSheet[] => {
+    const money = (usd: string | number) => `$${Number(usd).toFixed(2)}`;
+    const moneyCols = (r: ProfitRow) => ({
+      درآمد: money(r.revenueUsd),
+      "هزینه محصول": money(r.productCostUsd),
+      "سود بالقوه": money(r.profitUsd),
+    });
+    return [
+      {
+        name: "سود خدمات",
+        rows: serviceRows.map((r) => ({
+          خدمت: r.serviceName ?? "",
+          ...moneyCols(r),
+          "تعداد ویزیت": r.count ?? 0,
+        })),
+      },
+      {
+        name: "سود پکیج",
+        rows: packageRows.map((r) => ({
+          پکیج: r.packageName ?? "",
+          ...moneyCols(r),
+          "تعداد فروش": r.count ?? 0,
+        })),
+      },
+      {
+        name: "سود پرسنل",
+        rows: staffRows.map((r) => {
+          const total = r.staffId != null ? payoutTotals.get(r.staffId) : undefined;
+          return {
+            پرسنل: r.staffName ?? "",
+            ...moneyCols(r),
+            "تعداد خدمات": r.count ?? 0,
+            "حقوق/پرداختی": total ? money(total.payoutUsd) : "—",
+          };
+        }),
+      },
+    ];
+  }, [serviceRows, packageRows, staffRows, payoutTotals]);
+
+  useEffect(() => registerExport?.(buildExportSheets), [registerExport, buildExportSheets]);
 
   return (
     <div className="flex flex-col gap-6">

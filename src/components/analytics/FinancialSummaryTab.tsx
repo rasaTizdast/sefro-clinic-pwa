@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAllPurchases, useFinancialSummary, useWelcomePackReport } from "../../hooks/api";
+import type { ExportSheet } from "../../lib/analytics-export";
 import { extractApiError } from "../../lib/api-error";
 import { formatPrice } from "../../lib/format";
 import {
@@ -114,12 +115,210 @@ function BridgeBlock({ title, rows, loading }: BridgeBlockProps) {
   );
 }
 
-export function FinancialSummaryTab() {
+/** A bridge row as an Excel line — same numbers the screen shows. */
+function bridgeSheetRow(row: BridgeRow): Record<string, string | number | null> {
+  return {
+    ردیف: row.label,
+    تومان: row.toman,
+    دلار: row.usd,
+    علامت: row.sign === "minus" ? "−" : row.sign === "plus" ? "+" : "=",
+    توضیح: row.hint ?? "",
+  };
+}
+
+export interface FinancialExportRegister {
+  /** Hands the Analytics page a sheet provider; returns the unregister fn. */
+  registerExport?: (provider: () => ExportSheet[]) => () => void;
+}
+
+export function FinancialSummaryTab({ registerExport }: FinancialExportRegister) {
   const [period, setPeriod] = useState<ReportPeriod>("this_month");
 
   const { data: summary, isLoading, isError, error } = useFinancialSummary({ period });
   const { data: packReport } = useWelcomePackReport({ period });
   const { data: allPurchases } = useAllPurchases();
+
+  const packsIssued = Number(packReport?.totalPacksIssued ?? 0);
+  const periodText = reportPeriodLabel(period);
+
+  // Cash that left the clinic to restock inventory this period. Reported as its
+  // own line, deliberately OUT of the backend's gross_profit (which books the
+  // same stock when it is consumed) so nothing is counted twice.
+  const purchaseCost = useMemo(
+    () => sumPurchasesInRange(allPurchases ?? [], reportPeriodRange(period)),
+    [allPurchases, period]
+  );
+
+  /**
+   * Every bridge row the tab renders, built once so the JSX and the Excel
+   * export are guaranteed to show the exact same figures.
+   */
+  const bridge = useMemo(() => {
+    if (!summary) return null;
+    const staff = summary.staffCompensation;
+    const roles = Object.values(staff.byRole).filter((r) => r.role !== "");
+
+    const roleRows: BridgeRow[] = roles.map((role) => ({
+      label: ROLE_LABELS[role.role] ?? role.role,
+      testId: `bridge-role-${role.role}`,
+      toman: role.totalToman,
+      usd: role.totalUsd,
+      sign: "minus",
+      hint: `${role.count.toLocaleString("fa-IR")} فیش — ${
+        ROLE_HINTS[role.role] ?? "محاسبه‌شده در سامانه"
+      }`,
+    }));
+
+    const deductionRows: BridgeRow[] = [
+      // Per-role rows come straight from `staff_compensation.by_role`. When the
+      // backend has no payouts at all the role list is empty and only the total
+      // row shows — no role figure is invented on the client.
+      ...roleRows,
+      {
+        label: "جمع تسویه پرسنل",
+        testId: "bridge-staff-payout",
+        toman: staff.total.toman,
+        usd: staff.total.usd,
+        sign: "minus",
+        hint:
+          staff.payoutCount > 0
+            ? `${staff.payoutCount.toLocaleString("fa-IR")} فیش تسویه — نقدی و کالا`
+            : "فیش تسویه‌ای ثبت نشده است",
+      },
+      {
+        label: "هزینه‌های عمومی کلینیک",
+        testId: "bridge-operating",
+        toman: summary.operatingExpenses.toman,
+        usd: summary.operatingExpenses.usd,
+        sign: "minus",
+        hint:
+          summary.operatingExpenses.count > 0
+            ? `${summary.operatingExpenses.count.toLocaleString("fa-IR")} ردیف هزینه جاری`
+            : "ردیف هزینه‌ای ثبت نشده است",
+      },
+      {
+        label: "مطالبات پرسنل",
+        testId: "bridge-staff-claims",
+        toman: summary.staffExpenseClaims.toman,
+        usd: summary.staffExpenseClaims.usd,
+        sign: "minus",
+        hint:
+          summary.staffExpenseClaims.count > 0
+            ? `${summary.staffExpenseClaims.count.toLocaleString("fa-IR")} فاکتور مطالبات تأییدشده یا پرداخت‌شده`
+            : "مطالبات تأییدشده‌ای ثبت نشده است",
+      },
+      {
+        label: "جمع هزینه‌های زیر سود ناخالص",
+        testId: "bridge-below-the-line",
+        toman: summary.belowTheLineTotal.toman,
+        usd: summary.belowTheLineTotal.usd,
+        sign: "minus",
+        hint: "تسویه پرسنل + هزینه‌های عمومی + مطالبات پرسنل — محاسبه‌شده در سامانه",
+      },
+      {
+        label: "سود خالص",
+        testId: "bridge-net-profit",
+        toman: summary.netProfit.toman,
+        usd: summary.netProfit.usd,
+        sign: "equals",
+        hint: "سود ناخالص منهای جمع هزینه‌های زیر سود ناخالص — محاسبه‌شده در سامانه",
+      },
+    ];
+
+    const revenueRows: BridgeRow[] = [
+      {
+        label: "درآمد",
+        testId: "bridge-revenue",
+        toman: summary.revenue.toman,
+        usd: summary.revenue.usd,
+        sign: "plus",
+        hint: `از ${summary.counts.paidSales.toLocaleString("fa-IR")} فروش پرداخت‌شده`,
+      },
+      {
+        label: "هزینه محصول",
+        testId: "bridge-product-cost",
+        toman: summary.productCost.toman,
+        usd: summary.productCost.usd,
+        sign: "minus",
+        hint: `${formatPrice(Number(summary.counts.productsSoldQuantity))} قلم مصرف‌شده`,
+      },
+      {
+        label: "هزینه ولکام‌پک",
+        testId: "bridge-welcome-pack",
+        toman: summary.welcomePackCost.toman,
+        usd: summary.welcomePackCost.usd,
+        sign: "minus",
+        hint: `بیماران بابت این بسته چیزی پرداخت نمی‌کنند — ${
+          packsIssued > 0
+            ? `${packsIssued.toLocaleString("fa-IR")} بسته صادر شده`
+            : "بسته‌ای صادر نشده"
+        }`,
+      },
+      {
+        label: "سود ناخالص",
+        testId: "bridge-gross-profit",
+        toman: summary.grossProfit.toman,
+        usd: summary.grossProfit.usd,
+        sign: "equals",
+        hint: "درآمد منهای هزینه محصول و هزینه ولکام‌پک — محاسبه‌شده در سامانه",
+      },
+    ];
+
+    const purchaseRow: BridgeRow = {
+      label: "خرید کالا (خروج نقد)",
+      testId: "bridge-purchase-cashout",
+      toman: String(purchaseCost.toman),
+      usd: String(purchaseCost.usd),
+      sign: "minus",
+      informational: true,
+      hint:
+        purchaseCost.count > 0
+          ? `${purchaseCost.count.toLocaleString("fa-IR")} فاکتور خرید در این بازه`
+          : "در این بازه خرید کالایی ثبت نشده",
+    };
+
+    return { staff, roleRows, deductionRows, revenueRows, purchaseRow };
+  }, [summary, packsIssued, purchaseCost]);
+
+  /** Sheets handed to the Analytics Excel export — only the financial tab's data. */
+  const buildExportSheets = useCallback((): ExportSheet[] => {
+    if (!summary || !bridge) return [];
+    return [
+      {
+        name: `جریان مالی (${periodText})`,
+        rows: bridge.revenueRows.map(bridgeSheetRow),
+      },
+      {
+        name: `کسر از سود (${periodText})`,
+        rows: bridge.deductionRows.map(bridgeSheetRow),
+      },
+      { name: "خروج نقد خرید", rows: [bridgeSheetRow(bridge.purchaseRow)] },
+      {
+        name: "روش پرداخت",
+        rows: [
+          { روش: "نقدی", دلار: usdLabel(summary.paymentMethods.cash) },
+          { روش: "کارت", دلار: usdLabel(summary.paymentMethods.card) },
+          { روش: "کیف پول", دلار: usdLabel(summary.paymentMethods.wallet) },
+        ],
+      },
+      {
+        name: "آمار",
+        rows: [
+          { شاخص: "ویزیت‌های انجام‌شده", مقدار: summary.counts.appointments },
+          { شاخص: "پکیج فروخته شده", مقدار: summary.counts.packagesSold },
+          { شاخص: "محصولات مصرف‌شده", مقدار: summary.counts.productsSoldQuantity },
+          { شاخص: "بسته خوش‌آمدید صادرشده", مقدار: packsIssued },
+          { شاخص: "فروش‌های پرداخت شده", مقدار: summary.counts.paidSales },
+          {
+            شاخص: "میانگین تراکنش (دلار)",
+            مقدار: usdLabel(summary.counts.averageTransactionValue),
+          },
+        ],
+      },
+    ];
+  }, [summary, bridge, packsIssued, periodText]);
+
+  useEffect(() => registerExport?.(buildExportSheets), [registerExport, buildExportSheets]);
 
   if (isLoading) {
     return (
@@ -130,7 +329,7 @@ export function FinancialSummaryTab() {
     );
   }
 
-  if (isError || !summary) {
+  if (isError || !summary || !bridge) {
     return (
       <Alert variant="error" title="گزارش مالی در دسترس نیست">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -142,123 +341,6 @@ export function FinancialSummaryTab() {
       </Alert>
     );
   }
-
-  const packsIssued = Number(packReport?.totalPacksIssued ?? 0);
-  const periodText = reportPeriodLabel(period);
-
-  // Cash that left the clinic to restock inventory this period. Reported as its
-  // own line, deliberately OUT of the backend's gross_profit (which books the
-  // same stock when it is consumed) so nothing is counted twice.
-  const purchaseCost = sumPurchasesInRange(allPurchases ?? [], reportPeriodRange(period));
-
-  const staff = summary.staffCompensation;
-  const roles = Object.values(staff.byRole).filter((r) => r.role !== "");
-
-  const roleRows: BridgeRow[] = roles.map((role) => ({
-    label: ROLE_LABELS[role.role] ?? role.role,
-    testId: `bridge-role-${role.role}`,
-    toman: role.totalToman,
-    usd: role.totalUsd,
-    sign: "minus",
-    hint: `${role.count.toLocaleString("fa-IR")} فیش — ${
-      ROLE_HINTS[role.role] ?? "محاسبه‌شده در سامانه"
-    }`,
-  }));
-
-  const deductionRows: BridgeRow[] = [
-    // Per-role rows come straight from `staff_compensation.by_role`. When the
-    // backend has no payouts at all the role list is empty and only the total
-    // row shows — no role figure is invented on the client.
-    ...roleRows,
-    {
-      label: "جمع تسویه پرسنل",
-      testId: "bridge-staff-payout",
-      toman: staff.total.toman,
-      usd: staff.total.usd,
-      sign: "minus",
-      hint:
-        staff.payoutCount > 0
-          ? `${staff.payoutCount.toLocaleString("fa-IR")} فیش تسویه — نقدی و کالا`
-          : "فیش تسویه‌ای ثبت نشده است",
-    },
-    {
-      label: "هزینه‌های عمومی کلینیک",
-      testId: "bridge-operating",
-      toman: summary.operatingExpenses.toman,
-      usd: summary.operatingExpenses.usd,
-      sign: "minus",
-      hint:
-        summary.operatingExpenses.count > 0
-          ? `${summary.operatingExpenses.count.toLocaleString("fa-IR")} ردیف هزینه جاری`
-          : "ردیف هزینه‌ای ثبت نشده است",
-    },
-    {
-      label: "مطالبات پرسنل",
-      testId: "bridge-staff-claims",
-      toman: summary.staffExpenseClaims.toman,
-      usd: summary.staffExpenseClaims.usd,
-      sign: "minus",
-      hint:
-        summary.staffExpenseClaims.count > 0
-          ? `${summary.staffExpenseClaims.count.toLocaleString("fa-IR")} فاکتور مطالبات تأییدشده یا پرداخت‌شده`
-          : "مطالبات تأییدشده‌ای ثبت نشده است",
-    },
-    {
-      label: "جمع هزینه‌های زیر سود ناخالص",
-      testId: "bridge-below-the-line",
-      toman: summary.belowTheLineTotal.toman,
-      usd: summary.belowTheLineTotal.usd,
-      sign: "minus",
-      hint: "تسویه پرسنل + هزینه‌های عمومی + مطالبات پرسنل — محاسبه‌شده در سامانه",
-    },
-    {
-      label: "سود خالص",
-      testId: "bridge-net-profit",
-      toman: summary.netProfit.toman,
-      usd: summary.netProfit.usd,
-      sign: "equals",
-      hint: "سود ناخالص منهای جمع هزینه‌های زیر سود ناخالص — محاسبه‌شده در سامانه",
-    },
-  ];
-
-  const revenueRows: BridgeRow[] = [
-    {
-      label: "درآمد",
-      testId: "bridge-revenue",
-      toman: summary.revenue.toman,
-      usd: summary.revenue.usd,
-      sign: "plus",
-      hint: `از ${summary.counts.paidSales.toLocaleString("fa-IR")} فروش پرداخت‌شده`,
-    },
-    {
-      label: "هزینه محصول",
-      testId: "bridge-product-cost",
-      toman: summary.productCost.toman,
-      usd: summary.productCost.usd,
-      sign: "minus",
-      hint: `${formatPrice(Number(summary.counts.productsSoldQuantity))} قلم مصرف‌شده`,
-    },
-    {
-      label: "هزینه بسته خوش‌آمدید",
-      testId: "bridge-welcome-pack",
-      toman: summary.welcomePackCost.toman,
-      usd: summary.welcomePackCost.usd,
-      sign: "minus",
-      hint: `بیماران بابت این بسته چیزی پرداخت نمی‌کنند — ${
-        packsIssued > 0
-          ? `${packsIssued.toLocaleString("fa-IR")} بسته صادر شده`
-          : "بسته‌ای صادر نشده"
-      }`,
-    },
-    {
-      label: "سود ناخالص",
-      testId: "bridge-gross-profit",
-      toman: summary.grossProfit.toman,
-      usd: summary.grossProfit.usd,
-      sign: "equals",
-      hint: "درآمد منهای هزینه محصول و هزینه بسته خوش‌آمدید — محاسبه‌شده در سامانه",
-    },
-  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -293,9 +375,9 @@ export function FinancialSummaryTab() {
         </Alert>
       )}
 
-      <BridgeBlock title={`جریان مالی · ${periodText}`} rows={revenueRows} />
+      <BridgeBlock title={`جریان مالی · ${periodText}`} rows={bridge.revenueRows} />
 
-      <BridgeBlock title={`کسرشونده از سود ناخالص · ${periodText}`} rows={deductionRows} />
+      <BridgeBlock title={`کسرشونده از سود ناخالص · ${periodText}`} rows={bridge.deductionRows} />
 
       <Card variant="outlined" padding="lg">
         <CardTitle>خروج نقد تأمین موجودی</CardTitle>
@@ -303,20 +385,7 @@ export function FinancialSummaryTab() {
           بیرون از محاسبه سود — هزینه محصول همین کالا را هنگام مصرف دوباره حساب می‌کند
         </p>
         <div className="mt-3">
-          <BridgeRowView
-            row={{
-              label: "خرید کالا (خروج نقد)",
-              testId: "bridge-purchase-cashout",
-              toman: String(purchaseCost.toman),
-              usd: String(purchaseCost.usd),
-              sign: "minus",
-              informational: true,
-              hint:
-                purchaseCost.count > 0
-                  ? `${purchaseCost.count.toLocaleString("fa-IR")} فاکتور خرید در این بازه`
-                  : "در این بازه خرید کالایی ثبت نشده",
-            }}
-          />
+          <BridgeRowView row={bridge.purchaseRow} />
         </div>
       </Card>
 
