@@ -6,6 +6,8 @@ import { consumableLineToman, consumablesTotalToman, serviceLiveToman } from "..
 import { listServiceItems } from "../../services/serviceItems";
 import type { ConsumptionSelection } from "../../types/finance";
 import type { ConsumableSelection, WelcomePackSelection } from "../../types/wizard";
+import { Button } from "../ui/Button";
+import { Modal } from "../ui/Modal";
 import { CheckoutModal } from "./CheckoutModal";
 
 interface VisitCheckoutModalProps {
@@ -113,14 +115,19 @@ export function VisitCheckoutModal({
 
   if (visitLoading || servicesLoading || productsLoading || !appointment || consumables === null) {
     return (
-      <CheckoutModal
-        key="loading"
+      <Modal
         open
         onClose={onClose}
-        customerId={0}
-        visitId={visitId}
-        defaultTotalToman={0}
-      />
+        title="تسویه و ثبت فروش"
+        size="lg"
+        footer={
+          <Button variant="outline" onClick={onClose}>
+            انصراف
+          </Button>
+        }
+      >
+        <div className="text-surface-500 py-8 text-center text-sm">در حال بارگذاری…</div>
+      </Modal>
     );
   }
 
