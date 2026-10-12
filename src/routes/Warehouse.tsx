@@ -273,6 +273,34 @@ function Warehouse() {
       ),
     },
     {
+      key: "costUsd",
+      header: "بهای خرید",
+      width: "130px",
+      align: "center",
+      render: (item) => {
+        const cost = item.costUsd ? Number(item.costUsd) : 0;
+        if (!Number.isFinite(cost) || cost <= 0) {
+          return <span className="text-surface-400">—</span>;
+        }
+        // Acquisition cost is stored in USD; show today's Toman equivalent
+        // alongside the dollar figure (no anchor/float — cost never floats).
+        const costToman = rateValue ? usdToToman(cost, rateValue) : 0;
+        return (
+          <span className="flex flex-col gap-0.5 leading-tight">
+            {costToman > 0 && (
+              <span className="text-surface-900 text-sm font-medium whitespace-nowrap">
+                {formatPrice(costToman)}{" "}
+                <span className="text-surface-400 text-xs font-normal">تومان</span>
+              </span>
+            )}
+            <span dir="ltr" className="text-surface-400 text-xs whitespace-nowrap">
+              {formatUsd(cost)}
+            </span>
+          </span>
+        );
+      },
+    },
+    {
       key: "status",
       header: "وضعیت",
       width: "100px",
