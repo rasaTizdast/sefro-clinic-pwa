@@ -11,12 +11,25 @@ const state = vi.hoisted(() => ({
   staffRows: [] as ProfitRow[],
   payouts: [] as StaffPayout[],
   isLoading: false,
+  isError: false,
 }));
 
 vi.mock("../../../hooks/api", () => ({
-  useProfitByService: () => ({ data: state.serviceRows, isLoading: state.isLoading }),
-  useProfitByPackage: () => ({ data: state.packageRows, isLoading: state.isLoading }),
-  useProfitByStaff: () => ({ data: state.staffRows, isLoading: state.isLoading }),
+  useProfitByService: () => ({
+    data: state.serviceRows,
+    isLoading: state.isLoading,
+    isError: state.isError,
+  }),
+  useProfitByPackage: () => ({
+    data: state.packageRows,
+    isLoading: state.isLoading,
+    isError: state.isError,
+  }),
+  useProfitByStaff: () => ({
+    data: state.staffRows,
+    isLoading: state.isLoading,
+    isError: state.isError,
+  }),
   useAllPayouts: () => ({ data: state.payouts }),
 }));
 
@@ -85,6 +98,7 @@ beforeEach(() => {
   state.staffRows = [];
   state.payouts = [];
   state.isLoading = false;
+  state.isError = false;
 });
 
 describe("ProfitBreakdownTab", () => {
@@ -184,5 +198,40 @@ describe("ProfitBreakdownTab", () => {
 
     expect((await screen.findAllByText("دکتر رضایی")).length).toBeGreaterThan(0);
     expect(screen.getByRole("columnheader", { name: "حقوق/پرداختی" })).toBeInTheDocument();
+  });
+
+  it("shows informative empty states for all three panels", async () => {
+    render(<ProfitBreakdownTab />);
+
+    // Service tab is active by default; the table renders a desktop row and a
+    // mobile card, so each empty-state message appears twice.
+    expect(
+      screen.getAllByText(
+        "خدمت تکمیل‌شده‌ای در این بازه وجود ندارد — جدول پس از تکمیل نوبت‌ها پر می‌شود."
+      ).length
+    ).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole("tab", { name: "پکیج" }));
+    expect(
+      screen.getAllByText("پکیج فروخته‌شده‌ای در این بازه وجود ندارد.").length
+    ).toBeGreaterThan(0);
+
+    await openStaffTab();
+    expect(
+      screen.getAllByText("پرسنلی در این بازه خدمات/تسویه ثبت‌نشده ندارد.").length
+    ).toBeGreaterThan(0);
+  });
+
+  it("surfaces query errors to the user", () => {
+    state.isError = true;
+
+    render(<ProfitBreakdownTab />);
+    expect(screen.getByText("دریافت گزارش سود ممکن نشد — دوباره تلاش کنید.")).toBeInTheDocument();
+    expect(
+      screen.getByText("دریافت گزارش سود پکیج‌ها ممکن نشد — دوباره تلاش کنید.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("دریافت گزارش سود پرسنل ممکن نشد — دوباره تلاش کنید.")
+    ).toBeInTheDocument();
   });
 });

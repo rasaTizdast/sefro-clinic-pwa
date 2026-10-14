@@ -10,6 +10,7 @@ import type { ExportSheet } from "../../lib/analytics-export";
 import { formatPrice } from "../../lib/format";
 import { REPORT_PERIOD_OPTIONS, reportPeriodRange } from "../../lib/report-period";
 import type { ProfitRow, ReportPeriod, StaffPayout } from "../../types/finance";
+import { Alert } from "../ui/Alert";
 import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
 import { Skeleton } from "../ui/Skeleton";
@@ -133,6 +134,11 @@ function useStaffPayoutTotals(period: ReportPeriod): Map<number, StaffPayoutTota
   }, [payouts, period]);
 }
 
+const EMPTY_SERVICE =
+  "خدمت تکمیل‌شده‌ای در این بازه وجود ندارد — جدول پس از تکمیل نوبت‌ها پر می‌شود.";
+const EMPTY_PACKAGE = "پکیج فروخته‌شده‌ای در این بازه وجود ندارد.";
+const EMPTY_STAFF = "پرسنلی در این بازه خدمات/تسویه ثبت‌نشده ندارد.";
+
 export function ProfitBreakdownTab({
   registerExport,
 }: {
@@ -142,9 +148,21 @@ export function ProfitBreakdownTab({
   const [activeTab, setActiveTab] = useState("service");
   const [period, setPeriod] = useState<ReportPeriod>("this_month");
 
-  const { data: serviceData, isLoading: serviceLoading } = useProfitByService({ period });
-  const { data: packageData, isLoading: packageLoading } = useProfitByPackage({ period });
-  const { data: staffData, isLoading: staffLoading } = useProfitByStaff({ period });
+  const {
+    data: serviceData,
+    isLoading: serviceLoading,
+    isError: serviceError,
+  } = useProfitByService({ period });
+  const {
+    data: packageData,
+    isLoading: packageLoading,
+    isError: packageError,
+  } = useProfitByPackage({ period });
+  const {
+    data: staffData,
+    isLoading: staffLoading,
+    isError: staffError,
+  } = useProfitByStaff({ period });
   const payoutTotals = useStaffPayoutTotals(period);
 
   const serviceColumns = useMemo(() => profitColumns("serviceName", "خدمت", "تعداد ویزیت"), []);
@@ -255,6 +273,18 @@ export function ProfitBreakdownTab({
           value={period}
           onChange={(e) => setPeriod(e.target.value as ReportPeriod)}
         />
+        {serviceError && (
+          <Alert variant="error">دریافت گزارش سود ممکن نشد — دوباره تلاش کنید.</Alert>
+        )}
+        {packageError && (
+          <Alert variant="error">دریافت گزارش سود پکیج‌ها ممکن نشد — دوباره تلاش کنید.</Alert>
+        )}
+        {staffError && (
+          <Alert variant="error">دریافت گزارش سود پرسنل ممکن نشد — دوباره تلاش کنید.</Alert>
+        )}
+        <p className="text-surface-400 text-xs">
+          این جدول فقط نوبت‌های «تکمیل‌شده» را محاسبه می‌کند.
+        </p>
       </div>
 
       <Tabs tabs={breakdownTabs} activeTab={activeTab} onChange={setActiveTab} />
@@ -268,6 +298,7 @@ export function ProfitBreakdownTab({
               columns={serviceColumns}
               data={serviceRows}
               rowKey={(r, i) => r.serviceId ?? i}
+              emptyMessage={serviceRows.length === 0 ? EMPTY_SERVICE : undefined}
             />
           </Card>
         )}
@@ -282,6 +313,7 @@ export function ProfitBreakdownTab({
               columns={packageColumns}
               data={packageRows}
               rowKey={(r, i) => r.packageId ?? i}
+              emptyMessage={packageRows.length === 0 ? EMPTY_PACKAGE : undefined}
             />
           </Card>
         )}
@@ -292,7 +324,12 @@ export function ProfitBreakdownTab({
           <Skeleton width="100%" height="12rem" variant="rectangular" />
         ) : (
           <Card variant="outlined" padding="none">
-            <Table columns={staffColumns} data={staffRows} rowKey={(r, i) => r.staffId ?? i} />
+            <Table
+              columns={staffColumns}
+              data={staffRows}
+              rowKey={(r, i) => r.staffId ?? i}
+              emptyMessage={staffRows.length === 0 ? EMPTY_STAFF : undefined}
+            />
           </Card>
         )}
       </TabPanel>
