@@ -1,6 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
-import { API_URL } from "../config/api";
+import { API_URL, endpoints } from "../config/api";
 import type { ApiError } from "../types/api";
 import { toCamelCase, toSnakeCase } from "./transform";
 
@@ -22,6 +22,16 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 /** Single-flight refresh: concurrent 401s share one POST so rotation+blacklist can't kill siblings. */
 let refreshPromise: Promise<void> | null = null;
 
+/** Last successful token rotation (login or refresh). null = never (fresh page load). */
+let lastRotatedAt: number | null = null;
+
+/** Access-cookie lifetime is 15 min server-side; rotate before it expires. */
+const TOKEN_MAX_AGE_MS = 13 * 60 * 1000;
+
+function markRotated() {
+  lastRotatedAt = Date.now();
+}
+
 function doRefresh(): Promise<void> {
   if (!refreshPromise) {
     refreshPromise = (async () => {
@@ -36,6 +46,7 @@ function doRefresh(): Promise<void> {
           headers: refreshHeaders,
         }
       );
+      markRotated();
     })().finally(() => {
       refreshPromise = null;
     });
@@ -63,6 +74,31 @@ export async function ensureFreshToken(): Promise<void> {
     // Session really is dead; the upcoming request's 401 will redirect to login.
   }
 }
+
+/**
+ * Record the moment fresh session cookies were issued (after a successful
+ * login) so the proactive-refresh interceptor stays quiet for the next
+ * TOKEN_MAX_AGE_MS.
+ */
+export function markSessionFresh(): void {
+  markRotated();
+}
+
+apiClient.interceptors.request.use(async (config) => {
+  const method = (config.method ?? "GET").toUpperCase();
+  // Only rotate around unsafe requests; GETs are harmless and e2e mocks
+  // stub the refresh endpoint with 401.
+  if (!SAFE_METHODS.has(method) && config.url !== endpoints.auth.refresh) {
+    if (lastRotatedAt === null || Date.now() - lastRotatedAt > TOKEN_MAX_AGE_MS) {
+      try {
+        await doRefresh(); // single-flight
+      } catch {
+        // Session really dead — let the request go; the 401 interceptor handles redirect.
+      }
+    }
+  }
+  return config;
+});
 
 apiClient.interceptors.request.use((config) => {
   if (config.data && config.data instanceof FormData === false) {

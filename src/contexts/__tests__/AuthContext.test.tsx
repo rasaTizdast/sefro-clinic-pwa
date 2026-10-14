@@ -1,4 +1,4 @@
-import { act,renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AuthProvider, useAuth } from "../AuthContext";
@@ -14,9 +14,10 @@ vi.mock("../../lib/api-client", () => ({
     put: vi.fn(),
     delete: vi.fn(),
   },
+  markSessionFresh: vi.fn(),
 }));
 
-import { apiClient } from "../../lib/api-client";
+import { apiClient, markSessionFresh } from "../../lib/api-client";
 const mockApiClient = vi.mocked(apiClient);
 
 function renderAuth() {
@@ -71,6 +72,7 @@ describe("AuthProvider", () => {
       username: "admin",
       password: "pass123",
     });
+    expect(vi.mocked(markSessionFresh)).toHaveBeenCalledTimes(1);
     expect(result.current.isAuthenticated).toBe(true);
     expect(result.current.user).toEqual(mockUser);
   });
@@ -112,8 +114,6 @@ describe("AuthProvider", () => {
 
 describe("useAuth", () => {
   it("throws when used outside AuthProvider", () => {
-    expect(() => renderHook(() => useAuth())).toThrow(
-      "useAuth must be used within AuthProvider"
-    );
+    expect(() => renderHook(() => useAuth())).toThrow("useAuth must be used within AuthProvider");
   });
 });

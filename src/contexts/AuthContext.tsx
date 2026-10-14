@@ -1,7 +1,7 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
 
 import { endpoints } from "../config/api";
-import { apiClient } from "../lib/api-client";
+import { apiClient, markSessionFresh } from "../lib/api-client";
 import type { AuthUser } from "../types/auth";
 
 interface AuthContextValue {
@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (username: string, password: string) => {
     await apiClient.post(endpoints.auth.token, { username, password });
+    markSessionFresh();
     const { data } = await apiClient.get(endpoints.auth.me);
     setUser(data as unknown as AuthUser);
   }, []);
