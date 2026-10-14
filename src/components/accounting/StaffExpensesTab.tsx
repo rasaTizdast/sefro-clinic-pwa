@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { BiPlus } from "react-icons/bi";
 
 import { useAllExpenseCategories, useAllExpenses } from "../../hooks/api";
-import { jalaliToGregorianISO } from "../../lib/date";
+import { formatJalaliDate, jalaliToGregorianISO } from "../../lib/date";
+import { toPersianDigits } from "../../lib/digits";
 import { formatPrice } from "../../lib/format";
 import { ALL_PER_PAGE } from "../../services/fetch-all-pages";
 import type { Expense, ExpenseStatus } from "../../types/finance";
@@ -112,6 +113,13 @@ export function StaffExpensesTab() {
 
   const categories = categoriesData ?? [];
 
+  // The expense API returns only the category id (no category_name), so resolve
+  // display names from the loaded categories list.
+  const categoryNameById = useMemo(
+    () => new Map((categoriesData ?? []).map((c) => [c.id, c.name])),
+    [categoriesData]
+  );
+
   const fromDay = toIsoDay(dateFrom);
   const toDay = toIsoDay(dateTo);
 
@@ -157,13 +165,19 @@ export function StaffExpensesTab() {
     {
       key: "expenseDate",
       header: "تاریخ",
-      render: (item) => <span className="text-surface-700 text-sm">{item.expenseDate}</span>,
+      render: (item) => (
+        <span className="text-surface-700 text-sm">
+          {toPersianDigits(formatJalaliDate(item.expenseDate))}
+        </span>
+      ),
     },
     {
       key: "categoryName",
       header: "دسته‌بندی",
       render: (item) => (
-        <span className="text-surface-900 text-sm font-medium">{item.categoryName ?? "—"}</span>
+        <span className="text-surface-900 text-sm font-medium">
+          {item.categoryName ?? categoryNameById.get(item.category) ?? "—"}
+        </span>
       ),
     },
     {
