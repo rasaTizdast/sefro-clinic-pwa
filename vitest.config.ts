@@ -10,8 +10,17 @@ export default defineConfig({
     testTimeout: 15000,
     setupFiles: ["./src/test/setup.ts"],
     css: true,
-    exclude: ["e2e/**", ".opencode/**", "backend/**", "**/node_modules/**"],
-    include: ["src/**/*.test.{ts,tsx}"],
+    exclude: [
+      "**/node_modules/**",
+      ".opencode/**",
+      "backend/**",
+      // Exclude only Playwright specs; the e2e mock contract tests ARE run here.
+      "e2e/**/*.spec.ts",
+    ],
+    // The e2e mock contract handlers are pure functions; unit-test them here so
+    // the backend rules stay verified without launching Playwright. The
+    // *.spec.ts files under e2e/ are Playwright's and stay excluded above.
+    include: ["src/**/*.test.{ts,tsx}", "e2e/mocks/__tests__/**/*.test.{ts,tsx}"],
   },
   resolve: {
     alias: {

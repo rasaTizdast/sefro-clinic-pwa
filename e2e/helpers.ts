@@ -15,6 +15,11 @@ export async function clickSave(page: Page, locator?: Locator) {
   await btn.click({ force: true });
 }
 
+export async function installMockBackend(page: Page) {
+  const { installMockBackend: install } = await import("./mocks/server");
+  await install(page);
+}
+
 function fulfill(page: Page, urlPattern: string, status: number, body: unknown) {
   return page.route(urlPattern, async (route) => {
     await route.fulfill({
