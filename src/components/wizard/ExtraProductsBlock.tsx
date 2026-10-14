@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { BiTrash } from "react-icons/bi";
-import { MdAddCircleOutline } from "react-icons/md";
 
 import { useAllProducts } from "../../hooks/api/useProductsQuery";
 import { useRateValue } from "../../hooks/useRateValue";
@@ -10,7 +9,6 @@ import { productToConsumable, toPositiveQty } from "../../lib/extra-products";
 import { consumableLineToman, formatPrice, parseTomanAmount } from "../../lib/format";
 import type { ConsumableSelection } from "../../types/wizard";
 import { Alert } from "../ui/Alert";
-import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import { UsdTag } from "../ui/UsdTag";
@@ -54,33 +52,32 @@ export function ExtraProductsBlock({
     [products, extraProducts, rate]
   );
 
-  const handleAdd = () => {
+  const addProduct = (selectedProductId: string, qtyRaw: string): boolean => {
     setFormError("");
-    if (!selectedId) {
+    if (!selectedProductId) {
       setFormError("انتخاب محصول الزامی است");
-      return;
+      return false;
     }
-    const product = products.find((p) => p.id === Number(selectedId));
+    const product = products.find((p) => p.id === Number(selectedProductId));
     if (!product) {
       setFormError("این محصول دیگر در دسترس نیست؛ لیست را تازه کنید");
-      return;
+      return false;
     }
     if (selectedIds.has(product.id) || reservedProductIds.has(product.id)) {
       setFormError("این محصول قبلاً اضافه شده است");
-      return;
+      return false;
     }
     if (product.stock <= 0) {
       setFormError("موجودی این محصول کافی نیست — ابتدا از بخش انبار شارژ کنید");
-      return;
+      return false;
     }
-    const quantity = toPositiveQty(qty);
+    const quantity = toPositiveQty(qtyRaw);
     if (quantity === null) {
       setFormError("تعداد باید بزرگ‌تر از صفر باشد");
-      return;
+      return false;
     }
     onChange([...extraProducts, productToConsumable(product, quantity)]);
-    setSelectedId("");
-    setQty("1");
+    return true;
   };
 
   const handleRemove = (productId: number) => {
@@ -194,12 +191,22 @@ export function ExtraProductsBlock({
             placeholder="جستجو و انتخاب محصول…"
             value={selectedId}
             onChange={(e) => {
-              setSelectedId(e.target.value);
-              setFormError("");
+              const id = e.target.value;
+              setSelectedId("");
+              if (!id) {
+                setFormError("");
+                return;
+              }
+              // Selecting a product adds it immediately with the typed
+              // quantity — no extra button click.
+              if (addProduct(id, qty)) {
+                setQty("1");
+                setFormError("");
+              }
             }}
           />
         </div>
-        <div className="sm:w-24">
+        <div className="sm:w-28">
           <Input
             label="تعداد"
             value={qty}
@@ -210,15 +217,6 @@ export function ExtraProductsBlock({
             }}
           />
         </div>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={handleAdd}
-          className="w-full sm:mb-0.5 sm:w-auto"
-          startIcon={<MdAddCircleOutline className="size-4" />}
-        >
-          افزودن محصول
-        </Button>
       </div>
       {formError && (
         <p className="text-danger-600 mt-2 text-xs" role="alert">

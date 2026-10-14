@@ -433,8 +433,9 @@ describe("WizardStepService extra products (step 2 warehouse dropdown)", () => {
     renderWithSelection();
 
     await user.click(await screen.findByRole("combobox"));
+    // No «افزودن محصول» button anymore: selecting adds immediately.
+    expect(screen.queryByRole("button", { name: "افزودن محصول" })).not.toBeInTheDocument();
     await user.click(await screen.findByRole("option", { name: /ماسک صورت/ }));
-    await user.click(screen.getByRole("button", { name: "افزودن محصول" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "موجودی این محصول کافی نیست — ابتدا از بخش انبار شارژ کنید"
@@ -442,13 +443,12 @@ describe("WizardStepService extra products (step 2 warehouse dropdown)", () => {
     expect(onUpdateExtraProducts).not.toHaveBeenCalled();
   });
 
-  it("adds an in-stock product to the billable list", async () => {
+  it("adds an in-stock product to the billable list on select", async () => {
     const user = userEvent.setup();
     renderWithSelection();
 
     await user.click(await screen.findByRole("combobox"));
     await user.click(await screen.findByRole("option", { name: /سرم ویتامین/ }));
-    await user.click(screen.getByRole("button", { name: "افزودن محصول" }));
 
     expect(onUpdateExtraProducts).toHaveBeenCalledWith([
       {

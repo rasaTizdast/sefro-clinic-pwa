@@ -353,10 +353,10 @@ describe("wizard consumable totals", () => {
     });
 
     // Custom Select: open combobox, pick the reserved serum option (label includes price).
+    // Selecting adds immediately — no separate add-button click.
     const trigger = screen.getAllByRole("combobox")[0];
     await user.click(trigger);
     await user.click(await screen.findByRole("option", { name: /سرم ویتامین — ۱۵۰٬۰۰۰ تومان/ }));
-    await user.click(screen.getByRole("button", { name: "افزودن محصول" }));
 
     expect(await screen.findByText("این محصول قبلاً اضافه شده است")).toBeInTheDocument();
     expect(screen.getByTestId("consumable-total")).toHaveTextContent("500000");

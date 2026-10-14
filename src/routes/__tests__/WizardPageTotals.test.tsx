@@ -239,10 +239,10 @@ describe("WizardPage full flow — consumable totals", () => {
     );
 
     // Add ماسک صورت (id 51, not in recipe) — 200000 × 1 = +200000 → 2.5M
+    // Selecting adds immediately — no separate add-button click.
     const trigger = screen.getAllByRole("combobox").at(-1)!;
     await user.click(trigger);
     await user.click(await screen.findByRole("option", { name: /ماسک صورت/ }));
-    await user.click(screen.getByRole("button", { name: "افزودن محصول" }));
 
     await waitFor(
       () => {
@@ -310,8 +310,8 @@ describe("WizardPage full flow — consumable totals", () => {
 
     const trigger = screen.getAllByRole("combobox").at(-1)!;
     await user.click(trigger);
+    // Selecting adds immediately — no separate add-button click.
     await user.click(await screen.findByRole("option", { name: /سرم ویتامین/ }));
-    await user.click(screen.getByRole("button", { name: "افزودن محصول" }));
 
     expect(await screen.findByText("این محصول قبلاً اضافه شده است")).toBeInTheDocument();
     expect(
