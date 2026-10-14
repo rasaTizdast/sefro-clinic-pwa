@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useToast } from "../../components/ui";
+import { extractApiError } from "../../lib/api-error";
 import { queryKeys } from "../../lib/query-keys";
 import * as visitsService from "../../services/visits";
 import type { ReserveVisitPayload, UpdateVisitPayload } from "../../types/appointment";
@@ -30,7 +31,7 @@ export function useVisit(id: number) {
   });
 }
 
-export function useReserveVisit() {
+export function useReserveVisit(options?: { silent?: boolean }) {
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -38,11 +39,11 @@ export function useReserveVisit() {
     mutationFn: (data: ReserveVisitPayload) => visitsService.reserveVisit(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
-      toast.success("نوبت رزرو شد.");
+      if (!options?.silent) toast.success("نوبت رزرو شد.");
     },
     onError: (error) => {
       console.error("[useReserveVisit] Error reserving visit:", error);
-      toast.error("خطا در رزرو نوبت");
+      if (!options?.silent) toast.error("خطا در رزرو نوبت");
     },
   });
 }
@@ -73,8 +74,10 @@ export function useCompleteVisit() {
       queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
       toast.success("نوبت به اتمام رسید.");
     },
-    onError: () => {
-      toast.error("خطا در اتمام نوبت");
+    onError: (error) => {
+      // Surface the backend's own message (e.g. the staff-requirement 400)
+      // instead of hiding it behind a generic failure toast.
+      toast.error(extractApiError(error));
     },
   });
 }

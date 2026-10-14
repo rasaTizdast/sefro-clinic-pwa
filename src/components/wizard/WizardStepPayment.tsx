@@ -101,13 +101,14 @@ export default function WizardStepPayment({
   // Final customer payable: fee + goods + consumables.
   const totalToman = serviceFeeTotal + consumableTotal;
 
-  const checkoutMutation = useCheckout();
-  const reserveMutation = useReserveVisit();
-  const consumptionMutation = useRecordConsumption();
-  const issuePackMutation = useIssueWelcomePack();
-  const createCustomerMutation = useCreateCustomer();
+  const checkoutMutation = useCheckout({ silent: true });
+  const reserveMutation = useReserveVisit({ silent: true });
+  const consumptionMutation = useRecordConsumption({ silent: true });
+  const issuePackMutation = useIssueWelcomePack({ silent: true });
+  const createCustomerMutation = useCreateCustomer({ silent: true });
 
   const { data: currentRate } = useCurrentRate();
+  const [submitting, setSubmitting] = useState(false);
   const rate = useMemo(() => {
     const raw = currentRate?.rateTomanPerUsd ?? currentRate?.rate;
     const parsed = Number(raw);
@@ -153,6 +154,7 @@ export default function WizardStepPayment({
   }, [consumables, extraProducts]);
 
   const isPending =
+    submitting ||
     reserveMutation.isPending ||
     checkoutMutation.isPending ||
     consumptionMutation.isPending ||
@@ -160,9 +162,24 @@ export default function WizardStepPayment({
     createCustomerMutation.isPending;
 
   const handleFinish = async () => {
+    // Latch synchronously on click — isPending only flips when a mutation
+    // starts, and ensureFreshToken/getBillingRate run before that.
+    if (submitting) return;
+    setSubmitting(true);
     setFormError("");
-    if (!isComplete) return;
+    if (!isComplete) {
+      setSubmitting(false);
+      return;
+    }
+    // Same rule as the calendar booking: "with" requires a chosen pack.
+    // "without" may submit as long as the other required fields are filled.
+    if (welcomeMode === "with" && !welcomePack) {
+      setFormError("یک ولکام‌پک انتخاب کنید");
+      setSubmitting(false);
+      return;
+    }
     if (consumablesInvalid) {
+      setSubmitting(false);
       toastError("تعداد مواد مصرفی نامعتبر است");
       return;
     }
@@ -170,38 +187,40 @@ export default function WizardStepPayment({
     // Fresh session cookies first — this flow posts customer → visit →
     // consumption → checkout back to back and a stale token can fail the
     // later requests after the earlier ones already succeeded.
-    await ensureFreshToken();
-
-    // Never price the sale from the cached quote: checkout re-derives every
-    // cash component with the server's own rate and rejects the sale when the
-    // two disagree. Resolve it fresh, right before we post.
-    const billingRate = await getBillingRate();
-    if (billingRate === null) {
-      toastError("نرخ ارز در دسترس نیست");
-      return;
-    }
-    if (billingRate !== rate) {
-      // Sync the UI to the rate the server will use, then re-check the split
-      // under it — a moved rate changes ceil(usd × rate), so the receptionist
-      // must re-confirm the amount instead of us silently posting a mismatch.
-      queryClient.setQueryData(queryKeys.finance.currentRate, {
-        rate: String(billingRate),
-        rateTomanPerUsd: String(billingRate),
-        effectiveAt: null,
-        source: "checkout",
-      });
-      if (!isSplitComplete(totalToman, cashNum, cardNum, cashUsdNum, billingRate)) {
-        setFormError("نرخ ارز به‌روز شد — مبلغ پرداخت را با نرخ جدید تنظیم کنید.");
-        return;
-      }
-    }
-
-    // Rollback markers: a failure before the first sale lands must release the
-    // reservation, otherwise every retry piles up a «در انتظار» visit.
     let reservedVisitId: number | null = null;
     let saleBooked = false;
-
     try {
+      await ensureFreshToken();
+
+      // Never price the sale from the cached quote: checkout re-derives every
+      // cash component with the server's own rate and rejects the sale when the
+      // two disagree. Resolve it fresh, right before we post.
+      const billingRate = await getBillingRate();
+      if (billingRate === null) {
+        toastError("نرخ ارز در دسترس نیست");
+        setSubmitting(false);
+        return;
+      }
+      if (billingRate !== rate) {
+        // Sync the UI to the rate the server will use, then re-check the split
+        // under it — a moved rate changes ceil(usd × rate), so the receptionist
+        // must re-confirm the amount instead of us silently posting a mismatch.
+        queryClient.setQueryData(queryKeys.finance.currentRate, {
+          rate: String(billingRate),
+          rateTomanPerUsd: String(billingRate),
+          effectiveAt: null,
+          source: "checkout",
+        });
+        if (!isSplitComplete(totalToman, cashNum, cardNum, cashUsdNum, billingRate)) {
+          setFormError("نرخ ارز به‌روز شد — مبلغ پرداخت را با نرخ جدید تنظیم کنید.");
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // Rollback markers: a failure before the first sale lands must release the
+      // reservation, otherwise every retry piles up a «در انتظار» visit.
+
       // 1. Ensure the patient exists (new-patient form only holds local data until here).
       let customerId: number | null = patient.id;
       if (customerId == null) {
@@ -223,6 +242,11 @@ export default function WizardStepPayment({
       const finalCustomerId: number = customerId as number;
 
       // 2. Reserve the visit with real service ids (packages ride on the sale, not the visit).
+      // NOTE: the visit stays in its booked state — this flow never calls
+      // `/visits/:id/complete/` (the calendar "تمام شدن و تسویه" action does).
+      // Because completion requires `visit.staff` and no API assigns staff to a
+      // visit, the backend's staff-requirement 400 is suppressed here by design;
+      // do not add a complete call without fixing staff assignment first.
       const now = new Date();
       const dateStr = toShamsiDateInput(now);
       const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -364,6 +388,8 @@ export default function WizardStepPayment({
       const msg = extractApiError(err);
       setFormError(msg);
       toastError(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -472,6 +498,7 @@ export default function WizardStepPayment({
             onClick={() => {
               setWelcomeMode("without");
               onSelectWelcomePack(null);
+              setFormError("");
             }}
             className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
               welcomeMode === "without"
@@ -508,6 +535,7 @@ export default function WizardStepPayment({
               onChange={(e) => {
                 const id = e.target.value ? Number(e.target.value) : null;
                 const pack = (packsData ?? []).find((p) => p.id === id) ?? null;
+                if (formError === "یک ولکام‌پک انتخاب کنید") setFormError("");
                 onSelectWelcomePack(
                   pack
                     ? {
@@ -571,8 +599,8 @@ export default function WizardStepPayment({
           variant="primary"
           startIcon={<MdPayment className="size-4" />}
           onClick={handleFinish}
-          disabled={!isComplete || isPending || consumablesInvalid}
-          loading={isPending}
+          disabled={!isComplete || isPending || submitting || consumablesInvalid}
+          loading={isPending || submitting}
         >
           ثبت نهایی
         </Button>

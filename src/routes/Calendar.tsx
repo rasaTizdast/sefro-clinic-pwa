@@ -26,7 +26,7 @@ import { Skeleton } from "../components/ui/Skeleton";
 import { Textarea } from "../components/ui/Textarea";
 import { UsdTag } from "../components/ui/UsdTag";
 import { ExtraProductsBlock } from "../components/wizard/ExtraProductsBlock";
-import { WelcomePackBlock } from "../components/wizard/WelcomePackBlock";
+import { WelcomePackBlock, type WelcomePackMode } from "../components/wizard/WelcomePackBlock";
 import { useAuth } from "../contexts/AuthContext";
 import {
   useAllCustomers,
@@ -298,6 +298,9 @@ function Calendar() {
   const [patientSearch, setPatientSearch] = useState("");
   const [extraProducts, setExtraProducts] = useState<ConsumableSelection[]>([]);
   const [welcomePack, setWelcomePack] = useState<WelcomePackSelection | null>(null);
+  const [welcomePackMode, setWelcomePackMode] = useState<WelcomePackMode>("without");
+  /** Set when a booking submit is attempted with mode=with and no pack chosen. */
+  const [welcomePackInvalid, setWelcomePackInvalid] = useState(false);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editAppointment, setEditAppointment] = useState<Appointment | null>(null);
@@ -517,6 +520,8 @@ function Calendar() {
     setForm({ patientId: null, serviceIds: [], date: "", time: "", notes: "" });
     setExtraProducts([]);
     setWelcomePack(null);
+    setWelcomePackMode("without");
+    setWelcomePackInvalid(false);
     setModalOpen(true);
   }
 
@@ -525,6 +530,8 @@ function Calendar() {
     setWizardStep("patient");
     setExtraProducts([]);
     setWelcomePack(null);
+    setWelcomePackMode("without");
+    setWelcomePackInvalid(false);
   }
 
   /** Single entry point for opening checkout so stored extras are always loaded. */
@@ -565,6 +572,12 @@ function Calendar() {
 
   function handleSubmitForm() {
     if (!selectedPatient || selectedServices.length === 0 || !form.date || !form.time) return;
+    // Same rule as the /wizard payment step: "with" requires a chosen pack.
+    if (welcomePackMode === "with" && !welcomePack) {
+      setWelcomePackInvalid(true);
+      return;
+    }
+    setWelcomePackInvalid(false);
     const payload = {
       customer: selectedPatient.id,
       services: selectedServices.map((s) => s.id),
@@ -578,7 +591,7 @@ function Calendar() {
         if (visitId > 0) {
           saveVisitExtras(visitId, {
             extraProducts,
-            welcomePack,
+            welcomePack: welcomePackMode === "with" ? welcomePack : null,
             savedAt: Date.now(),
           });
         }
@@ -646,12 +659,18 @@ function Calendar() {
             : false;
         }) ?? false;
       if (hasCompensableService && !visit?.staff) {
-        const ok = window.confirm(
-          "این خدمت شامل موارد قابل تسویه پرسنل است، اما اپراتوری برای آن انتخاب نشده است.\n" +
-            "با تکمیل نوبت، هیچ فیش تسویه‌ای برای این پرسنل ساخته نمی‌شود.\n" +
-            "ادامه می‌دهید؟"
+        // `visit.staff` is never assigned through the app (the visit serializer
+        // exposes staff read-only and no endpoint assigns it), while the backend
+        // rejects completing any compensable-service visit without it. Proceeding
+        // to `completeVisit` would fail with a 400, so block here with the real
+        // reason instead of offering a "continue anyway" that cannot succeed.
+        window.alert(
+          "این نوبت شامل خدمات قابل تسویه پرسنل است اما پرسنلی برای نوبت انتخاب نشده است.\n" +
+            "تکمیل این نوبت در حال حاضر ممکن نیست: بک‌اند برای ذخیره فیش تسویه نیاز به «پرسنل نوبت» دارد " +
+            "اما هیچ راهی (در رابط یا API) برای انتخاب پرسنل نوبت وجود ندارد.\n" +
+            "برای تکمیل این نوبت از خدمت‌هایی استفاده کنید که نقش تسویه ندارند."
         );
-        if (!ok) return;
+        return;
       }
       completeVisit(id, {
         onSuccess: () => {
@@ -919,7 +938,19 @@ function Calendar() {
           reservedProductIds={EMPTY_ID_SET}
         />
 
-        <WelcomePackBlock welcomePack={welcomePack} onChange={setWelcomePack} />
+        <WelcomePackBlock
+          mode={welcomePackMode}
+          onModeChange={(mode) => {
+            setWelcomePackMode(mode);
+            setWelcomePackInvalid(false);
+          }}
+          welcomePack={welcomePack}
+          onChange={(pack) => {
+            setWelcomePack(pack);
+            setWelcomePackInvalid(false);
+          }}
+          invalid={welcomePackInvalid}
+        />
 
         <div className="border-surface-200 bg-surface-50 space-y-1.5 rounded-lg border px-3 py-2.5">
           {selectedServices.length === 0 ? (
