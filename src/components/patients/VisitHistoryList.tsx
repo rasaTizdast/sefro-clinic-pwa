@@ -57,10 +57,10 @@ export function VisitHistoryList({ customerId, compact = false }: VisitHistoryLi
         return (
           <li key={visit.id} className="flex items-center justify-between gap-3 py-3">
             <div className="flex min-w-0 flex-col">
-              <span className="text-surface-800 text-sm font-medium">
+              <span className="text-surface-800 flex items-baseline gap-2 text-sm font-medium">
                 {toPersianDigits(formatJalaliDate(visit.date))}
-                <span className="text-surface-500 ms-2 font-normal" dir="ltr">
-                  {visit.time}
+                <span className="text-surface-700 font-normal" dir="rtl">
+                  {toPersianDigits(visit.time)}
                 </span>
               </span>
               <span className="text-surface-500 mt-0.5 truncate text-xs">
