@@ -66,8 +66,9 @@ const toBackendPayload = (data: Record<string, unknown>) => ({
   name: data.title,
   time: data.duration ? Number(data.duration) : 0,
   price: data.price ? Number(data.price) : 0,
-  // Only sent when a caller explicitly knows the USD value; the service form sends the Toman price alone and the backend derives price_usd at its current rate.
-  price_usd: data.priceUsd ?? null,
+  // Omitted when unknown — the backend derives price_usd from the Toman price
+  // at the current rate. Sending `null` is rejected (non-nullable model field).
+  ...(data.priceUsd != null ? { price_usd: data.priceUsd } : {}),
   compensation_role: data.compensationRole ?? "none",
   description: data.description ?? "",
   is_active: data.isActive ?? true,
