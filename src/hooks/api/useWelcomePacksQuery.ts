@@ -50,7 +50,7 @@ export function useWelcomePackReport(query: { period?: ReportPeriod }) {
  * Issue a pack to a customer (optionally bound to a visit).
  * This is the only write that creates a welcome-pack financial event.
  */
-export function useIssueWelcomePack() {
+export function useIssueWelcomePack(options?: { silent?: boolean }) {
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -58,10 +58,10 @@ export function useIssueWelcomePack() {
     mutationFn: (input: IssueWelcomePackInput) => welcomePacksService.issueWelcomePack(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.finance.welcomePacks.all });
-      toast.success("ولکام‌پک صادر شد");
+      if (!options?.silent) toast.success("ولکام‌پک صادر شد");
     },
     onError: (error) => {
-      toast.error(extractApiError(error));
+      if (!options?.silent) toast.error(extractApiError(error));
     },
   });
 }

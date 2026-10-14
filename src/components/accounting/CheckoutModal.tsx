@@ -83,10 +83,12 @@ export function CheckoutModal({
   const [formError, setFormError] = useState("");
 
   const { data: currentRate, isLoading: rateLoading } = useCurrentRate();
-  const checkout = useCheckout();
-  const recordConsumption = useRecordConsumption();
-  const issuePack = useIssueWelcomePack();
   const toast = useToast();
+  // Both split sales must stay quiet — a single final «تسویه با موفقیت ثبت شد»
+  // covers one payment even when it posts as two sales.
+  const checkout = useCheckout({ silent: true });
+  const recordConsumption = useRecordConsumption({ silent: true });
+  const issuePack = useIssueWelcomePack({ silent: true });
   // The backend refuses a second consumption per visit, so only send one when the
   // visit has none. This is what makes checkout deduct the recipe's stock.
   const { data: recordedUsages } = useVisitConsumptionCount(visitId);
@@ -109,7 +111,10 @@ export function CheckoutModal({
   const paidToman = splitPaidToman(cashToman, cardToman, cashUsdNum, rate);
   const splitValid = paidToman === totalToman && totalToman > 0;
   const isPending = checkout.isPending || recordConsumption.isPending || issuePack.isPending;
-  const canSubmit = splitValid && !rateMissing && !isPending;
+  // Latched synchronously on click (plan 08): `isPending` only flips when a
+  // mutation starts, but ensureFreshToken runs before that.
+  const [submitting, setSubmitting] = useState(false);
+  const canSubmit = splitValid && !rateMissing && !isPending && !submitting;
 
   // Dollar value of the bill at the live rate — shown under مبلغ کل so the
   // receptionist sees both currencies before splitting the payment.
@@ -130,6 +135,10 @@ export function CheckoutModal({
   };
 
   const handleSubmit = async () => {
+    // Latch synchronously — `isPending` flips only when a mutation starts, but
+    // ensureFreshToken runs before that.
+    if (submitting) return;
+    setSubmitting(true);
     setFormError("");
     try {
       // Fresh session cookies first — this submit posts several mutations back
@@ -233,9 +242,12 @@ export function CheckoutModal({
         }
       }
       onSuccess?.();
+      toast.success("تسویه با موفقیت ثبت شد");
       onClose();
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : "خطا در ثبت فروش");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -251,7 +263,7 @@ export function CheckoutModal({
             انصراف
           </Button>
           <Button variant="primary" onClick={handleSubmit} disabled={!canSubmit}>
-            {isPending ? "در حال ثبت..." : "ثبت فروش"}
+            {isPending || submitting ? "در حال ثبت..." : "ثبت فروش"}
           </Button>
         </>
       }

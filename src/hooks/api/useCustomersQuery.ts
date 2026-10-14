@@ -29,7 +29,7 @@ export function useCustomer(id: number) {
   });
 }
 
-export function useCreateCustomer() {
+export function useCreateCustomer(options?: { silent?: boolean }) {
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -37,7 +37,8 @@ export function useCreateCustomer() {
     mutationFn: (data: PatientFormData) => customersService.createCustomer(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
-      toast.success("بیمار با موفقیت افزوده شد.");
+      // The wizard check-in shows one final «پذیرش ثبت شد» toast itself.
+      if (!options?.silent) toast.success("بیمار با موفقیت افزوده شد.");
     },
   });
 }

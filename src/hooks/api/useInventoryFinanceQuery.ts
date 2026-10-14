@@ -124,7 +124,7 @@ export function useDeletePurchase() {
 }
 
 /** Record the consumables used during a visit (checkout consumption step). */
-export function useRecordConsumption() {
+export function useRecordConsumption(options?: { silent?: boolean }) {
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -149,7 +149,9 @@ export function useRecordConsumption() {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
     },
     onError: (error) => {
-      toast.error(extractApiError(error));
+      // Mid-flow callers (wizard payment, visit checkout) report a single final
+      // outcome themselves; the consumption failure is surfaced as a warning.
+      if (!options?.silent) toast.error(extractApiError(error));
     },
   });
 }

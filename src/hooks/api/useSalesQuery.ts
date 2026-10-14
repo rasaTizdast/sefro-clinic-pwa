@@ -34,7 +34,7 @@ export function usePaidVisitIds() {
   });
 }
 
-export function useCheckout() {
+export function useCheckout(options?: { silent?: boolean }) {
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -47,10 +47,12 @@ export function useCheckout() {
       queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
       // Checkout re-runs visit payout settlement server-side, so payout rows changed.
       queryClient.invalidateQueries({ queryKey: queryKeys.payouts.all });
-      toast.success("فروش ثبت شد");
+      // Mid-flow callers (wizard payment, visit checkout) show a single final
+      // toast themselves — suppress these per-sale toasts when silent.
+      if (!options?.silent) toast.success("فروش ثبت شد");
     },
     onError: (error) => {
-      toast.error(extractApiError(error));
+      if (!options?.silent) toast.error(extractApiError(error));
     },
   });
 }
