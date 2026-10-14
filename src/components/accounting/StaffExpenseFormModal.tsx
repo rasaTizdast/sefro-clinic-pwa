@@ -6,7 +6,7 @@ import {
   useCreateExpenseCategory,
   useCurrentRate,
 } from "../../hooks/api";
-import { tomanToUsd } from "../../lib/currency";
+import { tomanToUsdHalfEven } from "../../lib/currency";
 import { formatJalaliDate, jalaliToGregorianISO } from "../../lib/date";
 import { toLatinDigits } from "../../lib/digits";
 import { formatPrice } from "../../lib/format";
@@ -56,7 +56,12 @@ export function StaffExpenseFormModal({
   }, [currentRate]);
 
   const tomanAmount = Number(toLatinDigits(amountToman.replace(/[^\d۰-۹]/g, ""))) || 0;
-  const amountUsd = rate === null ? null : tomanToUsd(tomanAmount, rate);
+  // Centered (half-even) conversion matching the backend's own to_usd, so the
+  // stored amount round-trips as close as possible to the entered Toman figure.
+  // Exact round-trip is impossible through the 2dp USD the API accepts — the
+  // backend should accept amount_toman directly (reported separately).
+  const halfEven = rate === null ? null : tomanToUsdHalfEven(tomanAmount, rate);
+  const amountUsd = halfEven === null ? null : halfEven.toFixed(2);
   const rateMissing = rate === null;
   const isPending = createExpense.isPending || createCategory.isPending;
   const canSubmit = categoryId !== "" && tomanAmount > 0 && amountUsd !== null && !rateMissing;
