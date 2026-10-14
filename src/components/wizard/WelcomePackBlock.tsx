@@ -5,6 +5,8 @@ import { PiGiftBold } from "react-icons/pi";
 import { useAllWelcomePacks, useWelcomePack } from "../../hooks/api";
 import { toPersianDigits } from "../../lib/digits";
 import type { WelcomePackSelection } from "../../types/wizard";
+import { Alert } from "../ui/Alert";
+import { Button } from "../ui/Button";
 import { Select } from "../ui/Select";
 
 export type WelcomePackMode = "with" | "without";
@@ -34,7 +36,13 @@ export function WelcomePackBlock({
   onChange,
   invalid = false,
 }: WelcomePackBlockProps) {
-  const { data: packsData } = useAllWelcomePacks({ isActive: true });
+  const {
+    data: packsData,
+    isPending: packsLoading,
+    isError: packsError,
+    isFetching: packsFetching,
+    refetch: refetchPacks,
+  } = useAllWelcomePacks({ isActive: true });
   const { data: selectedPackDetail } = useWelcomePack(welcomePack?.packId ?? 0);
 
   const packItems = useMemo(
@@ -82,32 +90,59 @@ export function WelcomePackBlock({
 
       {mode === "with" && (
         <>
-          <Select
-            label="انتخاب ولکام‌پک"
-            options={[
-              { value: "", label: "یک ولکام‌پک انتخاب کنید" },
-              ...(packsData ?? []).map((p) => ({
-                value: String(p.id),
-                label: p.name,
-              })),
-            ]}
-            value={welcomePack ? String(welcomePack.packId) : ""}
-            error={showSelectError ? "یک ولکام‌پک انتخاب کنید" : undefined}
-            onChange={(e) => {
-              const id = e.target.value ? Number(e.target.value) : null;
-              const pack = (packsData ?? []).find((p) => p.id === id) ?? null;
-              onChange(
-                pack
-                  ? {
-                      packId: pack.id,
-                      packName: pack.name,
-                      totalCostToman: pack.totalCostToman,
-                      totalCostUsd: pack.totalCostUsd,
-                    }
-                  : null
-              );
-            }}
-          />
+          {packsError ? (
+            <Alert variant="error" title="ولکام‌پک‌ها بارگذاری نشدند">
+              <div className="flex items-center justify-between gap-3">
+                <span>ارتباط با سرور برقرار نشد؛ لطفاً دوباره تلاش کنید.</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={packsFetching}
+                  onClick={() => void refetchPacks()}
+                >
+                  {packsFetching ? "در حال تلاش..." : "تلاش مجدد"}
+                </Button>
+              </div>
+            </Alert>
+          ) : packsLoading ? (
+            <div className="space-y-1.5">
+              <span className="text-surface-500 block text-xs font-medium">انتخاب ولکام‌پک</span>
+              <div
+                role="status"
+                aria-label="در حال بارگذاری ولکام‌پک‌ها"
+                className="border-surface-200 bg-surface-100 h-10 animate-pulse rounded-lg border"
+              />
+            </div>
+          ) : (packsData ?? []).length === 0 ? (
+            <Alert variant="info">ولکام‌پک فعالی ثبت نشده است.</Alert>
+          ) : (
+            <Select
+              label="انتخاب ولکام‌پک"
+              options={[
+                { value: "", label: "یک ولکام‌پک انتخاب کنید" },
+                ...(packsData ?? []).map((p) => ({
+                  value: String(p.id),
+                  label: p.name,
+                })),
+              ]}
+              value={welcomePack ? String(welcomePack.packId) : ""}
+              error={showSelectError ? "یک ولکام‌پک انتخاب کنید" : undefined}
+              onChange={(e) => {
+                const id = e.target.value ? Number(e.target.value) : null;
+                const pack = (packsData ?? []).find((p) => p.id === id) ?? null;
+                onChange(
+                  pack
+                    ? {
+                        packId: pack.id,
+                        packName: pack.name,
+                        totalCostToman: pack.totalCostToman,
+                        totalCostUsd: pack.totalCostUsd,
+                      }
+                    : null
+                );
+              }}
+            />
+          )}
 
           {welcomePack && (
             <div className="border-info-200 bg-info-50/40 overflow-hidden rounded-lg border">

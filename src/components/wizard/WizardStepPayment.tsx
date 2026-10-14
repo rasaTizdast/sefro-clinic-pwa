@@ -126,7 +126,13 @@ export default function WizardStepPayment({
   // Only numeric service-id keys go to record-consumption (pkg:* keys are bill-only).
   const serviceIdKeySet = useMemo(() => new Set(serviceIds.map(String)), [serviceIds]);
 
-  const { data: packsData } = useAllWelcomePacks({ isActive: true });
+  const {
+    data: packsData,
+    isPending: packsLoading,
+    isError: packsError,
+    isFetching: packsFetching,
+    refetch: refetchPacks,
+  } = useAllWelcomePacks({ isActive: true });
   // Fresh detail of the chosen pack: its standalone items (welcome-pack-items),
   // distinct from the per-service consumables above.
   const { data: selectedPackDetail } = useWelcomePack(welcomePack?.packId ?? 0);
@@ -522,32 +528,59 @@ export default function WizardStepPayment({
         </div>
         {welcomeMode === "with" && (
           <>
-            <Select
-              label="انتخاب ولکام‌پک"
-              options={[
-                { value: "", label: "یک ولکام‌پک انتخاب کنید" },
-                ...(packsData ?? []).map((p) => ({
-                  value: String(p.id),
-                  label: p.name,
-                })),
-              ]}
-              value={welcomePack ? String(welcomePack.packId) : ""}
-              onChange={(e) => {
-                const id = e.target.value ? Number(e.target.value) : null;
-                const pack = (packsData ?? []).find((p) => p.id === id) ?? null;
-                if (formError === "یک ولکام‌پک انتخاب کنید") setFormError("");
-                onSelectWelcomePack(
-                  pack
-                    ? {
-                        packId: pack.id,
-                        packName: pack.name,
-                        totalCostToman: pack.totalCostToman,
-                        totalCostUsd: pack.totalCostUsd,
-                      }
-                    : null
-                );
-              }}
-            />
+            {packsError ? (
+              <Alert variant="error" title="ولکام‌پک‌ها بارگذاری نشدند">
+                <div className="flex items-center justify-between gap-3">
+                  <span>ارتباط با سرور برقرار نشد؛ لطفاً دوباره تلاش کنید.</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={packsFetching}
+                    onClick={() => void refetchPacks()}
+                  >
+                    {packsFetching ? "در حال تلاش..." : "تلاش مجدد"}
+                  </Button>
+                </div>
+              </Alert>
+            ) : packsLoading ? (
+              <div className="space-y-1.5">
+                <span className="text-surface-500 block text-xs font-medium">انتخاب ولکام‌پک</span>
+                <div
+                  role="status"
+                  aria-label="در حال بارگذاری ولکام‌پک‌ها"
+                  className="border-surface-200 bg-surface-100 h-10 animate-pulse rounded-lg border"
+                />
+              </div>
+            ) : (packsData ?? []).length === 0 ? (
+              <Alert variant="info">ولکام‌پک فعالی ثبت نشده است.</Alert>
+            ) : (
+              <Select
+                label="انتخاب ولکام‌پک"
+                options={[
+                  { value: "", label: "یک ولکام‌پک انتخاب کنید" },
+                  ...(packsData ?? []).map((p) => ({
+                    value: String(p.id),
+                    label: p.name,
+                  })),
+                ]}
+                value={welcomePack ? String(welcomePack.packId) : ""}
+                onChange={(e) => {
+                  const id = e.target.value ? Number(e.target.value) : null;
+                  const pack = (packsData ?? []).find((p) => p.id === id) ?? null;
+                  if (formError === "یک ولکام‌پک انتخاب کنید") setFormError("");
+                  onSelectWelcomePack(
+                    pack
+                      ? {
+                          packId: pack.id,
+                          packName: pack.name,
+                          totalCostToman: pack.totalCostToman,
+                          totalCostUsd: pack.totalCostUsd,
+                        }
+                      : null
+                  );
+                }}
+              />
+            )}
             {welcomePack && (
               <div className="bg-surface-50 space-y-1 rounded-md p-2">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
