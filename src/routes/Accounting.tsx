@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { CiMoneyBill, CiReceipt, CiSettings, CiUser, CiWallet } from "react-icons/ci";
+import { CiMoneyBill, CiSettings, CiUser, CiWallet } from "react-icons/ci";
 
 import { OperatingExpensesTab } from "../components/accounting/OperatingExpensesTab";
 import { PayoutsTab } from "../components/accounting/PayoutsTab";
-import { SalesTab } from "../components/accounting/SalesTab";
 import { StaffExpensesTab } from "../components/accounting/StaffExpensesTab";
 import { SearchButton } from "../components/SearchButton";
 import { CompensationRulesTab } from "../components/settings/CompensationRulesTab";
@@ -11,7 +10,7 @@ import { TabPanel, Tabs } from "../components/ui/Tabs";
 import { useExpensesList, useOperatingExpenseSummary, usePayoutsList } from "../hooks/api";
 
 function Accounting() {
-  const [activeTab, setActiveTab] = useState("sales");
+  const [activeTab, setActiveTab] = useState("operating-expenses");
   const [personnelTab, setPersonnelTab] = useState("staff-expenses");
 
   // Live workload counts so the tab bar shows what still needs attention.
@@ -36,7 +35,6 @@ function Accounting() {
       <Tabs
         ariaLabel="بخش‌های حسابداری"
         tabs={[
-          { id: "sales", label: "فروش", icon: <CiReceipt className="size-4" /> },
           {
             id: "operating-expenses",
             label: "هزینه‌های جاری",
@@ -59,9 +57,6 @@ function Accounting() {
         onChange={setActiveTab}
       />
 
-      <TabPanel id="sales" activeTab={activeTab}>
-        <SalesTab />
-      </TabPanel>
       <TabPanel id="operating-expenses" activeTab={activeTab}>
         <OperatingExpensesTab />
       </TabPanel>
