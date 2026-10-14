@@ -25,6 +25,7 @@ vi.mock("../../lib/api-client", () => ({
 }));
 
 vi.mock("../../hooks/api", () => ({
+  usePrefetchWelcomePacks: () => {},
   useCurrentRate: () => ({
     data: { rate: "600000", rateTomanPerUsd: "600000" },
     isLoading: false,

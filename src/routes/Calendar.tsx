@@ -37,6 +37,7 @@ import {
   useConfirmVisit,
   useDeleteVisit,
   usePaidVisitIds,
+  usePrefetchWelcomePacks,
   useReserveVisit,
   useUpdateVisit,
 } from "../hooks/api";
@@ -280,6 +281,9 @@ function buildDayTimeline(
 
 function Calendar() {
   const { user } = useAuth();
+  // Warm the pack cache while the month loads so the booking wizard's picker
+  // doesn't wait on a slow first fetch (see WelcomePackBlock).
+  usePrefetchWelcomePacks();
   const [todayInfo] = useState(() => getPersianDate(new Date()));
   const [viewDate, setViewDate] = useState(() => getFirstOfPersianMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<string>(

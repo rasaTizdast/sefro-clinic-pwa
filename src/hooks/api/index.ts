@@ -118,6 +118,7 @@ export {
   useAllWelcomePacks,
   useDeleteWelcomePack,
   useIssueWelcomePack,
+  usePrefetchWelcomePacks,
   useSaveWelcomePack,
   useWelcomePack,
   useWelcomePackReport,

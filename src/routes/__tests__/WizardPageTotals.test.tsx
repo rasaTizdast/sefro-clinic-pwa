@@ -41,10 +41,17 @@ vi.mock("../../hooks/api/useCustomersQuery", () => ({
 }));
 
 vi.mock("../../hooks/api", () => ({
+  usePrefetchWelcomePacks: () => {},
   useCheckout: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useWelcomePack: () => ({ data: undefined }),
   useWelcomePacksList: () => ({ data: { data: [] } }),
-  useAllWelcomePacks: () => ({ data: [] }),
+  useAllWelcomePacks: () => ({
+    data: [],
+    isPending: false,
+    isError: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  }),
   useCurrentRate: () => ({
     data: { rate: "100000", rateTomanPerUsd: "100000" },
     isLoading: false,

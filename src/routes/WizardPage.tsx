@@ -7,6 +7,7 @@ import WizardStepPatient from "../components/wizard/WizardStepPatient";
 import WizardStepPayment from "../components/wizard/WizardStepPayment";
 import WizardStepService from "../components/wizard/WizardStepService";
 import { useWizard } from "../contexts/WizardContext";
+import { usePrefetchWelcomePacks } from "../hooks/api";
 import type {
   ConsumableSelection,
   ServiceSelection,
@@ -17,6 +18,8 @@ import type {
 function WizardPage() {
   const { tabs, activeTabId, createTab, closeTab, setActiveTabId, updateTab } = useWizard();
   const { success: toastSuccess } = useToast();
+  // Warm the pack cache before the payment step opens its picker.
+  usePrefetchWelcomePacks();
   const activeTab = activeTabId ? (tabs.find((t) => t.id === activeTabId) ?? null) : null;
 
   const handleUpdateTab = useCallback(
