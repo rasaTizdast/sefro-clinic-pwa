@@ -14,6 +14,15 @@ import { fetchAllPages } from "./fetch-all-pages";
 
 const DEFAULT_PER_PAGE = 20;
 
+/**
+ * Welcome-pack endpoints are the slowest reads in the app (each item triggers a
+ * cost-history query plus two exchange-rate lookups, and the rate lookup can hit
+ * two external providers). Measured at ~11 s against the live DB, which is over
+ * the global 10 s axios timeout — so they get a patient budget instead of being
+ * aborted and rendered as an empty pack list.
+ */
+export const WELCOME_PACK_TIMEOUT_MS = 30_000;
+
 type RawWelcomePackItem = Record<string, unknown> & {
   id: number;
   welcomePack?: number;
@@ -122,13 +131,18 @@ export const listWelcomePacks = async (
     perPage,
   }) as Record<string, string | number | boolean>;
   if (params?.isActive !== undefined) query.is_active = params.isActive;
-  const { data } = await apiClient.get(endpoints.finance.welcomePacks, { params: query });
+  const { data } = await apiClient.get(endpoints.finance.welcomePacks, {
+    params: query,
+    timeout: WELCOME_PACK_TIMEOUT_MS,
+  });
   const paginated = toPaginatedResponse<RawWelcomePack>(data as never, page, perPage);
   return { ...paginated, data: paginated.data.map(toWelcomePack) };
 };
 
 export const getWelcomePack = async (id: number): Promise<WelcomePack> => {
-  const { data } = await apiClient.get(endpoints.finance.welcomePackDetail(id));
+  const { data } = await apiClient.get(endpoints.finance.welcomePackDetail(id), {
+    timeout: WELCOME_PACK_TIMEOUT_MS,
+  });
   return toWelcomePack(data as RawWelcomePack);
 };
 
@@ -139,7 +153,9 @@ export const listAllWelcomePacks = async (
   const query: Record<string, string | number | boolean> = {};
   if (params?.search) query.search = params.search;
   if (params?.isActive !== undefined) query.is_active = params.isActive;
-  const rows = await fetchAllPages<RawWelcomePack>(endpoints.finance.welcomePacks, query);
+  const rows = await fetchAllPages<RawWelcomePack>(endpoints.finance.welcomePacks, query, {
+    timeoutMs: WELCOME_PACK_TIMEOUT_MS,
+  });
   return rows.map(toWelcomePack);
 };
 
