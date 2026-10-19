@@ -1,4 +1,4 @@
-﻿export type SaleStatus = "pending" | "paid" | "refunded" | "partially_refunded" | "cancelled";
+export type SaleStatus = "pending" | "paid" | "refunded" | "partially_refunded" | "cancelled";
 
 export type PaymentMethod = "cash" | "cash_usd" | "cash_toman" | "card" | "wallet";
 
@@ -344,7 +344,7 @@ export interface StaffCompensation {
   product: Money;
   total: Money;
   payoutCount: number;
-  /** doctor / facial / laser â€” only the roles the backend actually returned rows for. */
+  /** doctor / facial / laser — only the roles the backend actually returned rows for. */
   byRole: Record<string, StaffCompensationByRole>;
 }
 
@@ -366,7 +366,7 @@ export interface FinancialSummary {
   revenue: Money;
   /**
    * `sale_ledger` = money actually collected (Sale rows).
-   * `list_price`  = potential only â€” never treat it as cash received.
+   * `list_price`  = potential only — never treat it as cash received.
    */
   revenueBasis: string;
   productCost: Money;
@@ -377,7 +377,7 @@ export interface FinancialSummary {
    */
   welcomePackCost: Money;
   grossProfit: Money;
-  /** Legacy alias of `staffExpenseClaims` â€” staff claims, not clinic overhead. */
+  /** Legacy alias of `staffExpenseClaims` — staff claims, not clinic overhead. */
   expenses: Money;
   staffCompensation: StaffCompensation;
   operatingExpenses: OperatingExpenseTotals;
@@ -385,7 +385,7 @@ export interface FinancialSummary {
   /** staffCompensation + operatingExpenses + staffExpenseClaims. */
   belowTheLineTotal: Money;
   netProfit: Money;
-  /** Revenue âˆ’ product cost âˆ’ welcome-pack cost âˆ’ staff compensation (backend `clinic_share`). */
+  /** Revenue − product cost − welcome-pack cost − staff compensation (backend `clinic_share`). */
   clinicShare: Money;
   costCoverage: CostCoverage;
   paymentMethods: { cash: string; card: string; wallet: string };
@@ -398,7 +398,7 @@ export interface FinancialSummary {
   };
 }
 
-/** `/finance/reports/welcome-packs/` â€” issued-pack counts and cost for a period. */ export interface WelcomePackReport {
+/** `/finance/reports/welcome-packs/` — issued-pack counts and cost for a period. */ export interface WelcomePackReport {
   period: { start: string; end: string };
   /** One row per issuance event (a single event can cover quantity > 1). */
   totalUsageCount: number;
@@ -446,6 +446,115 @@ export interface ProfitRow {
   welcomePackCostBasis?: string;
 }
 
+/** What one month owes its operators, split by payout status. */
+export interface MonthlyClosePayoutTotal {
+  usd: string;
+  toman: string;
+  payoutCount: number;
+}
+
+/** One operator's month: what they produced next to what they are owed. */
+export interface MonthlyCloseOperator {
+  staffId: number;
+  staffName: string;
+  roles: string[];
+  revenueUsd: string;
+  revenueToman: string;
+  materialProfitUsd: string;
+  materialProfitToman: string;
+  owedUsd: string;
+  owedToman: string;
+  paidUsd: string;
+  paidToman: string;
+  pendingUsd: string;
+  pendingToman: string;
+  approvedUsd: string;
+  approvedToman: string;
+  payoutCount: number;
+}
+
+/**
+ * One Shamsi month of the closing report. An open month is computed live from
+ * the ledgers; a closed one is the frozen snapshot, byte-for-byte what closing
+ * stored — which is exactly why `isClosed` matters when reading these numbers.
+ */
+export interface MonthlyCloseMonth {
+  /** Shamsi key, e.g. `1405-05`. */
+  key: string;
+  year: number;
+  month: number;
+  monthName: string;
+  shamsiStart: string;
+  shamsiEnd: string;
+  isCurrent: boolean;
+  isClosed: boolean;
+  closedAt: string | null;
+  closedByName: string;
+  closeNote: string;
+  wasReopened: boolean;
+  reopenedAt: string | null;
+  reopenReason: string;
+  revenue: Money;
+  productCost: Money;
+  welcomePackCost: Money;
+  grossProfit: Money;
+  clinicShare: Money;
+  staffCompensationTotal: Money;
+  operatingExpenses: Money;
+  staffExpenseClaims: Money;
+  netProfit: Money;
+  purchases: Money;
+  netProfitAfterPurchases: Money;
+  payoutTotal: MonthlyClosePayoutTotal;
+  operators: MonthlyCloseOperator[];
+}
+
+/** Every month's P&L summed across the year, plus the payout totals. */
+export interface MonthlyCloseYearTotal {
+  revenue: Money;
+  productCost: Money;
+  welcomePackCost: Money;
+  grossProfit: Money;
+  clinicShare: Money;
+  staffCompensationTotal: Money;
+  operatingExpenses: Money;
+  staffExpenseClaims: Money;
+  belowTheLineTotal: Money;
+  netProfit: Money;
+  purchases: Money;
+  netProfitAfterPurchases: Money;
+  payoutTotalUsd: string;
+  payoutTotalToman: string;
+  payoutCount: number;
+}
+
+/** The yearly closing report: one row per Shamsi month plus the year total. */
+export interface MonthlyCloseReport {
+  calendar: "shamsi";
+  year: number;
+  month: number | null;
+  statusFilter: string;
+  payoutAnchor: string;
+  months: MonthlyCloseMonth[];
+  yearTotal: MonthlyCloseYearTotal;
+  closedMonthCount: number;
+}
+
+/** What close/reopen answer with — the row's closing metadata, not the report. */
+export interface MonthlyCloseAction {
+  /** Shamsi key of the month that was touched, e.g. `1405-05`. */
+  period: string;
+  status: "closed" | "reopened";
+  alreadyClosed: boolean;
+  closedAt: string | null;
+  closedBy: number | null;
+  closeNote: string;
+  reopenedAt: string | null;
+  reopenedBy: number | null;
+  reopenReason: string;
+  netProfitUsd: string;
+}
+
 export interface FinanceDashboard {
   period: { start: string; end: string };
   salesSummary: {
@@ -481,7 +590,7 @@ export interface WelcomePackItem {
   /** Current catalog cost of one unit, computed by the serializer; null when unknown. */
   unitCostUsd: string | null;
   unitCostToman: string | null;
-  /** unitCost Ã— quantity. */
+  /** unitCost × quantity. */
   lineCostUsd: string | null;
   lineCostToman: string | null;
   createdAt: string;

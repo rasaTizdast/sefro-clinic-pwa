@@ -1,10 +1,12 @@
-﻿import { endpoints } from "../config/api";
+import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
 import { toShamsiApiDay } from "../lib/date";
 import type {
   FinanceDashboard,
   FinancialSummary,
   Money,
+  MonthlyCloseAction,
+  MonthlyCloseReport,
   ProfitRow,
   ReportPeriod,
   StaffCompensationByRole,
@@ -28,7 +30,7 @@ export interface ReportQuery {
 /**
  * Shared query builder for the finance report endpoints.
  * A named `period` wins; explicit ranges are sent as Jalali `start_date`/
- * `end_date` â€” the API rejects Gregorian dates with a 400.
+ * `end_date` — the API rejects Gregorian dates with a 400.
  */
 export function toReportParams(query: ReportQuery = {}): Record<string, string | number> {
   const params: Record<string, string | number> = {};
@@ -285,4 +287,64 @@ export async function getFinanceDashboard(query: ReportQuery = {}): Promise<Fina
     params: toReportParams(query),
   });
   return toFinanceDashboard(data as RawFinanceDashboard);
+}
+
+export interface MonthlyCloseQuery {
+  /** Shamsi year. Omitted → the backend's current Shamsi year. */
+  year?: number;
+  /** One month of that year instead of all twelve. */
+  month?: number;
+}
+
+/**
+ * The monthly-close report builds a full P&L per Shamsi month server-side
+ * (`financials.build_report`), and the tab fans out into twelve parallel
+ * single-month requests — Django serves them from one worker, so twelve in
+ * flight can still each outlive the global 10 s axios timeout, which aborts
+ * the XHR and shows the request as canceled in the browser. Same patient
+ * budget as the welcome-pack endpoints.
+ */
+export const MONTHLY_CLOSE_TIMEOUT_MS = 30_000;
+
+/**
+ * A Shamsi year of monthly P&L, each month next to its operator pay.
+ *
+ * This endpoint carries its own calendar (`year`/`month`), not the shared
+ * `period=`/`start_date` builder: `year` selects the Shamsi year and `month`
+ * narrows it to one Shamsi month, both already in the Shamsi shapes the API
+ * speaks everywhere else.
+ */
+export async function getMonthlyClose(query: MonthlyCloseQuery = {}): Promise<MonthlyCloseReport> {
+  const params: { year?: number; month?: number } = {};
+  if (query.year !== undefined) params.year = query.year;
+  if (query.month !== undefined) params.month = query.month;
+  const { data } = await apiClient.get(endpoints.finance.monthlyClose, {
+    params,
+    timeout: MONTHLY_CLOSE_TIMEOUT_MS,
+  });
+  return data as MonthlyCloseReport;
+}
+
+/** Freeze one past Shamsi month. Idempotent — re-closing returns the same row. */
+export async function closeMonthlyMonth(payload: {
+  year: number;
+  month: number;
+  note?: string;
+}): Promise<MonthlyCloseAction> {
+  const { data } = await apiClient.post(endpoints.finance.monthlyCloseClose, payload, {
+    timeout: MONTHLY_CLOSE_TIMEOUT_MS,
+  });
+  return data as MonthlyCloseAction;
+}
+
+/** Un-freeze a closed month. The backend requires a written, audited reason. */
+export async function reopenMonthlyMonth(payload: {
+  year: number;
+  month: number;
+  reason: string;
+}): Promise<MonthlyCloseAction> {
+  const { data } = await apiClient.post(endpoints.finance.monthlyCloseReopen, payload, {
+    timeout: MONTHLY_CLOSE_TIMEOUT_MS,
+  });
+  return data as MonthlyCloseAction;
 }

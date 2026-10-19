@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { BiLock } from "react-icons/bi";
 import { CiMoneyBill, CiSettings, CiUser, CiWallet } from "react-icons/ci";
 
+import { MonthlyCloseTab } from "../components/accounting/MonthlyCloseTab";
 import { OperatingExpensesTab } from "../components/accounting/OperatingExpensesTab";
 import { PayoutsTab } from "../components/accounting/PayoutsTab";
 import { StaffExpensesTab } from "../components/accounting/StaffExpensesTab";
@@ -48,6 +50,11 @@ function Accounting() {
             badge: pendingTotal || undefined,
           },
           {
+            id: "closing",
+            label: "بستن ماه",
+            icon: <BiLock className="size-4" />,
+          },
+          {
             id: "compensation-rules",
             label: "قوانین تسویه",
             icon: <CiSettings className="size-4" />,
@@ -86,6 +93,9 @@ function Accounting() {
         <TabPanel id="payouts" activeTab={personnelTab} className="pt-6">
           <PayoutsTab />
         </TabPanel>
+      </TabPanel>
+      <TabPanel id="closing" activeTab={activeTab}>
+        <MonthlyCloseTab />
       </TabPanel>
       <TabPanel id="compensation-rules" activeTab={activeTab}>
         <CompensationRulesTab />

@@ -160,6 +160,18 @@ body {
   background: var(--color-primary-400);
 }
 
+/* Monthly-close: a Shamsi month with nothing in it (no revenue, profit or
+   payout) is striped, so an empty month reads as empty at a glance. */
+.monthly-close-empty {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 6px,
+    rgb(148 163 184 / 0.14) 6px,
+    rgb(148 163 184 / 0.14) 12px
+  );
+}
+
 /* Driver.js walkover styling */
 .walkthrough-popover,
 .walkthrough-popover * {

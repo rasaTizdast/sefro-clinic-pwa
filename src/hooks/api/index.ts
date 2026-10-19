@@ -1,4 +1,4 @@
-﻿export {
+export {
   useCreateEmployee,
   useCurrentUser,
   useDeleteEmployee,
@@ -28,6 +28,7 @@ export {
 export {
   useFinanceDashboard,
   useFinancialSummary,
+  useMonthlyCloseMonths,
   useProfitByPackage,
   useProfitByService,
   useProfitByStaff,

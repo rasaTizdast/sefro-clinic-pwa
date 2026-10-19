@@ -1,12 +1,16 @@
-﻿import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as apiClient from "../../lib/api-client";
 import {
+  closeMonthlyMonth,
   getFinanceDashboard,
   getFinancialSummary,
+  getMonthlyClose,
   getProfitByPackage,
   getProfitByService,
   getProfitByStaff,
+  MONTHLY_CLOSE_TIMEOUT_MS,
+  reopenMonthlyMonth,
   toFinancialSummary,
   toReportParams,
 } from "../financeReports";
@@ -245,7 +249,7 @@ describe("financeReports service", () => {
       data: [
         {
           serviceId: 1,
-          serviceName: "ÙÛŒØ´Ø§Ù„",
+          serviceName: "فیشال",
           revenueUsd: "50.00",
           productCostUsd: "10.00",
           profitUsd: "40.00",
@@ -260,7 +264,7 @@ describe("financeReports service", () => {
       params: { period: "this_month" },
     });
     expect(rows).toHaveLength(1);
-    expect(rows[0].serviceName).toBe("ÙÛŒØ´Ø§Ù„");
+    expect(rows[0].serviceName).toBe("فیشال");
     expect(rows[0].profitUsd).toBe("40.00");
   });
 
@@ -269,7 +273,7 @@ describe("financeReports service", () => {
       data: [
         {
           serviceId: 1,
-          serviceName: "ÙÛŒØ´Ø§Ù„",
+          serviceName: "فیشال",
           revenueUsd: "50.00",
           productCostUsd: "10.00",
           profitUsd: "40.00",
@@ -338,5 +342,66 @@ describe("financeReports service", () => {
     });
     expect(dashboard.salesSummary.saleCount).toBe(4);
     expect(dashboard.operational.visitsCompleted).toBe(5);
+  });
+});
+
+describe("monthly close service", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("getMonthlyClose carries its own year/month, not the shared period builder", async () => {
+    mock.get.mockResolvedValue({
+      data: { calendar: "shamsi", year: 1405, months: [], closedMonthCount: 2 },
+    });
+
+    await getMonthlyClose({ year: 1405 });
+
+    expect(mock.get).toHaveBeenCalledWith("/finance/reports/monthly-close/", {
+      params: { year: 1405 },
+      // Twelve server-side P&L builds — the global 10 s timeout aborts it.
+      timeout: MONTHLY_CLOSE_TIMEOUT_MS,
+    });
+  });
+
+  it("getMonthlyClose omits month when the whole year is wanted", async () => {
+    mock.get.mockResolvedValue({ data: { months: [] } });
+
+    await getMonthlyClose();
+
+    expect(mock.get).toHaveBeenCalledWith("/finance/reports/monthly-close/", {
+      params: {},
+      timeout: MONTHLY_CLOSE_TIMEOUT_MS,
+    });
+  });
+
+  it("closeMonthlyMonth posts {year, month, note} to the close action", async () => {
+    mock.post.mockResolvedValue({ data: { period: "1405-05", status: "closed" } });
+
+    await closeMonthlyMonth({ year: 1405, month: 5, note: "پایان دوره مرداد" });
+
+    expect(mock.post).toHaveBeenCalledWith(
+      "/finance/reports/monthly-close/close/",
+      {
+        year: 1405,
+        month: 5,
+        note: "پایان دوره مرداد",
+      },
+      { timeout: MONTHLY_CLOSE_TIMEOUT_MS }
+    );
+  });
+
+  it("reopenMonthlyMonth posts the audited reason", async () => {
+    mock.post.mockResolvedValue({ data: { period: "1405-05", status: "reopened" } });
+
+    await reopenMonthlyMonth({ year: 1405, month: 5, reason: "ثبت جامانده" });
+
+    expect(mock.post).toHaveBeenCalledWith(
+      "/finance/reports/monthly-close/reopen/",
+      {
+        year: 1405,
+        month: 5,
+        reason: "ثبت جامانده",
+      },
+      { timeout: MONTHLY_CLOSE_TIMEOUT_MS }
+    );
   });
 });

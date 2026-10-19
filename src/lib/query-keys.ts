@@ -84,6 +84,8 @@ export const queryKeys = {
       ["finance", "profitByPackage", params] as const,
     profitByStaff: (params?: Record<string, unknown>) =>
       ["finance", "profitByStaff", params] as const,
+    monthlyClose: (params?: Record<string, unknown>) =>
+      ["finance", "monthlyClose", params] as const,
     dashboard: (params?: Record<string, unknown>) => ["finance", "dashboard", params] as const,
     purchases: (params?: Record<string, unknown>) => ["finance", "purchases", params] as const,
     allPurchases: () => ["finance", "purchases", "allPages"] as const,

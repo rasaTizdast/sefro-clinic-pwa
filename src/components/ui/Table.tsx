@@ -21,6 +21,8 @@ interface TableProps<T> {
   emptyMessage?: string;
   rowKey: (item: T, index: number) => string | number;
   onRowClick?: (item: T) => void;
+  /** Extra classes for one row/card — e.g. striping an all-zero month. */
+  rowClassName?: (item: T, index: number) => string | undefined;
   className?: string;
   caption?: string;
 }
@@ -35,6 +37,7 @@ function DesktopTable<T>({
   emptyMessage,
   rowKey,
   onRowClick,
+  rowClassName,
   className,
   caption,
 }: {
@@ -47,6 +50,7 @@ function DesktopTable<T>({
   emptyMessage?: string;
   rowKey: (item: T, index: number) => string | number;
   onRowClick?: (item: T) => void;
+  rowClassName?: (item: T, index: number) => string | undefined;
   className: string;
   caption?: string;
 }) {
@@ -140,7 +144,7 @@ function DesktopTable<T>({
                   }}
                   tabIndex={onRowClick ? 0 : undefined}
                   role={onRowClick ? "button" : undefined}
-                  className={`${onRowClick ? "hover:bg-surface-50 cursor-pointer" : ""} transition-colors duration-150`}
+                  className={`${rowClassName?.(item, index) ?? ""} ${onRowClick ? "hover:bg-surface-50 cursor-pointer" : ""} transition-colors duration-150`}
                 >
                   {columns.map((col) => (
                     <td
@@ -171,6 +175,7 @@ function MobileCards<T>({
   emptyMessage,
   rowKey,
   onRowClick,
+  rowClassName,
 }: {
   columns: Column<T>[];
   data: T[];
@@ -178,6 +183,7 @@ function MobileCards<T>({
   emptyMessage?: string;
   rowKey: (item: T, index: number) => string | number;
   onRowClick?: (item: T) => void;
+  rowClassName?: (item: T, index: number) => string | undefined;
 }) {
   if (loading) {
     return (
@@ -226,7 +232,7 @@ function MobileCards<T>({
           }}
           tabIndex={onRowClick ? 0 : undefined}
           role={onRowClick ? "button" : undefined}
-          className={`border-surface-200 rounded-lg border bg-white p-4 ${onRowClick ? "hover:border-surface-300 cursor-pointer" : ""} transition-colors duration-150`}
+          className={`border-surface-200 rounded-lg border bg-white p-4 ${rowClassName?.(item, index) ?? ""} ${onRowClick ? "hover:border-surface-300 cursor-pointer" : ""} transition-colors duration-150`}
         >
           <div className="flex flex-col gap-2.5">
             {columns.map((col) => (
@@ -261,6 +267,7 @@ export function Table<T>(props: TableProps<T>) {
     emptyMessage = "داده‌ای یافت نشد",
     rowKey,
     onRowClick,
+    rowClassName,
     className = "",
     caption,
   } = props;
@@ -278,6 +285,7 @@ export function Table<T>(props: TableProps<T>) {
           emptyMessage={emptyMessage}
           rowKey={rowKey}
           onRowClick={onRowClick}
+          rowClassName={rowClassName}
           className={className}
           caption={caption}
         />
@@ -290,6 +298,7 @@ export function Table<T>(props: TableProps<T>) {
           emptyMessage={emptyMessage}
           rowKey={rowKey}
           onRowClick={onRowClick}
+          rowClassName={rowClassName}
         />
       </div>
     </>
