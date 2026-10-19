@@ -26,12 +26,14 @@ export function formatJalaliDate(isoString: string): string {
 /**
  * Persian (Jalali) date + 24h time, fully in Persian digits:
  * "2026-09-28T14:25:18+03:30" → "۱۴۰۵/۰۷/۰۶ ۱۴:۲۵" (local timezone).
- * Already-Jalali inputs keep their date part (any time part is dropped).
+ * Already-Shamsi inputs ("1405-07-06 17:02") keep both their date and time.
  */
 export function formatJalaliDateTime(isoString: string): string {
   if (!isoString) return "—";
   if (isAlreadyJalali(isoString)) {
-    return toPersianDigits(isoString.split(/[ T]/)[0].replace(/-/g, "/"));
+    const [datePart, timePart] = isoString.trim().split(/[ T]/);
+    const date = (datePart ?? "").replace(/-/g, "/");
+    return toPersianDigits(timePart ? `${date} ${timePart.slice(0, 5)}` : date);
   }
   const date = new Date(isoString);
   if (isNaN(date.getTime())) return "—";
@@ -121,6 +123,66 @@ export function jalaliToShamsiApiDate(jalaliStr: string): string {
 export function toShamsiDateInput(date: Date): string {
   const { jy, jm, jd } = jalaali.toJalaali(date);
   return `${jy}-${String(jm).padStart(2, "0")}-${String(jd).padStart(2, "0")}`;
+}
+
+/**
+ * A picker/Jalali value as the Shamsi `YYYY-MM-DD` the API expects
+ * (`ShamsiDateField`), or null while the input is empty or not a complete,
+ * valid Jalali date. Handles Persian/Arabic digits and `/`-`-` separators.
+ */
+export function toShamsiApiDay(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const datePart = toLatinDigits(value).trim().split(/[ T]/)[0] ?? "";
+  const parts = datePart.split(/[-/.]/).map(Number);
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [jy, jm, jd] = parts;
+  if (!jalaali.isValidJalaaliDate(jy, jm, jd)) return null;
+  return `${jy}-${String(jm).padStart(2, "0")}-${String(jd).padStart(2, "0")}`;
+}
+
+/** Now as a Shamsi `YYYY-MM-DD HH:MM` string — the `ShamsiDateTimeField` wire format. */
+export function shamsiNowDateTime(): string {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return `${toShamsiDateInput(now)} ${hh}:${mm}`;
+}
+
+/**
+ * The Shamsi `YYYY-MM-DD` day an API date/datetime falls on, or null when
+ * unparseable. Accepts both wire formats the API can still emit/consume:
+ * Shamsi strings ("1405-07-25 18:11") and Gregorian ISO (mocks, cached data).
+ */
+export function shamsiDayOf(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (isAlreadyJalali(value)) return toShamsiApiDay(value);
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return toShamsiDateInput(parsed);
+}
+
+/**
+ * Epoch milliseconds for an API datetime, or NaN when unparseable.
+ * Shamsi values ("1405-07-25 18:11") are naive local wall-clock times — the
+ * same instant they would have been as a Gregorian string — so they are built
+ * as local dates; Gregorian ISO strings go through `Date.parse`.
+ */
+export function apiDateTimeToMillis(value: string | null | undefined): number {
+  if (!value) return NaN;
+  if (isAlreadyJalali(value)) {
+    const [datePart, timePart] = value.trim().split(/[ T]/);
+    const day = toShamsiApiDay(datePart ?? "");
+    if (!day) return NaN;
+    const [jy, jm, jd] = day.split("-").map(Number);
+    const { gy, gm, gd } = jalaali.toGregorian(jy, jm, jd);
+    const time = /^(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(timePart ?? "");
+    const hh = time ? Number(time[1]) : 0;
+    const mm = time ? Number(time[2]) : 0;
+    const ss = time?.[3] ? Number(time[3]) : 0;
+    if (hh > 23 || mm > 59 || ss > 59) return NaN;
+    return new Date(gy, gm - 1, gd, hh, mm, ss).getTime();
+  }
+  return Date.parse(value);
 }
 
 function toLatinDigits(str: string): string {
