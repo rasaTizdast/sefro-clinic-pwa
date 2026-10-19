@@ -1,6 +1,6 @@
 import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
-import { jalaliToGregorianISO } from "../lib/date";
+import { toShamsiApiDay } from "../lib/date";
 import type { PaginationParams } from "../lib/pagination";
 import { toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
@@ -211,8 +211,12 @@ export const getOperatingExpenseSummary = async (
   if (query?.period) {
     params.period = query.period;
   } else {
-    if (query?.startDateJalali) params.start_date = jalaliToGregorianISO(query.startDateJalali);
-    if (query?.endDateJalali) params.end_date = jalaliToGregorianISO(query.endDateJalali);
+    // Explicit ranges travel as Jalali `start_date`/`end_date`; the API 400s on
+    // Gregorian dates.
+    const startDay = toShamsiApiDay(query?.startDateJalali ?? null);
+    const endDay = toShamsiApiDay(query?.endDateJalali ?? null);
+    if (startDay) params.start_date = startDay;
+    if (endDay) params.end_date = endDay;
   }
   const { data } = await apiClient.get(endpoints.finance.operatingExpenseSummary, { params });
   return toOperatingExpenseSummary(data as RawOperatingExpenseSummary);

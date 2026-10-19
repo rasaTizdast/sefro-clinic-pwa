@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+﻿import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as apiClient from "../../lib/api-client";
 import {
@@ -33,13 +33,13 @@ describe("toReportParams", () => {
     ).toEqual({ period: "today" });
   });
 
-  it("converts Jalali dates to Gregorian start_date/end_date when no period", () => {
+  it("converts Jalali dates to Shamsi start_date/end_date when no period", () => {
     const params = toReportParams({
       startDateJalali: "1404/06/28",
       endDateJalali: "1404/06/29",
     });
-    expect(params.start_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(params.end_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(params.start_date).toBe("1404-06-28");
+    expect(params.end_date).toBe("1404-06-29");
     expect(params.period).toBeUndefined();
   });
 
@@ -210,7 +210,7 @@ describe("financeReports service", () => {
     expect(summary.costCoverage).toEqual({ zeroCostRows: 0, productsMissingCost: [] });
   });
 
-  it("getFinancialSummary sends Gregorian dates for a Jalali range", async () => {
+  it("getFinancialSummary sends Shamsi dates for a Jalali range", async () => {
     mock.get.mockResolvedValue({
       data: {
         period: { start: "2026-09-19", end: "2026-09-20" },
@@ -245,7 +245,7 @@ describe("financeReports service", () => {
       data: [
         {
           serviceId: 1,
-          serviceName: "فیشال",
+          serviceName: "ÙÛŒØ´Ø§Ù„",
           revenueUsd: "50.00",
           productCostUsd: "10.00",
           profitUsd: "40.00",
@@ -260,7 +260,7 @@ describe("financeReports service", () => {
       params: { period: "this_month" },
     });
     expect(rows).toHaveLength(1);
-    expect(rows[0].serviceName).toBe("فیشال");
+    expect(rows[0].serviceName).toBe("ÙÛŒØ´Ø§Ù„");
     expect(rows[0].profitUsd).toBe("40.00");
   });
 
@@ -269,7 +269,7 @@ describe("financeReports service", () => {
       data: [
         {
           serviceId: 1,
-          serviceName: "فیشال",
+          serviceName: "ÙÛŒØ´Ø§Ù„",
           revenueUsd: "50.00",
           productCostUsd: "10.00",
           profitUsd: "40.00",

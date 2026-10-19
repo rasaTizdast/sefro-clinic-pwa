@@ -185,12 +185,12 @@ describe("welcomePacks service", () => {
 
     const report = await getWelcomePackReport({
       period: "this_month",
-      startDate: "2026-09-01",
-      endDate: "2026-09-15",
+      startDate: "1405-06-01",
+      endDate: "1405-06-15",
     });
 
     expect(mock.get).toHaveBeenCalledWith("/finance/reports/welcome-packs/", {
-      params: { start_date: "2026-09-01", end_date: "2026-09-15" },
+      params: { start_date: "1405-06-01", end_date: "1405-06-15" },
     });
     expect(report.totalPacksIssued).toBe("0");
     expect(report.byPack).toEqual([]);

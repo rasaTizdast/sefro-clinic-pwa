@@ -6,7 +6,7 @@ import {
   useUpdateOperatingExpense,
 } from "../../hooks/api";
 import { tomanToUsd } from "../../lib/currency";
-import { jalaliToGregorianISO } from "../../lib/date";
+import { toShamsiApiDay } from "../../lib/date";
 import { toLatinDigits } from "../../lib/digits";
 import { ceilUp, formatPrice } from "../../lib/format";
 import type {
@@ -78,8 +78,12 @@ export function OperatingExpenseFormModal({ open, onClose, categories, expense }
 
   const handleSubmit = async () => {
     setFormError("");
-    const gregorianDate = expenseDate ? jalaliToGregorianISO(expenseDate) : expense?.expenseDate;
-    if (!gregorianDate) {
+    // `expense_date` travels as a Jalali day — the API rejects Gregorian dates.
+    // An unchanged edit keeps the row's own (Shamsi) value.
+    const expenseDateShamsi = expenseDate
+      ? toShamsiApiDay(expenseDate)
+      : (expense?.expenseDate ?? null);
+    if (!expenseDateShamsi) {
       setFormError("تاریخ هزینه را انتخاب کنید");
       return;
     }
@@ -93,7 +97,7 @@ export function OperatingExpenseFormModal({ open, onClose, categories, expense }
             title: title.trim(),
             ...(description ? { description } : { description: "" }),
             amountUsd: amountUsd ?? "0.00",
-            expenseDate: gregorianDate,
+            expenseDate: expenseDateShamsi,
             paymentMethod,
             ...(vendor ? { vendor } : { vendor: "" }),
             ...(receipt ? { receipt } : {}),
@@ -105,7 +109,7 @@ export function OperatingExpenseFormModal({ open, onClose, categories, expense }
           category: Number(categoryId),
           title: title.trim(),
           amountUsd: amountUsd ?? "0.00",
-          expenseDate: gregorianDate,
+          expenseDate: expenseDateShamsi,
           paymentMethod,
           idempotencyKey: crypto.randomUUID(),
           ...(description ? { description } : {}),

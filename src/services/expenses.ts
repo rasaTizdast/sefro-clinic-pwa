@@ -68,7 +68,7 @@ export interface ExpenseInput {
   category: number;
   /** USD amount — the backend converts it at the live rate and snapshots the result. */
   amountUsd: string;
-  /** Gregorian `YYYY-MM-DD`; the caller converts its Jalali input. */
+  /** Shamsi `YYYY-MM-DD` — the API rejects Gregorian dates. */
   expenseDate: string;
   description?: string;
   vendor?: string;

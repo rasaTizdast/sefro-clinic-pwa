@@ -55,15 +55,20 @@ vi.mock("../../ui/JalaliDatePicker", () => ({
   JalaliDatePicker: ({
     onChange,
     label,
+    value,
   }: {
     onChange: (v: string | null) => void;
     label?: string;
+    value?: string | null;
   }) => {
     const id = label ?? "date";
+    // Controlled, so keystrokes accumulate the way the real picker's value does —
+    // an uncontrolled stub would reset the field between characters and leave a
+    // single-digit date that no longer parses.
     return (
       <div>
         <label htmlFor={id}>{label}</label>
-        <input id={id} onChange={(e) => onChange(e.target.value)} value="" />
+        <input id={id} onChange={(e) => onChange(e.target.value)} value={value ?? ""} />
       </div>
     );
   },

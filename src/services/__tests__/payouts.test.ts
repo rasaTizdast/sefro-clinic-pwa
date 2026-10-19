@@ -215,22 +215,22 @@ describe("payouts service", () => {
       expect(summary.totalPayoutUsd).toBe("150.00");
     });
 
-    it("sends Gregorian start_date/end_date together with the domain filters", async () => {
+    it("sends Shamsi start_date/end_date together with the domain filters", async () => {
       mock.get.mockResolvedValue({ data: {} });
 
       await listPayoutSummary({
         staff: 7,
         role: "laser",
-        startDate: "2026-09-01",
-        endDate: "2026-09-30",
+        startDate: "1405-06-01",
+        endDate: "1405-06-30",
       });
 
       expect(mock.get).toHaveBeenCalledWith("/finance/reports/staff-payout-summary/", {
         params: {
           staff: 7,
           role: "laser",
-          start_date: "2026-09-01",
-          end_date: "2026-09-30",
+          start_date: "1405-06-01",
+          end_date: "1405-06-30",
         },
       });
     });

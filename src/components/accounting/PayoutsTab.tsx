@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { useCompensationRules, usePayoutsList, usePayoutSummary } from "../../hooks/api";
-import { formatJalaliDate, jalaliToGregorianISO } from "../../lib/date";
+import { formatJalaliDate, toShamsiApiDay } from "../../lib/date";
 import { formatPrice } from "../../lib/format";
 import { REPORT_PERIOD_OPTIONS, reportPeriodLabel } from "../../lib/report-period";
 import type {
@@ -40,18 +40,6 @@ const roleFilterOptions = [
   })),
 ];
 
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-/**
- * ISO day for the client-side date range; null while the input is empty or not a
- * full Jalali date. The summary endpoint takes Gregorian `start_date`/`end_date`.
- */
-function toIsoDay(value: string | null): string | null {
-  if (!value) return null;
-  const iso = jalaliToGregorianISO(value);
-  return ISO_DAY.test(iso) ? iso : null;
-}
-
 const statusFilterOptions = [
   { value: "", label: "همه وضعیت‌ها" },
   { value: "pending", label: "در انتظار" },
@@ -85,9 +73,10 @@ export function PayoutsTab() {
   const [status, setStatus] = useState<PayoutStatus | "">("");
   const [page, setPage] = useState(1);
 
-  // An explicit range wins over the named period inside the service layer.
-  const fromDay = toIsoDay(dateFrom);
-  const toDay = toIsoDay(dateTo);
+  // An explicit range wins over the named period inside the service layer, and
+  // both travel as Jalali `start_date`/`end_date` days.
+  const fromDay = toShamsiApiDay(dateFrom);
+  const toDay = toShamsiApiDay(dateTo);
 
   const summaryParams = {
     period,

@@ -33,9 +33,13 @@ vi.mock("../../../hooks/api", () => ({
 
 // The form modal pulls in lib/date (jalaali-js is CJS and breaks named ESM imports
 // under Vitest), so the date helpers are stubbed like the sibling tab's tests do.
+// `toShamsiApiDay` and `shamsiDayOf` stay pass-throughs: the fixtures already
+// carry the `YYYY-MM-DD` Shamsi shape the API now uses, so filtering just works.
 vi.mock("../../../lib/date", () => ({
   formatJalaliDate: (value: string) => value,
   jalaliToGregorianISO: (value: string) => value,
+  toShamsiApiDay: (value: string | null | undefined) => value ?? null,
+  shamsiDayOf: (value: string | null | undefined) => (value ? value.slice(0, 10) : null),
 }));
 
 vi.mock("../../ui/JalaliDatePicker", () => ({

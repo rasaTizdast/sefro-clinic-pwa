@@ -10,7 +10,7 @@ import {
   useOperatingExpenseSummary,
 } from "../../hooks/api";
 import { usePermissions } from "../../hooks/usePermissions";
-import { formatJalaliDate, jalaliToGregorianISO } from "../../lib/date";
+import { formatJalaliDate, toShamsiApiDay } from "../../lib/date";
 import { formatPrice } from "../../lib/format";
 import { REPORT_PERIOD_OPTIONS, reportPeriodLabel } from "../../lib/report-period";
 import type {
@@ -84,8 +84,8 @@ export function OperatingExpensesTab() {
     ...(search.trim() ? { search: search.trim() } : {}),
     ...(category ? { category: Number(category) } : {}),
     ...(paymentMethod ? { paymentMethod: paymentMethod as OperatingExpensePaymentMethod } : {}),
-    ...(dateFrom ? { dateFrom: jalaliToGregorianISO(dateFrom) } : {}),
-    ...(dateTo ? { dateTo: jalaliToGregorianISO(dateTo) } : {}),
+    ...(dateFrom ? { dateFrom: toShamsiApiDay(dateFrom) ?? undefined } : {}),
+    ...(dateTo ? { dateTo: toShamsiApiDay(dateTo) ?? undefined } : {}),
   });
 
   const { data: summary } = useOperatingExpenseSummary({ period });

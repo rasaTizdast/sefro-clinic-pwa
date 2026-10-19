@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { BiPlus } from "react-icons/bi";
 
 import { useAllExpenseCategories, useAllExpenses } from "../../hooks/api";
-import { formatJalaliDate, jalaliToGregorianISO } from "../../lib/date";
+import { formatJalaliDate, shamsiDayOf, toShamsiApiDay } from "../../lib/date";
 import { toPersianDigits } from "../../lib/digits";
 import { formatPrice } from "../../lib/format";
 import { ALL_PER_PAGE } from "../../services/fetch-all-pages";
@@ -19,19 +19,6 @@ import { SummaryMetric } from "./FinanceSummary";
 import { StaffExpenseFormModal } from "./StaffExpenseFormModal";
 
 const PAGE_SIZE = ALL_PER_PAGE;
-
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-/**
- * ISO day for the client-side date range; null while the input is empty or not a
- * full Jalali date. `ExpenseViewSet` takes no date params, so range filtering
- * happens here over the full claim log.
- */
-function toIsoDay(value: string | null): string | null {
-  if (!value) return null;
-  const iso = jalaliToGregorianISO(value);
-  return ISO_DAY.test(iso) ? iso : null;
-}
 
 const statusLabels: Record<ExpenseStatus, string> = {
   draft: "پیش‌نویس",
@@ -120,12 +107,13 @@ export function StaffExpensesTab() {
     [categoriesData]
   );
 
-  const fromDay = toIsoDay(dateFrom);
-  const toDay = toIsoDay(dateTo);
+  const fromDay = toShamsiApiDay(dateFrom);
+  const toDay = toShamsiApiDay(dateTo);
 
   const filtered = useMemo(() => {
     return (allClaims ?? []).filter((row) => {
-      const day = row.expenseDate.slice(0, 10);
+      const day = shamsiDayOf(row.expenseDate);
+      if (!day) return true;
       if (fromDay && day < fromDay) return false;
       if (toDay && day > toDay) return false;
       return true;

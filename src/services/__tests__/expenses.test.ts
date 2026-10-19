@@ -94,13 +94,13 @@ describe("expenses service", () => {
     expect(all.map((row) => row.id)).toEqual([4, 5]);
   });
 
-  it("creates a claim in USD with a Gregorian date", async () => {
+  it("creates a claim in USD with a Shamsi date", async () => {
     mock.post.mockResolvedValue({ data: rawExpense });
 
     await createExpense({
       category: 1,
       amountUsd: "5.00",
-      expenseDate: "2026-09-20",
+      expenseDate: "1405-06-29",
       description: "کرایه تاکسی",
       vendor: "اسنپ",
     });
@@ -108,7 +108,7 @@ describe("expenses service", () => {
     expect(mock.post).toHaveBeenCalledWith("/finance/expenses/", {
       category: 1,
       amount_usd: "5.00",
-      expense_date: "2026-09-20",
+      expense_date: "1405-06-29",
       description: "کرایه تاکسی",
       vendor: "اسنپ",
     });

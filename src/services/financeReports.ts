@@ -1,6 +1,6 @@
-import { endpoints } from "../config/api";
+﻿import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
-import { jalaliToGregorianISO } from "../lib/date";
+import { toShamsiApiDay } from "../lib/date";
 import type {
   FinanceDashboard,
   FinancialSummary,
@@ -27,16 +27,18 @@ export interface ReportQuery {
 
 /**
  * Shared query builder for the finance report endpoints.
- * A named `period` wins; Jalali dates are converted to Gregorian
- * `start_date`/`end_date` only when no period is given.
+ * A named `period` wins; explicit ranges are sent as Jalali `start_date`/
+ * `end_date` â€” the API rejects Gregorian dates with a 400.
  */
 export function toReportParams(query: ReportQuery = {}): Record<string, string | number> {
   const params: Record<string, string | number> = {};
   if (query.period) {
     params.period = query.period;
   } else {
-    if (query.startDateJalali) params.start_date = jalaliToGregorianISO(query.startDateJalali);
-    if (query.endDateJalali) params.end_date = jalaliToGregorianISO(query.endDateJalali);
+    const startDay = toShamsiApiDay(query.startDateJalali ?? null);
+    const endDay = toShamsiApiDay(query.endDateJalali ?? null);
+    if (startDay) params.start_date = startDay;
+    if (endDay) params.end_date = endDay;
   }
   if (query.service !== undefined) params.service = query.service;
   if (query.package !== undefined) params.package = query.package;
@@ -96,6 +98,7 @@ type RawProfitRow = Record<string, unknown> & {
   profitToman?: string;
   revenueBasis?: string;
   operatorCompensationUsd?: string;
+  operatorCompensationBasis?: string;
   welcomePackCostUsd?: string;
   recipeEstimateCostUsd?: string;
   clinicShareUsd?: string;
@@ -218,6 +221,7 @@ export const toProfitRow = (raw: RawProfitRow): ProfitRow => ({
   profitToman: raw.profitToman,
   revenueBasis: raw.revenueBasis as ProfitRow["revenueBasis"],
   operatorCompensationUsd: raw.operatorCompensationUsd,
+  operatorCompensationBasis: raw.operatorCompensationBasis,
   welcomePackCostUsd: raw.welcomePackCostUsd,
   recipeEstimateCostUsd: raw.recipeEstimateCostUsd,
   clinicShareUsd: raw.clinicShareUsd,

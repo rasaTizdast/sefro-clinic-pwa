@@ -1,4 +1,4 @@
-export type SaleStatus = "pending" | "paid" | "refunded" | "partially_refunded" | "cancelled";
+﻿export type SaleStatus = "pending" | "paid" | "refunded" | "partially_refunded" | "cancelled";
 
 export type PaymentMethod = "cash" | "cash_usd" | "cash_toman" | "card" | "wallet";
 
@@ -115,8 +115,8 @@ export interface OperatingExpenseListParams {
   category?: number;
   paymentMethod?: OperatingExpensePaymentMethod;
   createdBy?: number;
-  dateFrom?: string; // Gregorian YYYY-MM-DD
-  dateTo?: string; // Gregorian YYYY-MM-DD
+  dateFrom?: string; // Shamsi YYYY-MM-DD
+  dateTo?: string; // Shamsi YYYY-MM-DD
   ordering?:
     | "expense_date"
     | "-expense_date"
@@ -344,7 +344,7 @@ export interface StaffCompensation {
   product: Money;
   total: Money;
   payoutCount: number;
-  /** doctor / facial / laser — only the roles the backend actually returned rows for. */
+  /** doctor / facial / laser â€” only the roles the backend actually returned rows for. */
   byRole: Record<string, StaffCompensationByRole>;
 }
 
@@ -366,7 +366,7 @@ export interface FinancialSummary {
   revenue: Money;
   /**
    * `sale_ledger` = money actually collected (Sale rows).
-   * `list_price`  = potential only — never treat it as cash received.
+   * `list_price`  = potential only â€” never treat it as cash received.
    */
   revenueBasis: string;
   productCost: Money;
@@ -377,7 +377,7 @@ export interface FinancialSummary {
    */
   welcomePackCost: Money;
   grossProfit: Money;
-  /** Legacy alias of `staffExpenseClaims` — staff claims, not clinic overhead. */
+  /** Legacy alias of `staffExpenseClaims` â€” staff claims, not clinic overhead. */
   expenses: Money;
   staffCompensation: StaffCompensation;
   operatingExpenses: OperatingExpenseTotals;
@@ -385,7 +385,7 @@ export interface FinancialSummary {
   /** staffCompensation + operatingExpenses + staffExpenseClaims. */
   belowTheLineTotal: Money;
   netProfit: Money;
-  /** Revenue − product cost − welcome-pack cost − staff compensation (backend `clinic_share`). */
+  /** Revenue âˆ’ product cost âˆ’ welcome-pack cost âˆ’ staff compensation (backend `clinic_share`). */
   clinicShare: Money;
   costCoverage: CostCoverage;
   paymentMethods: { cash: string; card: string; wallet: string };
@@ -398,7 +398,7 @@ export interface FinancialSummary {
   };
 }
 
-/** `/finance/reports/welcome-packs/` — issued-pack counts and cost for a period. */ export interface WelcomePackReport {
+/** `/finance/reports/welcome-packs/` â€” issued-pack counts and cost for a period. */ export interface WelcomePackReport {
   period: { start: string; end: string };
   /** One row per issuance event (a single event can cover quantity > 1). */
   totalUsageCount: number;
@@ -434,6 +434,11 @@ export interface ProfitRow {
   /** How the backend sourced revenue for this row: collected ledger money vs potential list price. */
   revenueBasis?: "sale_ledger" | "list_price";
   operatorCompensationUsd?: string;
+  /**
+   * How the operator's obligation on this row was attributed, e.g.
+   * `session_payout_unambiguous_visit_linkage` (profit-by-package rows).
+   */
+  operatorCompensationBasis?: string;
   welcomePackCostUsd?: string;
   recipeEstimateCostUsd?: string;
   clinicShareUsd?: string;
@@ -476,7 +481,7 @@ export interface WelcomePackItem {
   /** Current catalog cost of one unit, computed by the serializer; null when unknown. */
   unitCostUsd: string | null;
   unitCostToman: string | null;
-  /** unitCost × quantity. */
+  /** unitCost Ã— quantity. */
   lineCostUsd: string | null;
   lineCostToman: string | null;
   createdAt: string;

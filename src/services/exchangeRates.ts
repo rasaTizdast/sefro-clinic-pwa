@@ -1,5 +1,6 @@
 import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
+import { apiDateTimeToMillis } from "../lib/date";
 import { toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
 import type { CurrentRate, ExchangeRate } from "../types/finance";
@@ -90,7 +91,7 @@ const pickEffectiveRate = (rows: ExchangeRate[]): number | null => {
   const now = Date.now();
   for (const row of rows) {
     if (!row.isActive) continue;
-    const effectiveAt = Date.parse(row.effectiveAt);
+    const effectiveAt = apiDateTimeToMillis(row.effectiveAt);
     if (Number.isNaN(effectiveAt) || effectiveAt > now) continue;
     const value = toPositiveRate(row.rate);
     if (value !== null) return value;
@@ -139,7 +140,7 @@ export const getBackupRate = async (): Promise<CurrentRate & { provider: string 
 export const createExchangeRate = async (payload: {
   rate: string;
   source?: string;
-  /** Backend-required: ExchangeRate.effective_at is a plain DateTimeField with no default. */
+  /** Backend-required, no default: Shamsi datetime `YYYY-MM-DD HH:MM`. */
   effective_at: string;
 }): Promise<ExchangeRate> => {
   const { data } = await apiClient.post(endpoints.finance.exchangeRates, payload);

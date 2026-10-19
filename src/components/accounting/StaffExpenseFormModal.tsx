@@ -7,7 +7,7 @@ import {
   useCurrentRate,
 } from "../../hooks/api";
 import { tomanToUsdHalfEven } from "../../lib/currency";
-import { formatJalaliDate, jalaliToGregorianISO } from "../../lib/date";
+import { formatJalaliDate, toShamsiApiDay } from "../../lib/date";
 import { toLatinDigits } from "../../lib/digits";
 import { formatPrice } from "../../lib/format";
 import { Alert } from "../ui/Alert";
@@ -80,7 +80,9 @@ export function StaffExpenseFormModal({
 
   const handleSubmit = async () => {
     setFormError("");
-    if (!expenseDate) {
+    // `expense_date` travels as a Jalali day — the API rejects Gregorian dates.
+    const expenseDateShamsi = toShamsiApiDay(expenseDate);
+    if (!expenseDateShamsi) {
       setFormError("تاریخ هزینه را انتخاب کنید");
       return;
     }
@@ -88,7 +90,7 @@ export function StaffExpenseFormModal({
       await createExpense.mutateAsync({
         category: Number(categoryId),
         amountUsd: amountUsd ?? "0.00",
-        expenseDate: jalaliToGregorianISO(expenseDate),
+        expenseDate: expenseDateShamsi,
         description,
         vendor,
       });

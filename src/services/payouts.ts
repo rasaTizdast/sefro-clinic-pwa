@@ -146,7 +146,7 @@ export type PayoutsListParams = PaginationParams & {
 };
 
 /**
- * Gregorian `startDate`/`endDate` (YYYY-MM-DD) or a named `period`; an explicit range wins
+ * Shamsi `startDate`/`endDate` (YYYY-MM-DD) or a named `period`; an explicit range wins
  * over the period so the caller's choice is always honoured.
  */
 export type PayoutSummaryParams = {

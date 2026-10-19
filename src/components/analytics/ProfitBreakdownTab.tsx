@@ -7,6 +7,7 @@ import {
   useProfitByStaff,
 } from "../../hooks/api";
 import type { ExportSheet } from "../../lib/analytics-export";
+import { shamsiDayOf } from "../../lib/date";
 import { formatPrice } from "../../lib/format";
 import { REPORT_PERIOD_OPTIONS, reportPeriodRange } from "../../lib/report-period";
 import type { ProfitRow, ReportPeriod, StaffPayout } from "../../types/finance";
@@ -97,11 +98,6 @@ interface StaffPayoutTotal {
   payouts: number;
 }
 
-const dayOf = (iso: string): string | null => {
-  const parsed = new Date(iso);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
-};
-
 /**
  * Payout totals per staff for the selected period.
  * `StaffPayoutViewSet` exposes no date filter, so the whole log is walked once and
@@ -114,7 +110,8 @@ function useStaffPayoutTotals(period: ReportPeriod): Map<number, StaffPayoutTota
     const { start, end } = reportPeriodRange(period);
     const totals = new Map<number, StaffPayoutTotal>();
     for (const payout of (payouts ?? []) as StaffPayout[]) {
-      const day = dayOf(payout.createdAt);
+      // API dates are Jalali — a native Date parse would be NaN.
+      const day = shamsiDayOf(payout.createdAt);
       if (day && (day < start || day > end)) continue;
       const existing =
         totals.get(payout.staff) ??

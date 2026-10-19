@@ -12,7 +12,7 @@ import type { Column } from "../components/ui/Table";
 import { Table } from "../components/ui/Table";
 import { useCreateExchangeRate, useCurrentRate, useExchangeRates } from "../hooks/api";
 import { usePermissions } from "../hooks/usePermissions";
-import { formatJalaliDateTime, formatJalaliDateTimeParts } from "../lib/date";
+import { formatJalaliDateTime, formatJalaliDateTimeParts, shamsiNowDateTime } from "../lib/date";
 import { toPersianDigits } from "../lib/digits";
 import { formatPrice } from "../lib/format";
 import type { ExchangeRate } from "../types/finance";
@@ -40,7 +40,9 @@ export default function ExchangeRatePage() {
       await createRate.mutateAsync({
         rate: rateInput,
         source: sourceInput || undefined,
-        effective_at: new Date().toISOString(),
+        // `effective_at` is a Shamsi datetime ("1405-07-25 18:11") — a Gregorian
+        // ISO string is rejected with a 400.
+        effective_at: shamsiNowDateTime(),
       });
       setModalOpen(false);
       setRateInput("");

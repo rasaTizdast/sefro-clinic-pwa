@@ -1,5 +1,6 @@
 import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
+import { apiDateTimeToMillis } from "../lib/date";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
 import type { Appointment, ReserveVisitPayload, UpdateVisitPayload } from "../types/appointment";
@@ -19,10 +20,11 @@ type RawAppointment = Record<string, unknown> & {
 
 function computeDuration(startAt: string, endAt: string): number {
   if (!startAt || !endAt) return 0;
-  const start = new Date(startAt.replace(" ", "T"));
-  const end = new Date(endAt.replace(" ", "T"));
-  const diffMs = end.getTime() - start.getTime();
-  return Math.round(diffMs / 60000);
+  // API datetimes are Shamsi ("1405-07-25 18:11") — a native Date parse is NaN.
+  const start = apiDateTimeToMillis(startAt);
+  const end = apiDateTimeToMillis(endAt);
+  if (Number.isNaN(start) || Number.isNaN(end)) return 0;
+  return Math.round((end - start) / 60000);
 }
 
 function extractDate(dateTime: string): string {
