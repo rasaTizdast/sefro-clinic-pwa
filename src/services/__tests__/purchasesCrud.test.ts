@@ -28,7 +28,7 @@ const purchase = (over: Partial<ProductPurchase> = {}): ProductPurchase => ({
   unitCostUsd: "10.00",
   totalCostUsd: "20.00",
   supplier: "",
-  purchaseDate: "2026-09-20",
+  purchaseDate: "1405-06-29",
   exchangeRateSnapshot: "100000.00",
   createdAt: "2026-09-20T08:30:00Z",
   ...over,
@@ -54,7 +54,8 @@ describe("updatePurchase", () => {
       quantity: "4.000",
       unitCostUsd: "10.00",
       supplier: "دیجی میکس",
-      purchaseDate: "2026-09-30",
+      // The picker's Jalali day travels as the Shamsi wire format, not Gregorian.
+      purchaseDate: "1405-07-08",
     });
   });
 
@@ -127,7 +128,8 @@ describe("listAllPurchases", () => {
 });
 
 describe("sumPurchasesInRange", () => {
-  const range = { start: "2026-09-01", end: "2026-09-30" };
+  // The ledger and every report range speak Shamsi `YYYY-MM-DD` now.
+  const range = { start: "1405-06-01", end: "1405-06-31" };
 
   it("sums USD and the rate-snapshot Toman of purchases inside the range", () => {
     const total = sumPurchasesInRange(
@@ -147,9 +149,9 @@ describe("sumPurchasesInRange", () => {
   it("excludes purchases outside the range on both ends", () => {
     const total = sumPurchasesInRange(
       [
-        purchase({ id: 1, purchaseDate: "2026-08-31" }),
-        purchase({ id: 2, purchaseDate: "2026-09-15" }),
-        purchase({ id: 3, purchaseDate: "2026-10-01" }),
+        purchase({ id: 1, purchaseDate: "1405-05-31" }),
+        purchase({ id: 2, purchaseDate: "1405-06-15" }),
+        purchase({ id: 3, purchaseDate: "1405-07-01" }),
       ],
       range
     );
@@ -161,8 +163,8 @@ describe("sumPurchasesInRange", () => {
   it("treats the bounds as inclusive", () => {
     const total = sumPurchasesInRange(
       [
-        purchase({ id: 1, purchaseDate: "2026-09-01" }),
-        purchase({ id: 2, purchaseDate: "2026-09-30" }),
+        purchase({ id: 1, purchaseDate: "1405-06-01" }),
+        purchase({ id: 2, purchaseDate: "1405-06-31" }),
       ],
       range
     );

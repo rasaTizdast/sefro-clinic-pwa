@@ -1,7 +1,7 @@
 import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
 import { snapshotToman, tomanToUsd } from "../lib/currency";
-import { jalaliToGregorianISO } from "../lib/date";
+import { shamsiDayOf, toShamsiApiDay } from "../lib/date";
 import { ceilUp } from "../lib/format";
 import { type PaginationParams, toPaginatedResponse, toQueryParams } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
@@ -102,7 +102,7 @@ export interface PurchaseInput {
   purchaseDateJalali: string;
 }
 
-/** Purchase payload as the API expects it: USD money + a Gregorian date. */
+/** Purchase payload as the API expects it: USD money + a Shamsi (Jalali) date. */
 export interface PurchasePayload {
   product: number;
   quantity: string;
@@ -145,7 +145,7 @@ function purchaseFields(i: Omit<PurchaseInput, "productId">) {
     quantity: (Number(i.quantity) || 0).toFixed(3),
     unitCostUsd,
     supplier: (i.supplier ?? "").trim(),
-    purchaseDate: jalaliToGregorianISO(i.purchaseDateJalali),
+    purchaseDate: toShamsiApiDay(i.purchaseDateJalali) ?? "",
   };
 }
 
@@ -218,7 +218,7 @@ export interface PurchaseCostTotal {
 }
 
 /**
- * Purchases inside an inclusive Gregorian `YYYY-MM-DD` range, summed at the rate
+ * Purchases inside an inclusive Shamsi `YYYY-MM-DD` range, summed at the rate
  * each row snapshotted when it was recorded.
  *
  * This is cash that left the clinic to restock inventory — deliberately NOT the
@@ -234,7 +234,8 @@ export function sumPurchasesInRange(
   let toman = 0;
   let count = 0;
   for (const purchase of purchases) {
-    const date = purchase.purchaseDate.slice(0, 10);
+    const date = shamsiDayOf(purchase.purchaseDate);
+    if (!date) continue;
     if (date < range.start || date > range.end) continue;
     usd += Number(purchase.totalCostUsd) || 0;
     toman += snapshotToman(purchase.totalCostUsd, purchase.exchangeRateSnapshot) ?? 0;

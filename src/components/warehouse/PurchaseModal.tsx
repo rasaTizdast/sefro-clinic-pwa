@@ -39,11 +39,12 @@ function normalizeName(name: string): string {
 }
 
 /**
- * A stored `purchase_date` (`2026-09-20`) as the `۱۴۰۵/۰۶/۲۹` string the picker
- * edits — a real calendar conversion, not just a separator swap, otherwise saving
- * would re-interpret the Gregorian year as a Jalali one.
+ * A stored `purchase_date` (`1405-06-29` on the wire, `2026-09-20` in old rows)
+ * as the `۱۴۰۵/۰۶/۲۹` string the picker edits — `formatJalaliDate` converts
+ * Gregorian rows and passes Shamsi rows through, so both generations of data
+ * land on the same Jalali day and saving never re-interprets a year.
  */
-function gregorianToJalaliInput(value: string): string | null {
+function storedDateToJalaliInput(value: string): string | null {
   if (!value) return null;
   const jalali = formatJalaliDate(value);
   if (!jalali || jalali === "—") return null;
@@ -80,7 +81,7 @@ function initialForm(purchase: ProductPurchase | null) {
     quantity: String(parseDecimalInput(purchase.quantity)),
     unitCostToman: snapshotToman(purchase.unitCostUsd, purchase.exchangeRateSnapshot) ?? 0,
     supplier: purchase.supplier,
-    purchaseDate: gregorianToJalaliInput(purchase.purchaseDate),
+    purchaseDate: storedDateToJalaliInput(purchase.purchaseDate),
   };
 }
 

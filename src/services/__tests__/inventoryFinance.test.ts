@@ -145,7 +145,9 @@ describe("buildPurchasePayload", () => {
       unitCostUsd: "50.00",
       totalCostUsd: "150.00",
       supplier: "آزمایشگاه پارس",
-      purchaseDate: "2026-09-20",
+      // Persian picker input is normalised to the Shamsi `YYYY-MM-DD` wire format,
+      // not converted to Gregorian.
+      purchaseDate: "1405-06-29",
     });
   });
 
@@ -229,7 +231,7 @@ describe("createPurchase", () => {
       unitCostUsd: "50.00",
       totalCostUsd: "150.00",
       supplier: "آزمایشگاه پارس",
-      purchaseDate: "2026-09-20",
+      purchaseDate: "1405-06-29",
     });
     expect(purchase.id).toBe(11);
   });

@@ -5,7 +5,7 @@ import { MdDateRange } from "react-icons/md";
 import { useAllProducts, useAllServices, useAllUsages, useAllVisits } from "../../hooks/api";
 import { extractApiError } from "../../lib/api-error";
 import { snapshotToman } from "../../lib/currency";
-import { formatJalaliDate, jalaliToGregorianISO } from "../../lib/date";
+import { formatJalaliDate, shamsiDayOf, toShamsiApiDay } from "../../lib/date";
 import { toPersianDigits } from "../../lib/digits";
 import { formatPrice } from "../../lib/format";
 import { ALL_PER_PAGE } from "../../services/fetch-all-pages";
@@ -20,18 +20,6 @@ import { type Column, Table } from "../ui/Table";
 import { PriceCell } from "./PriceCell";
 
 const PAGE_SIZE = ALL_PER_PAGE;
-
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-/**
- * ISO day for the client-side date range; null while the input is empty or not a full
- * Jalali date (the API ignores `date_from`/`date_to`, so range filtering happens here).
- */
-function toIsoDay(value: string | null): string | null {
-  if (!value) return null;
-  const iso = jalaliToGregorianISO(value);
-  return ISO_DAY.test(iso) ? iso : null;
-}
 
 export function UsagesTab() {
   const [page, setPage] = useState(1);
@@ -97,15 +85,16 @@ export function UsagesTab() {
 
   // The API ignores date params and paginates at a fixed size, so every filter (dates
   // included) runs client-side over the full log — totals then cover all matching rows.
-  const fromDay = toIsoDay(dateFrom);
-  const toDay = toIsoDay(dateTo);
+  const fromDay = toShamsiApiDay(dateFrom);
+  const toDay = toShamsiApiDay(dateTo);
 
   const filtered = useMemo(() => {
     return usages.filter((u) => {
       if (productFilter && u.product !== Number(productFilter)) return false;
       if (visitFilter && u.visit !== Number(visitFilter)) return false;
       if (serviceFilter && u.service !== Number(serviceFilter)) return false;
-      const day = u.createdAt.slice(0, 10);
+      const day = shamsiDayOf(u.createdAt);
+      if (!day) return true;
       if (fromDay && day < fromDay) return false;
       if (toDay && day > toDay) return false;
       return true;
