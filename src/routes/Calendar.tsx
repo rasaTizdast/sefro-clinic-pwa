@@ -15,6 +15,7 @@ import {
 
 import { VisitCheckoutModal } from "../components/accounting/VisitCheckoutModal";
 import { SearchButton } from "../components/SearchButton";
+import { useToast } from "../components/ui";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -32,6 +33,7 @@ import {
   useAllCustomers,
   useAllServices,
   useAllVisits,
+  useAssignVisitStaff,
   useCancelVisit,
   useCompleteVisit,
   useConfirmVisit,
@@ -40,6 +42,7 @@ import {
   usePrefetchWelcomePacks,
   useReserveVisit,
   useUpdateVisit,
+  useVisitStaffOptions,
 } from "../hooks/api";
 import { useRateValue } from "../hooks/useRateValue";
 import { formatJalaliDate, formatTimeFa } from "../lib/date";
@@ -298,6 +301,7 @@ function Calendar() {
     date: "",
     time: "",
     notes: "",
+    staffId: null,
   });
   const [patientSearch, setPatientSearch] = useState("");
   const [extraProducts, setExtraProducts] = useState<ConsumableSelection[]>([]);
@@ -309,10 +313,14 @@ function Calendar() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editAppointment, setEditAppointment] = useState<Appointment | null>(null);
   const [editNotes, setEditNotes] = useState("");
+  /** Operator select value for the edit modal, as a string for the Select control. */
+  const [editStaffId, setEditStaffId] = useState("");
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [checkoutVisitId, setCheckoutVisitId] = useState<number | null>(null);
   const [checkoutExtras, setCheckoutExtras] = useState<VisitExtras | null>(null);
+  /** A checkout blocked on a missing operator — resumed once one is saved. */
+  const [pendingCheckoutId, setPendingCheckoutId] = useState<number | null>(null);
 
   const [mobileView, setMobileView] = useState<"timeline" | "list">("list");
 
@@ -325,13 +333,16 @@ function Calendar() {
     month: persian.month,
   });
   const { mutate: reserveVisit, isPending: isCreating } = useReserveVisit();
+  const { mutate: assignStaff } = useAssignVisitStaff();
   const { mutate: updateVisitMutation, isPending: isUpdating } = useUpdateVisit();
   const { mutate: deleteVisitMutation, isPending: isDeleting } = useDeleteVisit();
   const { mutate: confirmVisit } = useConfirmVisit();
   const { mutate: completeVisit } = useCompleteVisit();
   const { mutate: cancelVisit } = useCancelVisit();
   const { data: paidVisitIdList } = usePaidVisitIds();
+  const staffOptions = useVisitStaffOptions();
   const rate = useRateValue();
+  const toast = useToast();
 
   const patients = useMemo(() => paginatedPatients ?? [], [paginatedPatients]);
   const services = useMemo(() => paginatedServices ?? [], [paginatedServices]);
@@ -521,7 +532,7 @@ function Calendar() {
 
   function handleOpenModal() {
     setWizardStep("patient");
-    setForm({ patientId: null, serviceIds: [], date: "", time: "", notes: "" });
+    setForm({ patientId: null, serviceIds: [], date: "", time: "", notes: "", staffId: null });
     setExtraProducts([]);
     setWelcomePack(null);
     setWelcomePackMode("without");
@@ -588,6 +599,10 @@ function Calendar() {
       date: form.date.replace(/\//g, "-"),
       time: form.time,
       notes: form.notes || undefined,
+      // Omitted when no operator is picked. The reserve endpoint does not read
+      // `staff` at all (see below), so the picked operator is applied right after
+      // creation — a compensable visit cannot be completed without one.
+      ...(form.staffId != null ? { staff: form.staffId } : {}),
     };
     reserveVisit(payload, {
       onSuccess: (res) => {
@@ -598,6 +613,13 @@ function Calendar() {
             welcomePack: welcomePackMode === "with" ? welcomePack : null,
             savedAt: Date.now(),
           });
+          // `/visits/reserve/` only reads customer/services/date/time/notes and
+          // silently drops `staff`, so the wizard's operator is written with a
+          // follow-up PATCH. Without this every created visit looks staff-less
+          // and pushes the user into the edit modal at checkout.
+          if (form.staffId != null) {
+            assignStaff({ id: visitId, staff: form.staffId });
+          }
         }
         handleCloseModal();
       },
@@ -610,24 +632,59 @@ function Calendar() {
   function handleOpenEdit(appt: Appointment) {
     setEditAppointment(appt);
     setEditNotes(appt.notes);
+    setEditStaffId(appt.staff != null ? String(appt.staff) : "");
     setEditModalOpen(true);
   }
 
   function handleCloseEdit() {
     setEditModalOpen(false);
     setEditAppointment(null);
+    setPendingCheckoutId(null);
+  }
+
+  /** Complete the visit, then open checkout for it. */
+  function completeAndCheckout(id: number) {
+    completeVisit(id, {
+      onSuccess: () => {
+        setSelectedAppointment(null);
+        openCheckout(id);
+      },
+    });
   }
 
   function handleSaveEdit() {
     if (!editAppointment) return;
+    const previousStaff = editAppointment.staff != null ? String(editAppointment.staff) : "";
+    const savedId = editAppointment.id;
     updateVisitMutation(
       {
-        id: editAppointment.id,
+        id: savedId,
         data: {
           notes: editNotes || undefined,
+          // Only send `staff` when it actually changed. Reassigning the operator on
+          // a visit that already has a booked payout is rejected by the backend, and
+          // leaving the field out entirely keeps an untouched visit a clean no-op.
+          ...(editStaffId !== previousStaff
+            ? { staff: editStaffId === "" ? null : Number(editStaffId) }
+            : {}),
         },
       },
-      { onSuccess: () => handleCloseEdit() }
+      {
+        onSuccess: () => {
+          // The modal was opened by a blocked checkout: once an operator is on the
+          // visit, carry straight on to completing it instead of making the user
+          // find the checkout button again.
+          const resumeId = pendingCheckoutId;
+          const assignedStaff = editStaffId === "" ? null : Number(editStaffId);
+          handleCloseEdit();
+          if (resumeId !== savedId) return;
+          if (assignedStaff === null) {
+            toast.error("برای تسویه، ابتدا پرسنل نوبت را انتخاب کنید.");
+            return;
+          }
+          completeAndCheckout(resumeId);
+        },
+      }
     );
   }
 
@@ -649,39 +706,25 @@ function Calendar() {
     if (action === "confirm") {
       confirmVisit(id, { onSuccess: () => setSelectedAppointment(null) });
     } else if (action === "complete") {
-      // A visit whose services carry a compensation role is expected to generate a
-      // staff payout on completion. The backend silently creates nothing when
-      // `staff` is null, so warn instead of letting the visit close with the
-      // operator's share quietly dropped. The role list is backend data — no
-      // percentage or rule is decided here.
+      // A visit whose services carry a compensation role generates a staff payout
+      // when it is completed, and that payout is derived from `visit.staff`. The
+      // backend now rejects completing such a visit with no operator (a 400), so
+      // stop here and open the edit modal to pick one instead of letting the
+      // complete action fail outright. Which services are compensable is backend
+      // data — no percentage or rule is decided here.
       const visit = allAppointments.find((v) => v.id === id);
       const hasCompensableService =
         visit?.services?.some((serviceId) => {
           const service = paginatedServices?.find((s) => s.id === serviceId);
-          return service?.compensationRole
-            ? service.compensationRole !== "none" && service.compensationRole != null
-            : false;
+          return service?.compensationRole != null && service?.compensationRole !== "none";
         }) ?? false;
-      if (hasCompensableService && !visit?.staff) {
-        // `visit.staff` is never assigned through the app (the visit serializer
-        // exposes staff read-only and no endpoint assigns it), while the backend
-        // rejects completing any compensable-service visit without it. Proceeding
-        // to `completeVisit` would fail with a 400, so block here with the real
-        // reason instead of offering a "continue anyway" that cannot succeed.
-        window.alert(
-          "این نوبت شامل خدمات قابل تسویه پرسنل است اما پرسنلی برای نوبت انتخاب نشده است.\n" +
-            "تکمیل این نوبت در حال حاضر ممکن نیست: بک‌اند برای ذخیره فیش تسویه نیاز به «پرسنل نوبت» دارد " +
-            "اما هیچ راهی (در رابط یا API) برای انتخاب پرسنل نوبت وجود ندارد.\n" +
-            "برای تکمیل این نوبت از خدمت‌هایی استفاده کنید که نقش تسویه ندارند."
-        );
+      if (hasCompensableService && !visit?.staff && visit) {
+        // Remember the checkout so it resumes the moment an operator is saved.
+        setPendingCheckoutId(id);
+        handleOpenEdit(visit);
         return;
       }
-      completeVisit(id, {
-        onSuccess: () => {
-          setSelectedAppointment(null);
-          openCheckout(id);
-        },
-      });
+      completeAndCheckout(id);
     } else if (action === "cancel") {
       cancelVisit(id, { onSuccess: () => setSelectedAppointment(null) });
     }
@@ -1196,6 +1239,24 @@ function Calendar() {
               onChange={(e) => handleFormChange("notes", e.target.value)}
               rows={2}
             />
+
+            <div>
+              <Select
+                label="پرسنل نوبت (اختیاری)"
+                placeholder="انتخاب پرسنل"
+                options={staffOptions.map((option) => ({
+                  value: String(option.id),
+                  label: option.label,
+                }))}
+                value={form.staffId != null ? String(form.staffId) : ""}
+                onChange={(e) =>
+                  handleFormChange("staffId", e.target.value === "" ? null : Number(e.target.value))
+                }
+              />
+              <p className="text-surface-400 mt-1.5 text-[11px]">
+                نوبت‌هایی که خدمات قابل تسویه پرسنل دارند برای تکمیل به پرسنل نیاز دارند.
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -1729,6 +1790,27 @@ function Calendar() {
             onChange={(e) => setEditNotes(e.target.value)}
             rows={3}
           />
+
+          <div>
+            <Select
+              label="پرسنل نوبت"
+              placeholder="بدون پرسنل"
+              disabled={editAppointment?.status === "completed"}
+              options={staffOptions.map((option) => ({
+                value: String(option.id),
+                label: option.label,
+              }))}
+              value={editStaffId}
+              onChange={(e) => setEditStaffId(e.target.value)}
+            />
+            <p className="text-surface-400 mt-1.5 text-[11px]">
+              {editAppointment?.status === "completed"
+                ? "پرسنل نوبت‌های تکمیل‌شده قابل تغییر نیست."
+                : pendingCheckoutId === editAppointment?.id
+                  ? "تسویه به پرسنل نیاز دارد — پس از انتخاب، تسویه خودکار ادامه می‌یابد."
+                  : "نوبت‌هایی که خدمات قابل تسویه پرسنل دارند برای تکمیل به پرسنل نیاز دارند."}
+            </p>
+          </div>
         </div>
       </Modal>
 

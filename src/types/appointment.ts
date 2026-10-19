@@ -34,6 +34,8 @@ export interface WizardFormData {
   date: string;
   time: string;
   notes: string;
+  /** Operator the visit is booked under. Null leaves it unassigned. */
+  staffId: number | null;
 }
 
 export interface ReserveVisitPayload {
@@ -42,6 +44,12 @@ export interface ReserveVisitPayload {
   date: string;
   time: string;
   notes?: string;
+  /**
+   * The operator who runs the visit. Required by the backend to settle the
+   * compensation payout on a visit carrying a compensable service — completing
+   * such a visit without it returns a 400.
+   */
+  staff?: number;
 }
 
 export interface UpdateVisitPayload {
@@ -49,4 +57,10 @@ export interface UpdateVisitPayload {
   date?: string;
   time?: string;
   notes?: string;
+  /**
+   * The visit operator, or `null` to clear it. The backend rejects a change on
+   * a visit that already has a compensation payout — reassignment after the
+   * payout is booked is a 400.
+   */
+  staff?: number | null;
 }

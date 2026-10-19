@@ -43,7 +43,9 @@ export function useReserveVisit(options?: { silent?: boolean }) {
     },
     onError: (error) => {
       console.error("[useReserveVisit] Error reserving visit:", error);
-      if (!options?.silent) toast.error("خطا در رزرو نوبت");
+      // The backend's own reason — a closed month (409) or a compensable visit
+      // booked without staff (400) — reads better than a generic failure.
+      if (!options?.silent) toast.error(extractApiError(error));
     },
   });
 }
@@ -58,8 +60,8 @@ export function useConfirmVisit() {
       queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
       toast.success("نوبت تأیید شد.");
     },
-    onError: () => {
-      toast.error("خطا در تأیید نوبت");
+    onError: (error) => {
+      toast.error(extractApiError(error));
     },
   });
 }
@@ -93,9 +95,30 @@ export function useUpdateVisit() {
       queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
       toast.success("نوبت ویرایش شد.");
     },
-    onError: () => {
-      toast.error("خطا در ویرایش نوبت");
+    onError: (error) => {
+      // Reassigning the operator of a visit that already carries a payout, or
+      // writing into a closed month, both come back as the backend's own message.
+      toast.error(extractApiError(error));
     },
+  });
+}
+
+/**
+ * Applies the operator that `/visits/reserve/` silently drops (it reads only
+ * customer/services/date/time/notes). Runs right after creation, so it stays
+ * quiet on success — "نوبت رزرو شد" already spoke — and only reports failures.
+ */
+export function useAssignVisitStaff() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: ({ id, staff }: { id: number; staff: number }) =>
+      visitsService.updateVisit(id, { staff }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
+    },
+    onError: (error) => toast.error(extractApiError(error)),
   });
 }
 
@@ -109,8 +132,8 @@ export function useDeleteVisit() {
       queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
       toast.success("نوبت حذف شد.");
     },
-    onError: () => {
-      toast.error("خطا در حذف نوبت");
+    onError: (error) => {
+      toast.error(extractApiError(error));
     },
   });
 }
@@ -125,8 +148,8 @@ export function useCancelVisit() {
       queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
       toast.success("نوبت لغو شد.");
     },
-    onError: () => {
-      toast.error("خطا در لغو نوبت");
+    onError: (error) => {
+      toast.error(extractApiError(error));
     },
   });
 }

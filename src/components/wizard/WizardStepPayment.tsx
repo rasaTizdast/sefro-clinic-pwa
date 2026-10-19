@@ -250,9 +250,11 @@ export default function WizardStepPayment({
       // 2. Reserve the visit with real service ids (packages ride on the sale, not the visit).
       // NOTE: the visit stays in its booked state — this flow never calls
       // `/visits/:id/complete/` (the calendar "تمام شدن و تسویه" action does).
-      // Because completion requires `visit.staff` and no API assigns staff to a
-      // visit, the backend's staff-requirement 400 is suppressed here by design;
-      // do not add a complete call without fixing staff assignment first.
+      // This quick-checkout form has no operator picker, so no `staff` is sent and
+      // the visit is left to be completed from the calendar, where the operator can
+      // be assigned (and the payout settled) at completion time. Do not add a
+      // complete call here without deciding who the visit's operator is — a visit
+      // carrying a compensable service is rejected without one.
       const now = new Date();
       const dateStr = toShamsiDateInput(now);
       const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
