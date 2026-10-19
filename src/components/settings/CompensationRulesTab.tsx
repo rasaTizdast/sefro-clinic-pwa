@@ -7,7 +7,7 @@ import {
   useCurrentRate,
   useUpsertCompensationRule,
 } from "../../hooks/api";
-import { toPersianDigits } from "../../lib/digits";
+import { toLatinDigits, toPersianDigits } from "../../lib/digits";
 import type { StaffCompensationRule } from "../../types/finance";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -140,7 +140,12 @@ export function CompensationRulesTab() {
     };
 
     if (form.calculationType === "percent_revenue") {
-      payload.percent_revenue = form.percentRevenue || "0";
+      // The rule model only accepts 0–100 (`MaxValueValidator`) and the API now
+      // rejects anything outside that range with a 400, so normalise the input —
+      // Persian digits included — and clamp it here instead of letting the save fail.
+      const parsed = Number(toLatinDigits(form.percentRevenue).replace(/[^\d.]/g, ""));
+      const percent = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 100) : 0;
+      payload.percent_revenue = String(percent);
     } else if (form.calculationType === "fixed_per_session") {
       payload.fixed_amount_toman = form.fixedAmountToman || "0";
       if (form.fixedAmountUsd) payload.fixed_amount_usd = form.fixedAmountUsd;
@@ -155,10 +160,16 @@ export function CompensationRulesTab() {
       payload.product_qty = activeProducts[0].qty || "1";
     }
 
-    await upsertRule.mutateAsync({
-      id: editingId ?? undefined,
-      payload: payload as never,
-    });
+    try {
+      await upsertRule.mutateAsync({
+        id: editingId ?? undefined,
+        payload: payload as never,
+      });
+    } catch {
+      // The mutation's onError already toasted the reason (a 400's own message);
+      // keep the modal open so the value can be corrected.
+      return;
+    }
     setModalOpen(false);
   }
 
