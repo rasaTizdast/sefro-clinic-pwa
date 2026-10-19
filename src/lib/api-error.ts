@@ -27,6 +27,11 @@ export function extractApiError(error: unknown): string {
   const raw = apiErr.raw;
 
   if (raw && typeof raw === "object") {
+    // DRF bodies carry the reason under `error`/`detail`; taking it first keeps
+    // extra keys (like a 409's `period`) out of the sentence.
+    const record = raw as Record<string, unknown>;
+    const primary = record.error ?? record.detail;
+    if (typeof primary === "string" && primary.trim()) return primary.trim();
     const messages = collectMessages(raw);
     if (messages.length > 0) return messages.join("، ");
   }
