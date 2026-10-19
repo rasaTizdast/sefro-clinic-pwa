@@ -1,3 +1,5 @@
+import jalaali from "jalaali-js";
+
 import type { ReportPeriod } from "../types/finance";
 
 export interface ReportPeriodOption {
@@ -19,56 +21,53 @@ export function reportPeriodLabel(period: ReportPeriod): string {
   return REPORT_PERIOD_OPTIONS.find((option) => option.value === period)?.label ?? "";
 }
 
-const toIsoDay = (date: Date): string =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-    date.getDate()
-  ).padStart(2, "0")}`;
+const dayKey = (jy: number, jm: number, jd: number): string =>
+  `${jy}-${String(jm).padStart(2, "0")}-${String(jd).padStart(2, "0")}`;
 
 /**
- * Gregorian `YYYY-MM-DD` bounds of a named period, inclusive on both ends.
- * Mirrors the backend's `_resolve_range` (finance/views.py) day-for-day — including
- * `this_week` ending on the same weekday next week — so client-side filtering of
- * unpaginated rows lands on the same days the `period=` report endpoints use.
+ * Days elapsed since the start of the Persian week for a Shamsi day:
+ * Saturday = 0 … Friday = 6 (the backend's Saturday-start weeks).
+ */
+function daysSinceSaturday(jy: number, jm: number, jd: number): number {
+  const { gy, gm, gd } = jalaali.toGregorian(jy, jm, jd);
+  return (new Date(gy, gm - 1, gd).getDay() + 1) % 7;
+}
+
+function shiftDays(jy: number, jm: number, jd: number, delta: number) {
+  return jalaali.d2j(jalaali.j2d(jy, jm, jd) + delta);
+}
+
+/**
+ * Shamsi `YYYY-MM-DD` bounds of a named period, inclusive on both ends.
+ * Mirrors the backend's `_resolve_range` (finance/views.py) day-for-day — the
+ * same Saturday-start weeks, Shamsi months and Farvardin..Esfand year — so
+ * client-side filtering of unpaginated rows lands on the same days the
+ * `period=` report endpoints use. Both ends are Jalali because every API date
+ * field now speaks Jalali.
  */
 export function reportPeriodRange(period: ReportPeriod): { start: string; end: string } {
-  const today = new Date();
-  const start = new Date(today);
-  const end = new Date(today);
+  const { jy, jm, jd } = jalaali.toJalaali(new Date());
 
   switch (period) {
     case "this_week": {
-      // Django's weekday() is Monday=0; JS getDay() is Sunday=0.
-      const fromMonday = (today.getDay() + 6) % 7;
-      start.setDate(start.getDate() - fromMonday);
-      // Derive `end` FROM `start`. Setting a day-of-month on a date that keeps
-      // today's day overflows: on the 1st, start.getDate() is 28/29/30, and
-      // end.setDate(35) rolls into the next month. The backend uses
-      // `start_dt.date() + timedelta(days=7)`, i.e. real date arithmetic.
-      end.setTime(start.getTime());
-      end.setDate(start.getDate() + 7);
-      break;
+      const start = shiftDays(jy, jm, jd, -daysSinceSaturday(jy, jm, jd));
+      const end = shiftDays(start.jy, start.jm, start.jd, 6);
+      return { start: dayKey(start.jy, start.jm, start.jd), end: dayKey(end.jy, end.jm, end.jd) };
     }
     case "this_month":
-      start.setDate(1);
-      end.setMonth(end.getMonth() + 1, 0);
-      break;
+      return { start: dayKey(jy, jm, 1), end: dayKey(jy, jm, jalaali.jalaaliMonthLength(jy, jm)) };
     case "prev_month": {
-      const firstThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      const lastPrevMonth = new Date(firstThisMonth.getTime());
-      lastPrevMonth.setDate(0);
-      start.setTime(lastPrevMonth.getTime());
-      start.setDate(1);
-      end.setTime(lastPrevMonth.getTime());
-      break;
+      const prevYear = jm === 1 ? jy - 1 : jy;
+      const prevMonth = jm === 1 ? 12 : jm - 1;
+      return {
+        start: dayKey(prevYear, prevMonth, 1),
+        end: dayKey(prevYear, prevMonth, jalaali.jalaaliMonthLength(prevYear, prevMonth)),
+      };
     }
     case "this_year":
-      start.setMonth(0, 1);
-      end.setMonth(11, 31);
-      break;
+      return { start: dayKey(jy, 1, 1), end: dayKey(jy, 12, jalaali.jalaaliMonthLength(jy, 12)) };
     case "today":
     default:
-      break;
+      return { start: dayKey(jy, jm, jd), end: dayKey(jy, jm, jd) };
   }
-
-  return { start: toIsoDay(start), end: toIsoDay(end) };
 }

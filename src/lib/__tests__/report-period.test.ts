@@ -1,12 +1,30 @@
+import jalaali from "jalaali-js";
 import { describe, expect, it } from "vitest";
 
 import type { ReportPeriod } from "../../types/finance";
 import { REPORT_PERIOD_OPTIONS, reportPeriodLabel, reportPeriodRange } from "../report-period";
 
-const iso = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-    date.getDate()
-  ).padStart(2, "0")}`;
+/** Today as the API speaks it: a Shamsi `YYYY-MM-DD` day. */
+const shamsiToday = () => {
+  const { jy, jm, jd } = jalaali.toJalaali(new Date());
+  return `${jy}-${String(jm).padStart(2, "0")}-${String(jd).padStart(2, "0")}`;
+};
+
+/** Parse a Shamsi day back into a Date so weekday/length maths stays readable. */
+const dayOfWeek = (shamsiDay: string) => {
+  const [jy, jm, jd] = shamsiDay.split("-").map(Number);
+  const { gy, gm, gd } = jalaali.toGregorian(jy, jm, jd);
+  return new Date(gy, gm - 1, gd).getDay();
+};
+
+const daysBetween = (from: string, to: string) => {
+  const toDate = (shamsiDay: string) => {
+    const [jy, jm, jd] = shamsiDay.split("-").map(Number);
+    const { gy, gm, gd } = jalaali.toGregorian(jy, jm, jd);
+    return new Date(gy, gm - 1, gd).getTime();
+  };
+  return (toDate(to) - toDate(from)) / 86_400_000;
+};
 
 describe("reportPeriodLabel", () => {
   it("labels every named period in Persian", () => {
@@ -22,43 +40,45 @@ describe("reportPeriodLabel", () => {
 });
 
 describe("reportPeriodRange", () => {
-  it("covers today only", () => {
-    const today = iso(new Date());
+  it("covers today only, as a Shamsi day", () => {
+    const today = shamsiToday();
     expect(reportPeriodRange("today")).toEqual({ start: today, end: today });
   });
 
-  it("starts the week on Monday and ends a week later, like the backend", () => {
+  it("starts the week on Saturday and spans seven days, like the backend", () => {
     const { start, end } = reportPeriodRange("this_week");
-    const startDate = new Date(`${start}T00:00:00`);
-    // Django's weekday() is Monday=0.
-    expect(startDate.getDay()).toBe(1);
-    const diff = (new Date(`${end}T00:00:00`).getTime() - startDate.getTime()) / 86_400_000;
-    expect(diff).toBe(7);
+    // Saturday = 6 in JS's Sunday=0 numbering — the backend's Shamsi week start.
+    expect(dayOfWeek(start)).toBe(6);
+    expect(dayOfWeek(end)).toBe(5);
+    expect(daysBetween(start, end)).toBe(6);
   });
 
-  it("covers the current calendar month", () => {
+  it("covers the current Shamsi month", () => {
     const { start, end } = reportPeriodRange("this_month");
-    const now = new Date();
-    expect(start).toBe(iso(new Date(now.getFullYear(), now.getMonth(), 1)));
-    expect(end).toBe(iso(new Date(now.getFullYear(), now.getMonth() + 1, 0)));
+    const { jy, jm } = jalaali.toJalaali(new Date());
+    expect(start).toBe(`${jy}-${String(jm).padStart(2, "0")}-01`);
+    expect(end).toBe(`${jy}-${String(jm).padStart(2, "0")}-${jalaali.jalaaliMonthLength(jy, jm)}`);
   });
 
-  it("covers the previous calendar month", () => {
+  it("covers the previous Shamsi month", () => {
     const { start, end } = reportPeriodRange("prev_month");
-    const now = new Date();
-    expect(start).toBe(iso(new Date(now.getFullYear(), now.getMonth() - 1, 1)));
-    expect(end).toBe(iso(new Date(now.getFullYear(), now.getMonth(), 0)));
+    const { jy, jm } = jalaali.toJalaali(new Date());
+    const prevYear = jm === 1 ? jy - 1 : jy;
+    const prevMonth = jm === 1 ? 12 : jm - 1;
+    const key = `${prevYear}-${String(prevMonth).padStart(2, "0")}`;
+    expect(start).toBe(`${key}-01`);
+    expect(end).toBe(`${key}-${jalaali.jalaaliMonthLength(prevYear, prevMonth)}`);
   });
 
-  it("covers the current calendar year", () => {
+  it("covers the current Shamsi year, Farvardin to Esfand", () => {
     const { start, end } = reportPeriodRange("this_year");
-    const year = new Date().getFullYear();
-    expect(start).toBe(`${year}-01-01`);
-    expect(end).toBe(`${year}-12-31`);
+    const { jy } = jalaali.toJalaali(new Date());
+    expect(start).toBe(`${jy}-01-01`);
+    expect(end).toBe(`${jy}-12-${jalaali.jalaaliMonthLength(jy, 12)}`);
   });
 
   it("falls back to today for an unknown period", () => {
-    const today = iso(new Date());
+    const today = shamsiToday();
     expect(reportPeriodRange("nonsense" as ReportPeriod)).toEqual({ start: today, end: today });
   });
 });

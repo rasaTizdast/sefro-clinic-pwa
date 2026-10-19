@@ -19,12 +19,10 @@ function parseShamsiDate(dateStr: string): { jy: number; jm: number; jd: number 
   return { jy: parts[0], jm: parts[1], jd: parts[2] };
 }
 
-function shamsiDayOfYear(jy: number, jm: number, jd: number): number {
-  let doy = jd;
-  for (let m = 1; m < jm; m += 1) {
-    doy += jalaali.jalaaliMonthLength(jy, m);
-  }
-  return doy;
+/** Days elapsed since the Persian week's Saturday (Saturday = 0 … Friday = 6). */
+function daysSinceSaturday(jy: number, jm: number, jd: number): number {
+  const { gy, gm, gd } = jalaali.toGregorian(jy, jm, jd);
+  return (new Date(gy, gm - 1, gd).getDay() + 1) % 7;
 }
 
 export function shamsiPeriodKey(jy: number, jm: number, jd: number, period: ChartPeriod): string {
@@ -32,7 +30,12 @@ export function shamsiPeriodKey(jy: number, jm: number, jd: number, period: Char
     case "daily":
       return `${jy}-${String(jm).padStart(2, "0")}-${String(jd).padStart(2, "0")}`;
     case "weekly": {
-      const wn = Math.floor((shamsiDayOfYear(jy, jm, jd) - 1) / 7) + 1;
+      // Saturday-start weeks whose W01 is the week containing 1 Farvardin —
+      // exactly what `Sefro_Clinic.periods.shamsi_period_key` emits, so chart
+      // gap-fill keys line up with the keys the API returns.
+      const yearStart = jalaali.j2d(jy, 1, 1) - daysSinceSaturday(jy, 1, 1);
+      const weekStart = jalaali.j2d(jy, jm, jd) - daysSinceSaturday(jy, jm, jd);
+      const wn = Math.floor((weekStart - yearStart) / 7) + 1;
       return `${jy}-W${String(wn).padStart(2, "0")}`;
     }
     case "monthly":
