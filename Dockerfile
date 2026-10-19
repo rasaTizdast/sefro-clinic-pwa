@@ -32,7 +32,7 @@ WORKDIR /app
 RUN npm install -g pnpm@latest
 
 # Copy website package files
-COPY website/package.json website/pnpm-lock.yaml ./
+COPY website/package.json website/pnpm-lock.yaml website/pnpm-workspace.yaml ./
 
 # Install dependencies (ignore build scripts for native modules)
 RUN pnpm install --frozen-lockfile --ignore-scripts
