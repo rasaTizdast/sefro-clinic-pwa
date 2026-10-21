@@ -58,9 +58,6 @@ export const endpoints = {
     refund: (id: number) => `/finance/sales/${id}/refund/`,
     checkout: "/finance/checkout/",
   },
-  payments: {
-    list: "/payments/",
-  },
   payouts: {
     list: "/finance/staff-payouts/",
     summary: "/finance/reports/staff-payout-summary/",

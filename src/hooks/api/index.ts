@@ -64,7 +64,6 @@ export {
   usePackagesList,
   useSavePackage,
 } from "./usePackagesQuery";
-export { useAllPayments } from "./usePaymentsQuery";
 export {
   useAllPayouts,
   useCompensationRules,

@@ -3,7 +3,7 @@ import { apiClient } from "../lib/api-client";
 import { jalaliToShamsiApiDate } from "../lib/date";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
-import type { Patient, PatientFormData, PatientStatus } from "../types/patient";
+import type { Patient, PatientFormData, PatientLastPayment, PatientStatus } from "../types/patient";
 import { fetchAllPages } from "./fetch-all-pages";
 
 type RawPatient = Record<string, unknown> & {
@@ -20,6 +20,7 @@ type RawPatient = Record<string, unknown> & {
   isNewCustomer?: boolean;
   isLoyalCustomer?: boolean;
   totalPayments?: number;
+  lastPayment?: unknown;
   createdAt?: string;
   birthday?: string | null;
   fileSysId?: string | null;
@@ -32,6 +33,19 @@ const toStatus = (raw: RawPatient): PatientStatus => {
   const visitCount = raw.visitNumber ?? 0;
   if (visitCount === 0) return "inactive";
   return "active";
+};
+
+const toLastPayment = (raw: unknown): PatientLastPayment | null | undefined => {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  const r = (typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    id: Number(r.id ?? 0),
+    amount: String(r.amount ?? "0"),
+    amountUsd: r.amountUsd != null ? String(r.amountUsd) : null,
+    status: String(r.status ?? ""),
+    createdAt: String(r.createdAt ?? ""),
+  };
 };
 
 const toPatient = (raw: RawPatient): Patient => ({
@@ -49,6 +63,7 @@ const toPatient = (raw: RawPatient): Patient => ({
   isNewCustomer: raw.isNewCustomer ?? false,
   isLoyalCustomer: raw.isLoyalCustomer ?? false,
   totalPayments: Number(raw.totalPayments) || 0,
+  lastPayment: toLastPayment(raw.lastPayment),
   createdAt: raw.createdAt ?? "",
   birthday: raw.birthday ?? null,
   fileSysId: raw.fileSysId ?? raw.file_sys_id ?? null,

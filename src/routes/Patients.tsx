@@ -19,7 +19,6 @@ import { Select } from "../components/ui/Select";
 import { type Column, Table } from "../components/ui/Table";
 import {
   useAllCustomers,
-  useAllPayments,
   useAllVisits,
   useCreateCustomer,
   useDeleteCustomer,
@@ -29,11 +28,10 @@ import { useQuickActions } from "../hooks/useQuickActions";
 import { useRateValue } from "../hooks/useRateValue";
 import { formatUsd, tomanToUsd } from "../lib/currency";
 import { formatJalaliDate } from "../lib/date";
-import { toLatinDigits, toPersianDigits } from "../lib/digits";
+import { toPersianDigits } from "../lib/digits";
 import { exportPatientsToExcel } from "../lib/excel";
-import { formatPrice, parseTomanAmount } from "../lib/format";
+import { formatPrice } from "../lib/format";
 import { ALL_PER_PAGE } from "../services/fetch-all-pages";
-import type { PaymentRow } from "../services/payments";
 import type { Patient, PatientFormData, PatientStatus } from "../types/patient";
 
 type StatusVariant = "success" | "warning" | "info";
@@ -56,7 +54,6 @@ function Patients() {
   const { registerAction } = useQuickActions();
 
   const { data: allPatients, isLoading, isError, refetch } = useAllCustomers();
-  const { data: allPayments } = useAllPayments();
   const { data: allVisits } = useAllVisits();
   const rate = useRateValue();
 
@@ -90,18 +87,6 @@ function Patients() {
         (p.fileSysId ?? "").includes(search.trim())
     );
   }, [patients, search]);
-
-  const lastPaymentMap = useMemo(() => {
-    const map = new Map<number, PaymentRow>();
-    for (const payment of allPayments ?? []) {
-      if (!payment.customer || !payment.paidAt) continue;
-      const existing = map.get(payment.customer);
-      if (!existing || !existing.paidAt || payment.paidAt > existing.paidAt) {
-        map.set(payment.customer, payment);
-      }
-    }
-    return map;
-  }, [allPayments]);
 
   /** Earliest booked visit per patient — «عضویت» shows when they first came in. */
   const firstVisitMap = useMemo(() => {
@@ -227,13 +212,12 @@ function Patients() {
       align: "end",
       width: "150px",
       render: (item) => {
-        const payment = lastPaymentMap.get(item.id);
+        const payment = item.lastPayment;
         if (!payment) return <span className="text-surface-400">—</span>;
-        const toman = parseTomanAmount(payment.amount);
-        const usd = Number(toLatinDigits(payment.amountUsd || "0")) || 0;
+        const usd = payment.amountUsd != null ? Number(payment.amountUsd) : 0;
         return (
-          <span className="text-surface-900 font-medium" title={payment.paymentMethod}>
-            {toman > 0 ? `${formatPrice(toman)} تومان` : "—"}
+          <span className="text-surface-900 font-medium" title={payment.status}>
+            {`${formatPrice(Number(payment.amount))} تومان`}
             {usd > 0 && (
               <span className="text-info-700 block text-xs font-normal">{formatUsd(usd)}</span>
             )}

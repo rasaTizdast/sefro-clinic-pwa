@@ -1,5 +1,13 @@
 export type PatientStatus = "new" | "active" | "loyal" | "inactive";
 
+export interface PatientLastPayment {
+  id: number;
+  amount: string;
+  amountUsd: string | null;
+  status: string;
+  createdAt: string;
+}
+
 export interface Patient {
   id: number;
   firstName: string;
@@ -15,6 +23,7 @@ export interface Patient {
   isNewCustomer: boolean;
   isLoyalCustomer: boolean;
   totalPayments: number;
+  lastPayment?: PatientLastPayment | null;
   createdAt: string;
   /** Shamsi birthday as the API stores it (`YYYY-MM-DD`); null when unset. */
   birthday?: string | null;
