@@ -80,6 +80,8 @@ export function CheckoutModal({
   const [cardToman, setCardToman] = useState(0);
   const [description, setDescription] = useState("");
   const [selection, setSelection] = useState<ConsumptionSelection>(consumables ?? {});
+  /** serviceId → reason for services the receptionist marked «استفاده نشد». */
+  const [zeroConsumption, setZeroConsumption] = useState<Record<number, string>>({});
   const [formError, setFormError] = useState("");
 
   const { data: currentRate, isLoading: rateLoading } = useCurrentRate();
@@ -89,8 +91,8 @@ export function CheckoutModal({
   const checkout = useCheckout({ silent: true });
   const recordConsumption = useRecordConsumption({ silent: true });
   const issuePack = useIssueWelcomePack({ silent: true });
-  // The backend refuses a second consumption per visit, so only send one when the
-  // visit has none. This is what makes checkout deduct the recipe's stock.
+  // The backend rejects re-recording a service that already has usage, so only
+  // send one when the visit has none. This is what deducts the recipe's stock.
   const { data: recordedUsages } = useVisitConsumptionCount(visitId);
   const consumptionAlreadyRecorded = (recordedUsages ?? 0) > 0;
 
@@ -134,12 +136,31 @@ export function CheckoutModal({
     setSelection(next);
   };
 
+  /** Marking a service «استفاده نشد» presets the reason the backend requires. */
+  const handleToggleZero = (serviceId: number, zero: boolean) => {
+    setZeroConsumption((prev) => {
+      if (zero) return { ...prev, [serviceId]: "استفاده نشد" };
+      const next = { ...prev };
+      delete next[serviceId];
+      return next;
+    });
+  };
+
+  const handleZeroReasonChange = (serviceId: number, reason: string) => {
+    setZeroConsumption((prev) => ({ ...prev, [serviceId]: reason }));
+  };
+
   const handleSubmit = async () => {
     // Latch synchronously — `isPending` flips only when a mutation starts, but
     // ensureFreshToken runs before that.
     if (submitting) return;
     setSubmitting(true);
     setFormError("");
+    if (Object.values(zeroConsumption).some((reason) => !reason.trim())) {
+      setFormError("دلیل «استفاده نشد» را برای خدمات علامت‌خورده وارد کنید.");
+      setSubmitting(false);
+      return;
+    }
     try {
       // Fresh session cookies first — this submit posts several mutations back
       // to back and a stale token can fail the later ones mid-flight.
@@ -187,17 +208,28 @@ export function CheckoutModal({
             packageId,
             ...descriptionField,
           });
-      if (visitId != null && !consumptionAlreadyRecorded) {
+      const billedSelection = Object.fromEntries(
+        Object.entries(selection).filter(([serviceId]) => !(Number(serviceId) in zeroConsumption))
+      ) as ConsumptionSelection;
+      const hasConsumptionContent =
+        Object.keys(billedSelection).length > 0 ||
+        Object.keys(zeroConsumption).length > 0 ||
+        extraProducts.length > 0;
+      // An empty body records nothing server-side anymore, so there is no reason
+      // to fire the request when no quantities, zero rows or extras are queued.
+      if (visitId != null && !consumptionAlreadyRecorded && hasConsumptionContent) {
+        // The prefilled selection already carries every recipe product's actual
+        // quantity — the backend no longer applies recipe defaults, so a missing
+        // one 400s. Services marked «استفاده نشد» leave the selection and are
+        // recorded through zero_consumption instead. extraProducts are the
+        // billable non-recipe rows («محصولات این صورتحساب») — same call deducts
+        // their stock too.
         try {
-          // An empty selection still records the service's mandatory recipe items
-          // server-side, which is what deducts warehouse stock. extraProducts are
-          // the billable non-recipe rows («محصولات این صورتحساب») — same call
-          // deducts their stock too.
           await recordConsumption.mutateAsync({
             visitId,
-            selection,
-            includeMandatoryOnly: true,
+            selection: billedSelection,
             extraProducts,
+            zeroConsumption,
           });
         } catch (consumptionError) {
           // The sale matters more than the stock note: finish the checkout and say
@@ -341,6 +373,9 @@ export function CheckoutModal({
             productNames={productNames}
             serviceNames={serviceNames}
             onChange={handleSelectionChange}
+            zeroServices={zeroConsumption}
+            onToggleZero={handleToggleZero}
+            onZeroReasonChange={handleZeroReasonChange}
           />
         )}
       </div>

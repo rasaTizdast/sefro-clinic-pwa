@@ -157,14 +157,15 @@ describe("CheckoutModal", () => {
       />
     );
 
-    // Nothing touched in the consumption step — stock must still move.
+    // Nothing touched in the consumption step — the prefilled quantities still
+    // go out explicitly (the backend applies no recipe defaults anymore).
     await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
 
     expect(recordConsumptionMutateAsync).toHaveBeenCalledWith({
       visitId: 12,
       selection: { 4: [{ product: 2, quantity: "1.500" }] },
-      includeMandatoryOnly: true,
       extraProducts: [],
+      zeroConsumption: {},
     });
     expect(recordConsumptionMutateAsync.mock.invocationCallOrder[0]).toBeLessThan(
       checkoutMutateAsync.mock.invocationCallOrder[0]
@@ -192,12 +193,12 @@ describe("CheckoutModal", () => {
     expect(recordConsumptionMutateAsync).toHaveBeenCalledWith({
       visitId: 15,
       selection: {},
-      includeMandatoryOnly: true,
       extraProducts: extras,
+      zeroConsumption: {},
     });
   });
 
-  it("sends an empty selection so the backend applies its mandatory recipe", async () => {
+  it("does not record consumption when there is nothing to record", async () => {
     const user = userEvent.setup();
     renderModal(
       <CheckoutModal
@@ -209,14 +210,11 @@ describe("CheckoutModal", () => {
       />
     );
 
+    // An empty body records nothing server-side anymore, so no request is sent.
     await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
 
-    expect(recordConsumptionMutateAsync).toHaveBeenCalledWith({
-      visitId: 13,
-      selection: {},
-      includeMandatoryOnly: true,
-      extraProducts: [],
-    });
+    expect(recordConsumptionMutateAsync).not.toHaveBeenCalled();
+    expect(checkoutMutateAsync).toHaveBeenCalled();
   });
 
   it("keeps the quantities the user edited", async () => {
@@ -241,9 +239,73 @@ describe("CheckoutModal", () => {
     expect(recordConsumptionMutateAsync).toHaveBeenCalledWith({
       visitId: 12,
       selection: { 4: [{ product: 2, quantity: "2.000" }] },
-      includeMandatoryOnly: true,
       extraProducts: [],
+      zeroConsumption: {},
     });
+  });
+
+  it("routes a service marked «استفاده نشد» to zeroConsumption instead of quantities", async () => {
+    const user = userEvent.setup();
+    renderModal(
+      <CheckoutModal
+        open
+        onClose={() => {}}
+        customerId={1}
+        visitId={12}
+        defaultTotalToman={500000}
+        consumables={{
+          4: [{ product: 2, quantity: "1.500" }],
+          5: [{ product: 3, quantity: "2" }],
+        }}
+        productNames={{ 2: "ژل", 3: "ماسک" }}
+        serviceNames={{ 4: "لیزر مو", 5: "پاکسازی پوست" }}
+      />
+    );
+
+    await user.click(screen.getAllByLabelText("استفاده نشد")[0]);
+
+    // Reason input comes pre-filled; the marked service's rows leave the display.
+    expect(screen.getByLabelText("دلیل عدم استفاده")).toHaveValue("استفاده نشد");
+    expect(screen.queryByLabelText("ژل")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("ماسک")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
+
+    expect(recordConsumptionMutateAsync).toHaveBeenCalledWith({
+      visitId: 12,
+      selection: { 5: [{ product: 3, quantity: "2" }] },
+      extraProducts: [],
+      zeroConsumption: { 4: "استفاده نشد" },
+    });
+  });
+
+  it("blocks the sale while a «استفاده نشد» reason is empty", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    renderModal(
+      <CheckoutModal
+        open
+        onClose={onClose}
+        customerId={1}
+        visitId={12}
+        defaultTotalToman={500000}
+        consumables={{
+          4: [{ product: 2, quantity: "1.500" }],
+          5: [{ product: 3, quantity: "2" }],
+        }}
+        productNames={{ 2: "ژل", 3: "ماسک" }}
+      />
+    );
+
+    await user.click(screen.getAllByLabelText("استفاده نشد")[0]);
+    await user.clear(screen.getByLabelText("دلیل عدم استفاده"));
+    await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
+
+    expect(
+      screen.getByText("دلیل «استفاده نشد» را برای خدمات علامت‌خورده وارد کنید.")
+    ).toBeInTheDocument();
+    expect(recordConsumptionMutateAsync).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("does not record twice when the visit already has consumption", async () => {
@@ -277,6 +339,8 @@ describe("CheckoutModal", () => {
         customerId={1}
         visitId={12}
         defaultTotalToman={500000}
+        consumables={{ 4: [{ product: 2, quantity: "1.500" }] }}
+        productNames={{ 2: "ژل" }}
       />
     );
 
