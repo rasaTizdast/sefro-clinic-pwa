@@ -105,7 +105,6 @@ export {
 } from "./useServicesQuery";
 export {
   useAllVisits,
-  useAssignVisitStaff,
   useCancelVisit,
   useCompleteVisit,
   useConfirmVisit,

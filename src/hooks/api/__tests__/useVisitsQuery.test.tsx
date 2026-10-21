@@ -3,9 +3,14 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../components/ui", () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
+const toast = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
 }));
+
+vi.mock("../../../components/ui", () => ({ useToast: () => toast }));
 
 import * as visitsService from "../../../services/visits";
 import {
@@ -87,6 +92,36 @@ describe("useVisitsQuery hooks", () => {
       await result.current.mutateAsync(1);
     });
     expect(visitsService.completeVisit).toHaveBeenCalledWith(1);
+    expect(toast.success).toHaveBeenCalledWith("نوبت به اتمام رسید.");
+  });
+
+  it("useCompleteVisit({ silent: true }) skips the success toast", async () => {
+    vi.mocked(visitsService.completeVisit).mockResolvedValue({ data: {} } as never);
+    const { result } = renderHook(() => useCompleteVisit({ silent: true }), {
+      wrapper: createWrapper(),
+    });
+    await act(async () => {
+      await result.current.mutateAsync(1);
+    });
+    expect(visitsService.completeVisit).toHaveBeenCalledWith(1);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("useCompleteVisit({ silent: true }) still surfaces the error toast", async () => {
+    vi.mocked(visitsService.completeVisit).mockRejectedValue(
+      new Error("Actual product consumption must be recorded before completing this visit.")
+    );
+    const { result } = renderHook(() => useCompleteVisit({ silent: true }), {
+      wrapper: createWrapper(),
+    });
+    await act(async () => {
+      await expect(result.current.mutateAsync(1)).rejects.toThrow();
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      "Actual product consumption must be recorded before completing this visit."
+    );
   });
 
   it("useCancelVisit calls cancelVisit with id", async () => {

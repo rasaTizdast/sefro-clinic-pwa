@@ -53,8 +53,6 @@ export interface WizardFormData {
   date: string;
   time: string;
   notes: string;
-  /** Operator the visit is booked under. Null leaves it unassigned. */
-  staffId: number | null;
 }
 
 export interface ReserveVisitPayload {

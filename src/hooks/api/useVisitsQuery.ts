@@ -66,7 +66,13 @@ export function useConfirmVisit() {
   });
 }
 
-export function useCompleteVisit() {
+/**
+ * Complete a visit. `silent` skips the success toast — callers that complete
+ * right after a checkout already hear «تسویه با موفقیت ثبت شد». Failures
+ * (e.g. consumption not recorded) always surface: a silent complete still has
+ * to say why the visit stayed open.
+ */
+export function useCompleteVisit(options?: { silent?: boolean }) {
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -74,11 +80,11 @@ export function useCompleteVisit() {
     mutationFn: (id: number) => visitsService.completeVisit(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
-      toast.success("نوبت به اتمام رسید.");
+      if (!options?.silent) toast.success("نوبت به اتمام رسید.");
     },
     onError: (error) => {
-      // Surface the backend's own message (e.g. the staff-requirement 400)
-      // instead of hiding it behind a generic failure toast.
+      // Surface the backend's own message (e.g. the staff-requirement or the
+      // missing-consumption 400) instead of hiding it behind a generic failure.
       toast.error(extractApiError(error));
     },
   });
@@ -100,25 +106,6 @@ export function useUpdateVisit() {
       // writing into a closed month, both come back as the backend's own message.
       toast.error(extractApiError(error));
     },
-  });
-}
-
-/**
- * Applies the operator that `/visits/reserve/` silently drops (it reads only
- * customer/services/date/time/notes). Runs right after creation, so it stays
- * quiet on success — "نوبت رزرو شد" already spoke — and only reports failures.
- */
-export function useAssignVisitStaff() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-
-  return useMutation({
-    mutationFn: ({ id, staff }: { id: number; staff: number }) =>
-      visitsService.updateVisit(id, { staff }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
-    },
-    onError: (error) => toast.error(extractApiError(error)),
   });
 }
 
