@@ -134,15 +134,18 @@ export function useRecordConsumption(options?: { silent?: boolean }) {
       selection,
       includeMandatoryOnly,
       extraProducts,
+      zeroConsumption,
     }: {
       visitId: number;
       selection: ConsumptionSelection;
       includeMandatoryOnly?: boolean;
       extraProducts?: ConsumableSelection[];
+      zeroConsumption?: Record<number, string>;
     }) =>
       inventoryFinanceService.recordConsumption(visitId, selection, {
         includeMandatoryOnly,
         extraProducts,
+        zeroConsumption,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["finance", "usages"] });

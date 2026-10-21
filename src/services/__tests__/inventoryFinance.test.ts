@@ -8,10 +8,13 @@ import {
   listCostHistory,
   listPurchases,
   recordConsumption,
+  splitRecipeRowsByQuantity,
   toConsumptionRecords,
   toProductCostHistory,
   toProductPurchase,
   toProductUsage,
+  toSelectedProductsPayload,
+  toZeroConsumptionPayload,
 } from "../inventoryFinance";
 
 vi.mock("../../lib/api-client", () => ({
@@ -395,5 +398,158 @@ describe("recordConsumption", () => {
     expect(mock.post).toHaveBeenCalledWith("/finance/visits/12/record-consumption/", {
       selected_products: {},
     });
+  });
+
+  it("drops zero-quantity rows — the backend rejects a 0 in selected_products", async () => {
+    mock.post.mockResolvedValue({ data: {} });
+
+    await recordConsumption(12, {
+      4: [
+        { product: 2, quantity: "1.500" },
+        { product: 3, quantity: "0" },
+      ],
+      5: [{ product: 4, quantity: "0.000" }],
+    });
+
+    // Service 5 lost every row, so it falls out of the payload entirely.
+    expect(mock.post).toHaveBeenCalledWith("/finance/visits/12/record-consumption/", {
+      selected_products: { 4: [[2, "1.500"]] },
+    });
+  });
+
+  it("posts zero_consumption with string service ids", async () => {
+    mock.post.mockResolvedValue({ data: {} });
+
+    await recordConsumption(
+      12,
+      { 4: [{ product: 2, quantity: "1.500" }] },
+      { zeroConsumption: { 5: "استفاده نشد" } }
+    );
+
+    expect(mock.post).toHaveBeenCalledWith("/finance/visits/12/record-consumption/", {
+      selected_products: { 4: [[2, "1.500"]] },
+      zero_consumption: { 5: "استفاده نشد" },
+    });
+  });
+
+  it("posts when only zero_consumption is provided", async () => {
+    mock.post.mockResolvedValue({ data: {} });
+
+    await recordConsumption(12, {}, { zeroConsumption: { 4: "استفاده نشد" } });
+
+    expect(mock.post).toHaveBeenCalledWith("/finance/visits/12/record-consumption/", {
+      selected_products: {},
+      zero_consumption: { 4: "استفاده نشد" },
+    });
+  });
+
+  it("skips zero_consumption entries with a blank reason", async () => {
+    mock.post.mockResolvedValue({ data: {} });
+
+    await recordConsumption(
+      12,
+      { 4: [{ product: 2, quantity: "1" }] },
+      {
+        zeroConsumption: { 5: "   " },
+      }
+    );
+
+    expect(mock.post).toHaveBeenCalledWith("/finance/visits/12/record-consumption/", {
+      selected_products: { 4: [[2, "1"]] },
+    });
+  });
+
+  it("does not send quantities for a service marked as unused", async () => {
+    mock.post.mockResolvedValue({ data: {} });
+
+    await recordConsumption(
+      12,
+      { 4: [{ product: 2, quantity: "1.500" }], 5: [{ product: 3, quantity: "2" }] },
+      { zeroConsumption: { 4: "استفاده نشد" } }
+    );
+
+    expect(mock.post).toHaveBeenCalledWith("/finance/visits/12/record-consumption/", {
+      selected_products: { 5: [[3, "2"]] },
+      zero_consumption: { 4: "استفاده نشد" },
+    });
+  });
+});
+
+describe("toSelectedProductsPayload", () => {
+  it("keeps positive rows and drops zero or invalid quantities", () => {
+    expect(
+      toSelectedProductsPayload({
+        4: [
+          { product: 2, quantity: "1.500" },
+          { product: 3, quantity: "0" },
+        ],
+        5: [{ product: 4, quantity: "-2" }],
+        6: [],
+      })
+    ).toEqual({ 4: [[2, "1.500"]] });
+  });
+
+  it("folds Persian digits so the decimal parses on the wire", () => {
+    expect(toSelectedProductsPayload({ 4: [{ product: 2, quantity: "۱.۵" }] })).toEqual({
+      4: [[2, "1.5"]],
+    });
+  });
+});
+
+describe("toZeroConsumptionPayload", () => {
+  it("stringifies service ids and trims the reason", () => {
+    expect(toZeroConsumptionPayload({ 12: "  استفاده نشد " })).toEqual({ 12: "استفاده نشد" });
+  });
+
+  it("drops blank reasons and non-positive ids", () => {
+    expect(toZeroConsumptionPayload({ 12: "   ", 0: "دلیل", 3: "" })).toEqual({});
+    expect(toZeroConsumptionPayload(undefined)).toEqual({});
+  });
+});
+
+describe("splitRecipeRowsByQuantity", () => {
+  it("keeps only the positive rows of a partly used service", () => {
+    const { selection, zeroConsumption } = splitRecipeRowsByQuantity({
+      4: [
+        { product: 2, quantity: "1.500" },
+        { product: 3, quantity: "0" },
+      ],
+    });
+
+    expect(selection).toEqual({ 4: [{ product: 2, quantity: "1.500" }] });
+    expect(zeroConsumption).toEqual({});
+  });
+
+  it("routes a service whose every row is zero to zeroConsumption", () => {
+    const { selection, zeroConsumption } = splitRecipeRowsByQuantity({
+      4: [
+        { product: 2, quantity: "0" },
+        { product: 3, quantity: "۰" },
+      ],
+      5: [{ product: 4, quantity: "2" }],
+    });
+
+    expect(selection).toEqual({ 5: [{ product: 4, quantity: "2" }] });
+    expect(zeroConsumption).toEqual({ 4: "استفاده نشد" });
+  });
+
+  it("skips empty services and non-numeric keys (package rows)", () => {
+    const { selection, zeroConsumption } = splitRecipeRowsByQuantity({
+      4: [],
+      "pkg:9": [{ product: 2, quantity: "0" }],
+      5: [{ product: 3, quantity: "1" }],
+    });
+
+    expect(selection).toEqual({ 5: [{ product: 3, quantity: "1" }] });
+    expect(zeroConsumption).toEqual({});
+  });
+
+  it("accepts a custom zero reason", () => {
+    const { zeroConsumption } = splitRecipeRowsByQuantity(
+      { 4: [{ product: 2, quantity: "0" }] },
+      "مصرف نشد"
+    );
+
+    expect(zeroConsumption).toEqual({ 4: "مصرف نشد" });
   });
 });

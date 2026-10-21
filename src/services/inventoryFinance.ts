@@ -2,6 +2,7 @@ import { endpoints } from "../config/api";
 import { apiClient } from "../lib/api-client";
 import { snapshotToman, tomanToUsd } from "../lib/currency";
 import { shamsiDayOf, toShamsiApiDay } from "../lib/date";
+import { toLatinDigits } from "../lib/digits";
 import { ceilUp } from "../lib/format";
 import { type PaginationParams, toPaginatedResponse, toQueryParams } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
@@ -298,9 +299,15 @@ export function toConsumptionRecords(selection: ConsumptionSelection): Consumpti
 /**
  * Backend contract: POST /finance/visits/:id/record-consumption/
  * body { selected_products: { "<serviceId>": [[productId, "qty"], ...] },
+ *        zero_consumption?: { "<serviceId>": "reason" },
  *        extra_products?: [[productId, "qty"], ...] }.
- * Mandatory products are automatic server-side; selection groups pick exactly one.
- * `extra_products` are billable non-recipe products (manual invoice extras).
+ * Every non-group recipe product of a listed service must carry its actual
+ * quantity — the backend 400s when one is missing instead of falling back to
+ * the recipe defaults. Selection groups pick exactly one product. A service
+ * whose products were all unused goes into `zero_consumption`, not here.
+ * Rows with a non-positive quantity are dropped (the backend rejects a 0 in
+ * `selected_products`), and Persian digits are folded to Latin so the decimal
+ * parses server-side.
  */
 export function toSelectedProductsPayload(
   selection: ConsumptionSelection
@@ -309,26 +316,78 @@ export function toSelectedProductsPayload(
   for (const [serviceId, rows] of Object.entries(selection)) {
     const typedRows = rows as { product: number; quantity: string }[];
     const pairs = typedRows
-      .filter(
-        (row: { product: number; quantity: string }) => row.product > 0 && Number(row.quantity) > 0
-      )
-      .map(
-        (row: { product: number; quantity: string }) =>
-          [row.product, String(row.quantity)] as [number, string]
-      );
+      .map((row: { product: number; quantity: string }) => ({
+        product: row.product,
+        quantity: toLatinDigits(String(row.quantity)).trim(),
+      }))
+      .filter((row) => row.product > 0 && Number(row.quantity) > 0)
+      .map((row) => [row.product, row.quantity] as [number, string]);
     if (pairs.length > 0) payload[String(Number(serviceId))] = pairs;
   }
   return payload;
 }
 
+/**
+ * `zero_consumption: { "<serviceId>": "reason" }` wire shape — service ids as
+ * strings (JSON object keys) and a non-empty reason per service, since the
+ * backend 400s on a blank one.
+ */
+export function toZeroConsumptionPayload(
+  zeroConsumption?: Record<number, string>
+): Record<string, string> {
+  const payload: Record<string, string> = {};
+  for (const [serviceId, reason] of Object.entries(zeroConsumption ?? {})) {
+    const id = Number(serviceId);
+    const trimmed = (reason ?? "").trim();
+    if (!Number.isInteger(id) || id <= 0 || trimmed === "") continue;
+    payload[String(id)] = trimmed;
+  }
+  return payload;
+}
+
+/**
+ * Split per-service recipe rows into what record-consumption must receive:
+ * a service with at least one positive quantity keeps only those rows, while a
+ * service whose every row is zero (or invalid) becomes `zeroConsumption` so its
+ * recipe is still explicitly recorded as unused. Empty services are skipped —
+ * without recipe data the caller cannot know whether they need a record at all.
+ * Quantities are parsed after folding Persian digits, matching the wire format.
+ */
+export function splitRecipeRowsByQuantity(
+  rowsByService: Record<string, { product: number; quantity: string }[]>,
+  zeroReason = "استفاده نشد"
+): { selection: ConsumptionSelection; zeroConsumption: Record<number, string> } {
+  const selection: ConsumptionSelection = {};
+  const zeroConsumption: Record<number, string> = {};
+  for (const [serviceId, rows] of Object.entries(rowsByService)) {
+    const id = Number(serviceId);
+    if (!Number.isInteger(id) || id <= 0 || rows.length === 0) continue;
+    const positive = rows.filter((row) => {
+      const quantity = Number(toLatinDigits(String(row.quantity)));
+      return row.product > 0 && Number.isFinite(quantity) && quantity > 0;
+    });
+    if (positive.length > 0) selection[id] = positive;
+    else zeroConsumption[id] = zeroReason;
+  }
+  return { selection, zeroConsumption };
+}
+
 export interface RecordConsumptionOptions {
   /**
-   * Send the request even when the selection is empty. `record_visit_consumption`
-   * records the visit's mandatory recipe items server-side, so an empty body is
-   * the way to let the backend apply the recipe defaults (and deduct their stock)
-   * without the user touching a single quantity.
+   * Send the request even when nothing else is included. The backend no longer
+   * applies recipe defaults for an empty body: a recipe service is only
+   * recorded when it appears in `selected_products` with every mandatory
+   * quantity, or in `zeroConsumption`. The flag therefore only forces the POST
+   * itself — it never substitutes for quantities.
    */
   includeMandatoryOnly?: boolean;
+  /**
+   * Services explicitly recorded as unused: serviceId → reason. The backend
+   * writes quantity-0 usage rows carrying that reason (`ProductUsage.zero_reason`)
+   * for every recipe product of the service — the way to say «این خدمت استفاده
+   * نشد». Blank reasons are dropped here (the backend rejects them with a 400).
+   */
+  zeroConsumption?: Record<number, string>;
   /**
    * Billable non-recipe products added to the invoice manually («محصولات این
    * صورتحساب»). The backend deducts their stock and writes a cost snapshot so
@@ -340,14 +399,20 @@ export interface RecordConsumptionOptions {
 /** Flatten manual extras into the `[[productId, "qty"], ...]` wire pairs. */
 export function toExtraProductsPayload(extraProducts?: ConsumableSelection[]): [number, string][] {
   return (extraProducts ?? [])
+    .map((row) => ({ product: row.product, quantity: toLatinDigits(String(row.quantity)).trim() }))
     .filter((row) => row.product > 0 && Number(row.quantity) > 0)
-    .map((row) => [row.product, String(row.quantity)] as [number, string]);
+    .map((row) => [row.product, row.quantity] as [number, string]);
 }
 
 /**
  * Record the consumables used during a visit (checkout consumption step).
- * No-op when both the selection and `extraProducts` are empty unless
- * `includeMandatoryOnly` is set.
+ * Every recipe product's actual quantity must be present in `selection`, or the
+ * service must be listed in `options.zeroConsumption` — the backend rejects an
+ * omitted recipe product and, per service, refuses to complete the visit until
+ * one of the two arrived. Rows with a non-positive quantity never reach the
+ * wire, so a fully unused service is only valid through `zeroConsumption`.
+ * No-op when the request would record nothing, unless `includeMandatoryOnly`
+ * forces the POST.
  */
 export const recordConsumption = async (
   visitId: number,
@@ -356,8 +421,13 @@ export const recordConsumption = async (
 ): Promise<void> => {
   const selectedProducts = toSelectedProductsPayload(selection);
   const extraProducts = toExtraProductsPayload(options?.extraProducts);
+  const zeroConsumption = toZeroConsumptionPayload(options?.zeroConsumption);
+  // A service marked unused must not also carry quantities — the backend reads
+  // zero_consumption for it and would contradict the selection.
+  for (const serviceId of Object.keys(zeroConsumption)) delete selectedProducts[serviceId];
   if (
     Object.keys(selectedProducts).length === 0 &&
+    Object.keys(zeroConsumption).length === 0 &&
     extraProducts.length === 0 &&
     !options?.includeMandatoryOnly
   ) {
@@ -365,14 +435,16 @@ export const recordConsumption = async (
   }
   await apiClient.post(endpoints.finance.recordConsumption(visitId), {
     selected_products: selectedProducts,
+    ...(Object.keys(zeroConsumption).length > 0 ? { zero_consumption: zeroConsumption } : {}),
     ...(extraProducts.length > 0 ? { extra_products: extraProducts } : {}),
   });
 };
 
 /**
  * How many consumption rows a visit already has.
- * The backend refuses a second consumption per visit, so checkout needs this to
- * know whether it should record the recipe or leave an existing record alone.
+ * The backend rejects re-recording a service that already has usage, so
+ * checkout needs this to know whether it should record at all or leave an
+ * existing record alone.
  */
 export const countVisitConsumptions = async (visitId: number): Promise<number> => {
   const { data } = await apiClient.get(endpoints.finance.usages, {
