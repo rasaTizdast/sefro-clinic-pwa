@@ -27,9 +27,9 @@ import {
 } from "../../lib/payment-split";
 import { queryKeys } from "../../lib/query-keys";
 import { getBillingRate } from "../../services/exchangeRates";
+import { splitRecipeRowsByQuantity } from "../../services/inventoryFinance";
 import { buildCheckoutPayload, partitionVisitPayment } from "../../services/sales";
 import * as visitsService from "../../services/visits";
-import type { ConsumptionSelection } from "../../types/finance";
 import type {
   ConsumableSelection,
   PatientData,
@@ -177,9 +177,14 @@ export default function WizardStepPayment({
       setSubmitting(false);
       return;
     }
-    // Same rule as the calendar booking: "with" requires a chosen pack.
-    // "without" may submit as long as the other required fields are filled.
-    if (welcomeMode === "with" && !welcomePack) {
+    // Same rule as the calendar booking: "with" requires a chosen pack — and
+    // "chosen" means an ACTIVE pack from the server list, so a stale selection
+    // (a pack deactivated since it was stored in the tab) counts as none. The
+    // picker's resting text «یک ولکام‌پک انتخاب کنید» is only a placeholder,
+    // never an option, so an unchosen picker can never satisfy this.
+    const packIsValid =
+      welcomePack != null && (packsData ?? []).some((p) => p.id === welcomePack.packId);
+    if (welcomeMode === "with" && !packIsValid) {
       setFormError("یک ولکام‌پک انتخاب کنید");
       setSubmitting(false);
       return;
@@ -248,13 +253,11 @@ export default function WizardStepPayment({
       const finalCustomerId: number = customerId as number;
 
       // 2. Reserve the visit with real service ids (packages ride on the sale, not the visit).
-      // NOTE: the visit stays in its booked state — this flow never calls
-      // `/visits/:id/complete/` (the calendar "تمام شدن و تسویه" action does).
-      // This quick-checkout form has no operator picker, so no `staff` is sent and
-      // the visit is left to be completed from the calendar, where the operator can
-      // be assigned (and the payout settled) at completion time. Do not add a
-      // complete call here without deciding who the visit's operator is — a visit
-      // carrying a compensable service is rejected without one.
+      // The visit is completed at the end of this flow (step 6) — once the sale and
+      // the consumption record are in, the same "تمام شدن و تسویه" outcome the calendar
+      // produces. No `staff` is sent: the backend auto-resolves the operator from each
+      // service's compensation role, and a role it cannot resolve (e.g. two people hold
+      // it) leaves the visit open to be finished from the calendar.
       const now = new Date();
       const dateStr = toShamsiDateInput(now);
       const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -270,14 +273,16 @@ export default function WizardStepPayment({
 
       // 3. Record recipe consumables AND manual extras («محصولات این صورتحساب»)
       //    for stock/ProductUsage (billable amounts already included in totalToman).
-      //    Both are posted in one call: recipe items (mandatory defaults included)
-      //    plus the extra_products list — the backend rejects nothing here anymore,
-      //    it deducts stock for extras too. Failure must not block billing.
-      const recipeSelection = Object.fromEntries(
+      //    Recipe rows carry their actual quantities — the backend no longer
+      //    applies recipe defaults, so a service whose every row is zero is routed
+      //    to zero_consumption instead (zero rows inside a partly-used service are
+      //    simply omitted). Failure must not block billing.
+      const recipeRows = Object.fromEntries(
         Object.entries(consumables).filter(
           ([key, rows]) => rows.length > 0 && serviceIdKeySet.has(key)
         )
-      ) as ConsumptionSelection;
+      ) as Record<string, ConsumableSelection[]>;
+      const { selection: recipeSelection, zeroConsumption } = splitRecipeRowsByQuantity(recipeRows);
       let consumptionFailure: unknown = null;
       try {
         await consumptionMutation.mutateAsync({
@@ -285,6 +290,7 @@ export default function WizardStepPayment({
           selection: recipeSelection,
           includeMandatoryOnly: true,
           extraProducts,
+          zeroConsumption,
         });
       } catch (consumptionError) {
         consumptionFailure = consumptionError;
@@ -354,7 +360,7 @@ export default function WizardStepPayment({
       }
 
       // 5. Issue the welcome pack against the same customer+visit (its own financial event).
-      if (welcomePack) {
+      if (welcomeMode === "with" && packIsValid && welcomePack) {
         try {
           await issuePackMutation.mutateAsync({
             packId: welcomePack.packId,
@@ -369,9 +375,31 @@ export default function WizardStepPayment({
         }
       }
 
+      // 6. Finish the visit itself — the backend refuses completion until
+      //    consumption is recorded, so a consumption failure leaves the visit
+      //    open on purpose (the calendar checkout can still finish it). A 400
+      //    here is almost always an uncovered compensation role: the visit
+      //    stays «در انتظار» and must be completed from the calendar, where the
+      //    operator can be assigned first.
+      let completionFailure: unknown = null;
+      if (consumptionFailure === null) {
+        try {
+          await visitsService.completeVisit(visitId);
+          await queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
+        } catch (completionError) {
+          completionFailure = completionError;
+        }
+      }
+
       if (consumptionFailure) {
         // Billing landed; only the stock note is missing. Say it plainly.
         toastWarning("پذیرش ثبت شد اما مصرف مواد ثبت نشد", extractApiError(consumptionFailure));
+      }
+      if (completionFailure) {
+        toastWarning(
+          "پذیرش ثبت شد اما نوبت تکمیل نشد — اپراتور خدمت را در ویرایش نوبت تعیین کنید",
+          extractApiError(completionFailure)
+        );
       }
 
       toastSuccess(`پذیرش ${patient.firstName} ${patient.lastName} با موفقیت ثبت شد`);
@@ -558,13 +586,11 @@ export default function WizardStepPayment({
             ) : (
               <Select
                 label="انتخاب ولکام‌پک"
-                options={[
-                  { value: "", label: "یک ولکام‌پک انتخاب کنید" },
-                  ...(packsData ?? []).map((p) => ({
-                    value: String(p.id),
-                    label: p.name,
-                  })),
-                ]}
+                placeholder="یک ولکام‌پک انتخاب کنید"
+                options={(packsData ?? []).map((p) => ({
+                  value: String(p.id),
+                  label: p.name,
+                }))}
                 value={welcomePack ? String(welcomePack.packId) : ""}
                 onChange={(e) => {
                   const id = e.target.value ? Number(e.target.value) : null;

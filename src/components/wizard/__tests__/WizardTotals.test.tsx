@@ -430,6 +430,8 @@ describe("wizard consumable totals", () => {
     expect(Object.keys(consumption.selection)).toEqual(["1"]);
     expect(consumption.selection["1"].map((r: ConsumableSelection) => r.product)).toEqual([50, 51]);
     expect(consumption.extraProducts).toEqual(extras);
+    // No service was marked unused in this flow — the key is still sent.
+    expect(consumption.zeroConsumption).toEqual({});
 
     // Sale 1: the service fee (2,000,000) bound to the visit.
     const feePayload = mockCheckoutMutate.mock.calls[0][0];
