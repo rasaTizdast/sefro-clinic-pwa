@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+import { mockAllApiEndpoints } from "./helpers";
+
 /**
  * Calendar Wizard Validation — edge cases and state tests
- * Uses explicit mock routes (no mockAllApiEndpoints).
+ * Uses mockAllApiEndpoints as the base (full endpoint coverage), then
+ * overrides customers/services with fixture data per-test setup.
  */
 
 async function setupCoreMocks(page: any) {
@@ -11,104 +14,8 @@ async function setupCoreMocks(page: any) {
     Object.defineProperty(navigator, "onLine", { configurable: true, get: () => true });
   });
 
-  await page.route("**/api/auth/token/refresh/", async (r: any) =>
-    r.fulfill({
-      status: 401,
-      contentType: "application/json",
-      body: JSON.stringify({ detail: "expired" }),
-    })
-  );
-  await page.route("**/api/auth/token/", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ access: "mock-at", refresh: "mock-rt" }),
-    })
-  );
-  await page.route("**/api/auth/me/", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        id: 1,
-        username: "sefro_admin",
-        role: "admin",
-        date_joined: "2026-01-01T00:00:00Z",
-      }),
-    })
-  );
-  await page.route("**/api/dashboard/", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        today_visits: 3,
-        total_customers: 100,
-        today_revenue: 1500000,
-        new_patients: 2,
-        loyal_customers: 30,
-      }),
-    })
-  );
-  await page.route("**/api/reports/**", async (r: any) =>
-    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) })
-  );
-  await page.route("**/api/reports/all/**", async (r: any) =>
-    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) })
-  );
-  await page.route("**/api/reports/referral/**", async (r: any) =>
-    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) })
-  );
-  await page.route("**/api/reports/visits/**", async (r: any) =>
-    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) })
-  );
-  await page.route("**/api/inventory/products/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0, results: [] }),
-    })
-  );
-  await page.route("**/api/auth/employees/list/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0, results: [] }),
-    })
-  );
-  await page.route("**/api/logs/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0, results: [] }),
-    })
-  );
-  await page.route("**/api/work-time/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        count: 7,
-        results: [
-          { id: 1, day_of_week: 0, start_time: "08:00", end_time: "17:00", is_active: true },
-          { id: 2, day_of_week: 1, start_time: "08:00", end_time: "17:00", is_active: true },
-          { id: 3, day_of_week: 2, start_time: "08:00", end_time: "17:00", is_active: true },
-          { id: 4, day_of_week: 3, start_time: "08:00", end_time: "17:00", is_active: true },
-          { id: 5, day_of_week: 4, start_time: "08:00", end_time: "17:00", is_active: true },
-          { id: 6, day_of_week: 5, start_time: "08:00", end_time: "12:00", is_active: true },
-          { id: 7, day_of_week: 6, start_time: "00:00", end_time: "00:00", is_active: false },
-        ],
-      }),
-    })
-  );
-  // Visits empty by default
-  await page.route("**/api/visits/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0, results: [] }),
-    })
-  );
+  // Base layer: every endpoint the app can touch (incl. calendar prefetches)
+  await mockAllApiEndpoints(page);
 }
 
 test.describe("Calendar Wizard Validation", () => {

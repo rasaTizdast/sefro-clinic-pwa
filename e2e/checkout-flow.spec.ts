@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+import { mockAllApiEndpoints } from "./helpers";
+
 /**
  * Critical finance flow: completed visit → checkout modal → sale.
- * Mirrors e2e/complete-flow.spec.ts conventions (explicit mock routes).
+ * mockAllApiEndpoints provides full coverage; this file layers visit/checkout
+ * fixtures on top (registered later → they win).
  */
 
 function todayPersian(): { year: number; month: number; day: number } {
@@ -57,45 +60,10 @@ async function setupMocks(page: any, state: { checkoutCalled: boolean }) {
     Object.defineProperty(navigator, "onLine", { configurable: true, get: () => true });
   });
 
-  await page.route("**/api/auth/token/refresh/", async (r: any) =>
-    r.fulfill({
-      status: 401,
-      contentType: "application/json",
-      body: JSON.stringify({ detail: "expired" }),
-    })
-  );
-  await page.route("**/api/auth/token/", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ access: "mock-at", refresh: "mock-rt" }),
-    })
-  );
-  await page.route("**/api/auth/me/", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        id: 1,
-        username: "sefro_admin",
-        role: "admin",
-        date_joined: "2026-01-01T00:00:00Z",
-      }),
-    })
-  );
-  await page.route("**/api/dashboard/", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        today_visits: 1,
-        total_customers: 100,
-        today_revenue: 0,
-        new_patients: 0,
-        loyal_customers: 30,
-      }),
-    })
-  );
+  // Base layer covers every endpoint; fixtures below are registered later so
+  // Playwright (most-recent-first) serves them instead.
+  await mockAllApiEndpoints(page);
+
   await page.route("**/api/customers/**", async (r: any) =>
     r.fulfill({
       status: 200,
@@ -110,13 +78,23 @@ async function setupMocks(page: any, state: { checkoutCalled: boolean }) {
       body: JSON.stringify({ count: 1, results: [SERVICE] }),
     })
   );
-  await page.route("**/api/visits/**", async (r: any) =>
-    r.fulfill({
+  await page.route("**/api/visits/**", async (r: any, req: any) => {
+    const url = req.url();
+    // Single-resource detail (GET /api/visits/9201/) must not return a list payload.
+    if (/\/api\/visits\/\d+\/$/.test(url)) {
+      await r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_VISIT),
+      });
+      return;
+    }
+    await r.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ count: 1, results: [MOCK_VISIT] }),
-    })
-  );
+    });
+  });
 
   // Exchange rate powers the Toman→USD conversion in the checkout dialog.
   await page.route("**/api/reports/exchange-dollar/", async (r: any) =>
@@ -129,20 +107,6 @@ async function setupMocks(page: any, state: { checkoutCalled: boolean }) {
         effective_at: null,
         source: "manual",
       }),
-    })
-  );
-  await page.route("**/api/finance/service-items/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0, results: [] }),
-    })
-  );
-  await page.route("**/api/inventory/products/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0, results: [] }),
     })
   );
 
@@ -186,7 +150,7 @@ test.describe("Visit → Checkout → Sale", () => {
 
     // Open the completed appointment.
     await page.getByText("تسویه تست").first().click();
-    const checkoutButton = page.getByRole("button", { name: "تسویه و ثبت فروش" }).first();
+    const checkoutButton = page.getByRole("button", { name: "تمام شدن و تسویه" }).first();
     await expect(checkoutButton).toBeVisible({ timeout: 5000 });
     await checkoutButton.click();
 
@@ -196,14 +160,17 @@ test.describe("Visit → Checkout → Sale", () => {
     });
     await expect(page.getByLabel("مبلغ کل (تومان)")).toHaveValue("۱٬۰۰۰٬۰۰۰");
 
-    // Split 400k cash / 600k card.
+    // Split 400k cash / 600k card (card is manual — no auto-remainder).
     const cash = page.getByLabel("نقدی (تومان)");
     await cash.clear();
     await cash.fill("400000");
-    await expect(page.getByLabel("کارتی (تومان)")).toHaveValue("۶۰۰٬۰۰۰");
+    const card = page.getByLabel("کارتخوان (تومان)");
+    await card.clear();
+    await card.fill("600000");
+    await expect(page.getByText("مبلغ پرداختی برابر جمع کل است")).toBeVisible({ timeout: 5000 });
 
     await page.getByRole("dialog").getByRole("button", { name: "ثبت فروش" }).click();
-    await expect(page.getByText("فروش ثبت شد")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("تسویه با موفقیت ثبت شد")).toBeVisible({ timeout: 10000 });
     expect(state.checkoutCalled).toBe(true);
   });
 });

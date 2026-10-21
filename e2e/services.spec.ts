@@ -69,7 +69,18 @@ test.describe("Services", () => {
         contentType: "application/json",
         body: JSON.stringify({
           count: 1,
-          results: [{ id: 1, name: "testsvc", time: 30, price: "500000", is_active: true }],
+          results: [
+            {
+              id: 1,
+              name: "testsvc",
+              time: 30,
+              price: "500000",
+              is_active: true,
+              // The form schema only accepts doctor/facial/laser — omitting it
+              // would default to "none" and fail client-side validation on save.
+              compensation_role: "doctor",
+            },
+          ],
         }),
       });
     });
@@ -83,10 +94,10 @@ test.describe("Services", () => {
 
     await page.goto("/services");
 
-    const actionsBtn = page.locator("table tbody tr").first().locator("button").first();
-    await actionsBtn.waitFor({ state: "visible", timeout: 10000 });
-    await actionsBtn.click();
-    await page.getByRole("menuitem", { name: "ویرایش" }).click();
+    // Actions are inline row buttons (جزئیات / ویرایش / حذف), not a dropdown menu
+    const row = page.locator("table tbody tr").first();
+    await row.waitFor({ state: "visible", timeout: 10000 });
+    await row.getByRole("button", { name: "ویرایش" }).click();
 
     const editedTitle = `ویرایش شده ${Date.now()}`;
     await page.getByLabel("نام خدمت").clear();

@@ -1,13 +1,17 @@
 import type { Page, Route } from "@playwright/test";
 
+import { mockAllApiEndpoints } from "../helpers";
 import {
   type MockReply,
   type MockState,
   createMockState,
+  handleCancelVisit,
   handleCheckout,
   handleCompleteVisit,
+  handleConfirmVisit,
   handleCreateExpense,
   handleCreateService,
+  handleReserveVisit,
 } from "./contracts";
 
 /**
@@ -36,6 +40,21 @@ function routes(): MockRoute[] {
     },
     {
       method: "POST",
+      test: (p) => p === "/visits/",
+      handle: (state, req) => handleReserveVisit(state, req),
+    },
+    {
+      method: "POST",
+      test: (p) => /^\/visits\/\d+\/confirm\/$/.test(p),
+      handle: (state, req) => handleConfirmVisit(state, req),
+    },
+    {
+      method: "POST",
+      test: (p) => /^\/visits\/\d+\/cancel\/$/.test(p),
+      handle: (state, req) => handleCancelVisit(state, req),
+    },
+    {
+      method: "POST",
       test: (p) => /^\/visits\/\d+\/complete\/$/.test(p),
       handle: (state, req) => handleCompleteVisit(state, req),
     },
@@ -59,14 +78,20 @@ function apiPath(url: string): string | null {
 }
 
 /**
- * Install the contract-faithful mock backend. One catch-all page.route handler
- * dispatches each request to the pure contract handlers, keeping an in-memory
- * state object alive across the test so multi-step flows behave statefully.
+ * Install a self-contained mock backend: `mockAllApiEndpoints` provides auth
+ * (token/me/refresh/logout) and sensible GET defaults for every endpoint, then
+ * one catch-all page.route handler dispatches stateful POSTs to the pure
+ * contract handlers. The catch-all is registered last (Playwright prefers the
+ * most recent route) and `route.fallback()`s anything it does not own, so
+ * GETs — including auth — fall through to the base layer and nothing ever
+ * leaks to a real server. Specs may still layer their own fixtures on top.
  */
 export async function installMockBackend(
   page: Page,
   state: MockState = createMockState()
 ): Promise<void> {
+  await mockAllApiEndpoints(page);
+
   await page.route("**/*", async (route: Route) => {
     const request = route.request();
     const relPath = apiPath(request.url());

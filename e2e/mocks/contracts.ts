@@ -129,7 +129,9 @@ export function handleCompleteVisit(state: MockState, req: MockRequest): MockRep
 /**
  * POST /finance/checkout/ — `finance/services/payments.py:76-203`.
  * Components must sum to amount_usd after half-even conversion; replay of a
- * prior idempotency_key returns the original sale.
+ * prior idempotency_key returns the original sale. Like the backend's own
+ * `_components_sum_usd`, a `cash_toman` component's wire value is a TOMAN
+ * amount converted server-side — every other method is already USD.
  */
 export function handleCheckout(state: MockState, req: MockRequest): MockReply {
   const body = req.body as {
@@ -151,7 +153,12 @@ export function handleCheckout(state: MockState, req: MockRequest): MockReply {
   const amountUsd = Number(body.amount_usd ?? 0);
   const components = body.components ?? [];
   const rate = Number(state.rate);
-  const sumCents = components.reduce((acc, c) => acc + toCents(Number(c.amount_usd ?? 0)), 0);
+  const sumCents = components.reduce((acc, c) => {
+    const raw = Number(c.amount_usd ?? 0);
+    // cash_toman carries Toman — convert like from_toman() on the server.
+    const usd = c.method === "cash_toman" ? roundHalfEven(raw / rate, 2) : raw;
+    return acc + toCents(usd);
+  }, 0);
 
   if (toCents(amountUsd) !== sumCents) {
     return bad({
@@ -203,6 +210,50 @@ export function handleCreateExpense(state: MockState, req: MockRequest): MockRep
   };
   state.expenses.push(expense);
   return ok(expense);
+}
+
+/**
+ * POST /visits/ — reserve (customers/views.py VisitViewSet.create).
+ * The frontend only reads `data.id`; the visit starts «در انتظار» (PENDING).
+ */
+export function handleReserveVisit(state: MockState, req: MockRequest): MockReply {
+  const body = req.body as {
+    customer?: number;
+    services?: number[];
+    date?: string;
+    time?: string;
+    notes?: string;
+  };
+  const visit: MockVisit = {
+    id: state.nextIds.visit++,
+    customer: Number(body.customer ?? 0),
+    services: (body.services ?? []).map(Number),
+    staff: null,
+    date: String(body.date ?? ""),
+    time: String(body.time ?? ""),
+    status: "PENDING",
+    notes: String(body.notes ?? ""),
+  };
+  state.visits.push(visit);
+  return { status: 201, body: visit };
+}
+
+/** POST /visits/:id/confirm/ — PENDING → CONFIRMED. */
+export function handleConfirmVisit(state: MockState, req: MockRequest): MockReply {
+  const id = parseId(req.path, "/visits/", "/confirm/");
+  const visit = state.visits.find((v) => v.id === id);
+  if (!visit) return bad({ error: "Not found." });
+  visit.status = "CONFIRMED";
+  return ok(visit);
+}
+
+/** POST /visits/:id/cancel/ — any open status → CANCELED. */
+export function handleCancelVisit(state: MockState, req: MockRequest): MockReply {
+  const id = parseId(req.path, "/visits/", "/cancel/");
+  const visit = state.visits.find((v) => v.id === id);
+  if (!visit) return bad({ error: "Not found." });
+  visit.status = "CANCELED";
+  return ok(visit);
 }
 
 /** Extract an integer id between a prefix and a suffix in a path. */

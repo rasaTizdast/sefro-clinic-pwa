@@ -11,7 +11,8 @@ test.describe("Authentication", () => {
       sessionStorage.clear();
     });
     // Wait for the axios 401 interceptor redirect to /auth to settle
-    await page.waitForURL("**/auth", { timeout: 10000 });
+    // (it appends ?next=…, so match on pathname, not the glob "**/auth")
+    await page.waitForURL((url) => url.pathname === "/auth", { timeout: 10000 });
     await page.waitForLoadState("networkidle");
   });
 
@@ -71,8 +72,8 @@ test.describe("Authentication", () => {
     // Click logout button in sidebar (may be outside viewport on tall sidebars)
     await page.getByRole("button", { name: "خروج از سیستم" }).dispatchEvent("click");
 
-    // Should redirect to /auth
-    await page.waitForURL("**/auth", { timeout: 10000 });
+    // Should redirect to /auth (logout may land on /auth?next=… or /auth)
+    await page.waitForURL((url) => url.pathname === "/auth", { timeout: 10000 });
     await expect(page.getByRole("button", { name: "ورود به حساب" })).toBeVisible();
   });
 

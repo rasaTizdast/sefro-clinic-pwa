@@ -22,9 +22,19 @@ export interface MockService {
   time: number;
   price: string;
   price_usd: string;
-  compensation_role: "none" | "doctor" | "laser";
+  compensation_role: "none" | "doctor" | "facial" | "laser";
   description: string;
   is_active: boolean;
+}
+
+export interface MockProduct {
+  id: number;
+  name: string;
+  count: number;
+  unit: string;
+  unit_price: string;
+  description: string;
+  status: string;
 }
 
 export interface MockVisit {
@@ -107,8 +117,23 @@ export const seedVisit: MockVisit = {
   notes: "",
 };
 
-/** Fixed rate fixture — the mock must stay deterministic (plan constraint). */
-export const FIXED_RATE = "91000";
+/** Warehouse products — ExtraProductsBlock renders only when the list is non-empty. */
+export const seedProducts: MockProduct[] = [
+  {
+    id: 50,
+    name: "سرم ویتامین",
+    count: 10,
+    unit: "عدد",
+    unit_price: "50000",
+    description: "",
+    status: "available",
+  },
+];
+
+/** Fixed rate fixture — the mock must stay deterministic (plan constraint).
+ * Matches the exchange-dollar quote mockAllApiEndpoints serves (88000), so the
+ * frontend's own rate and the contract state's rate never disagree. */
+export const FIXED_RATE = "88000";
 
 /** The exact fa message the real service serializer emits for an explicit null. */
 export const SERVICE_PRICE_USD_NULL_ERROR = "این مقدار نباید توهی باشد.";

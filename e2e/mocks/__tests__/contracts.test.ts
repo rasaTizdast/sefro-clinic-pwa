@@ -45,8 +45,8 @@ describe("handleCreateService (issue #2: price_usd null rejection)", () => {
       req("/services/", { name: "کوتاهی مو", time: 30, price: "150000" })
     );
     expect(reply.status).toBe(200);
-    // 150000 / 91000 = 1.6483... -> 1.65
-    expect((reply.body as { price_usd: string }).price_usd).toBe("1.65");
+    // 150000 / 88000 = 1.7045... -> 1.70
+    expect((reply.body as { price_usd: string }).price_usd).toBe("1.70");
     expect(state.services.at(-1)?.name).toBe("کوتاهی مو");
   });
 });
@@ -88,7 +88,37 @@ describe("handleCheckout (issue: components must sum to amount)", () => {
       })
     );
     expect(reply.status).toBe(200);
-    expect((reply.body as { amount_toman: string }).amount_toman).toBe("910000");
+    expect((reply.body as { amount_toman: string }).amount_toman).toBe("880000");
+  });
+
+  it("converts cash_toman components from Toman before summing (backend from_toman)", () => {
+    const state = createMockState();
+    // 150000 Toman at rate 88000 -> 1.7045 USD -> half-even 1.70
+    const reply = handleCheckout(
+      state,
+      req("/finance/checkout/", {
+        customer: 1,
+        amount_usd: "1.70",
+        components: [{ method: "cash_toman", amount_usd: "150000" }],
+        idempotency_key: "toman",
+      })
+    );
+    expect(reply.status).toBe(200);
+  });
+
+  it("rejects a cash_toman component that converts to a different sum", () => {
+    const state = createMockState();
+    // Naive summing would see 150000 as USD; the converted sum is 1.70.
+    const reply = handleCheckout(
+      state,
+      req("/finance/checkout/", {
+        customer: 1,
+        amount_usd: "150000.00",
+        components: [{ method: "cash_toman", amount_usd: "150000" }],
+        idempotency_key: "toman-bad",
+      })
+    );
+    expect(reply.status).toBe(400);
   });
 
   it("rejects when components do not sum to amount_usd", () => {
@@ -145,7 +175,7 @@ describe("handleCreateExpense (issue #6a: half-even USD + derived Toman)", () =>
     expect(reply.status).toBe(200);
     const body = reply.body as { amount_usd: string; amount_toman: string; category_name: unknown };
     expect(body.amount_usd).toBe("5.49");
-    expect(body.amount_toman).toBe(String(Math.round(5.49 * 91000)));
+    expect(body.amount_toman).toBe(String(Math.round(5.49 * 88000)));
     expect(body.category_name).toBeNull();
   });
 });

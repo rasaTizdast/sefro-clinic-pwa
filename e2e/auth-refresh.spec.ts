@@ -1,22 +1,35 @@
-import { test, expect } from "@playwright/test";
-import { login, installMockBackend } from "./helpers";
+import { expect, test } from "@playwright/test";
 
+import { installMockBackend, login } from "./helpers";
+
+/**
+ * Issue #1: an unsafe request must be preceded by a token refresh when the
+ * session module state is stale. Logout is the simplest unsafe POST on the
+ * dashboard — the proactive-refresh interceptor fires before it. A spy route
+ * registered after the mock backend records the order and defers (fallback)
+ * so the real mocks still answer.
+ */
 test.describe("Auth token proactive refresh (issue #1)", () => {
-  test("triggers refresh before unsafe request when token stale", async ({ page }) => {
+  test("refreshes before the logout POST when token is stale", async ({ page }) => {
     await installMockBackend(page);
     await login(page);
-    // Navigate to a page that makes unsafe requests
+    // Fresh navigation resets module state (lastRotatedAt = null), so the
+    // next unsafe POST must rotate first — exactly the stale-token case.
     await page.goto("/dashboard");
-    // Record route order
-    const routeLog: string[] = [];
-    await page.route("**/*", (route) => {
-      routeLog.push(route.request().url());
-      return route.continue();
+
+    const order: string[] = [];
+    await page.route("**/api/**", async (route) => {
+      const url = route.request().url();
+      if (url.includes("/auth/token/refresh/")) order.push("refresh");
+      if (url.includes("/auth/logout/")) order.push("logout");
+      await route.fallback();
     });
-    // Make an unsafe request (POST)
-    await page.getByRole("button", { name: "ثبت نهایی" }).click();
-    // The refresh endpoint should have been hit before the target request
-    const refreshHit = routeLog.some((url) => url.includes("/auth/token/refresh/"));
-    expect(refreshHit).toBe(true);
+
+    await page.getByRole("button", { name: "خروج از سیستم" }).click();
+
+    await expect
+      .poll(() => order, { timeout: 10000 })
+      .toEqual(expect.arrayContaining(["refresh", "logout"]));
+    expect(order.indexOf("refresh")).toBeLessThan(order.indexOf("logout"));
   });
 });

@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+import { mockAllApiEndpoints } from "./helpers";
+
 /**
  * Golden path: Create Patient → Create Visit → Confirm → Complete → Record Payment
- * Uses explicit mock routes — no mockAllApiEndpoints.
+ * mockAllApiEndpoints provides full coverage; stateful fixtures layer on top.
  */
 
 function todayPersian(): { year: number; month: number; day: number } {
@@ -25,115 +27,17 @@ function todayPersian(): { year: number; month: number; day: number } {
 const today = todayPersian();
 const DATE_API = `${today.year}-${today.month}-${today.day}`;
 
-/** Return an HH:MM time string ~2 hours from now (guaranteed future, within work hours) */
-function futureTime(): string {
-  const h = new Date().getHours() + 2;
-  return `${String(Math.min(h, 16)).padStart(2, "0")}:00`;
-}
-
 async function setupCoreMocks(page: any) {
   // Ensure PwaUpdater never shows offline banner
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "onLine", { configurable: true, get: () => true });
   });
 
-  await page.route("**/api/auth/token/refresh/", async (r: any) =>
-    r.fulfill({
-      status: 401,
-      contentType: "application/json",
-      body: JSON.stringify({ detail: "expired" }),
-    })
-  );
-  await page.route("**/api/auth/token/", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ access: "mock-at", refresh: "mock-rt" }),
-    })
-  );
-  await page.route("**/api/auth/me/", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        id: 1,
-        username: "sefro_admin",
-        role: "admin",
-        date_joined: "2026-01-01T00:00:00Z",
-      }),
-    })
-  );
-  await page.route("**/api/dashboard/", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        today_visits: 3,
-        total_customers: 100,
-        today_revenue: 1500000,
-        new_patients: 2,
-        loyal_customers: 30,
-      }),
-    })
-  );
-  await page.route("**/api/reports/**", async (r: any) =>
-    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) })
-  );
-  await page.route("**/api/reports/all/**", async (r: any) =>
-    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) })
-  );
-  await page.route("**/api/reports/referral/**", async (r: any) =>
-    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) })
-  );
-  await page.route("**/api/reports/visits/**", async (r: any) =>
-    r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) })
-  );
-  await page.route("**/api/inventory/products/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0, results: [] }),
-    })
-  );
-  await page.route("**/api/auth/employees/list/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0, results: [] }),
-    })
-  );
-  await page.route("**/api/logs/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0, results: [] }),
-    })
-  );
-  await page.route("**/api/work-time/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        count: 7,
-        results: [
-          { id: 1, day_of_week: 0, start_time: "08:00", end_time: "17:00", is_active: true },
-          { id: 2, day_of_week: 1, start_time: "08:00", end_time: "17:00", is_active: true },
-          { id: 3, day_of_week: 2, start_time: "08:00", end_time: "17:00", is_active: true },
-          { id: 4, day_of_week: 3, start_time: "08:00", end_time: "17:00", is_active: true },
-          { id: 5, day_of_week: 4, start_time: "08:00", end_time: "17:00", is_active: true },
-          { id: 6, day_of_week: 5, start_time: "08:00", end_time: "12:00", is_active: true },
-          { id: 7, day_of_week: 6, start_time: "00:00", end_time: "00:00", is_active: false },
-        ],
-      }),
-    })
-  );
-  await page.route("**/api/finance/**", async (r: any) =>
-    r.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0, results: [] }),
-    })
-  );
+  // Base layer covers every endpoint the app can touch (incl. calendar
+  // prefetches). Stateful fixtures registered after this win route matching.
+  await mockAllApiEndpoints(page);
+
+  // Exchange rate powers the Toman→USD conversion in the checkout dialog.
   await page.route("**/api/reports/exchange-dollar/**", async (r: any) =>
     r.fulfill({
       status: 200,
@@ -314,7 +218,9 @@ test.describe("Complete Patient → Visit → Payment Flow", () => {
     await page.getByRole("textbox", { name: "شماره تلفن" }).fill("09125556677");
     await page.getByRole("textbox", { name: "کد ملی", exact: true }).fill("4445556667");
     await page.getByRole("button", { name: "ذخیره" }).click();
-    await expect(page.getByRole("heading", { name: "بیمار جدید" })).not.toBeVisible({
+    await expect(
+      page.getByRole("dialog").getByRole("heading", { name: "بیمار جدید" })
+    ).not.toBeVisible({
       timeout: 10000,
     });
     expect(patientCreated).toBe(true);
@@ -337,18 +243,17 @@ test.describe("Complete Patient → Visit → Payment Flow", () => {
     await page.waitForTimeout(200);
     await page.getByRole("button", { name: "بعدی" }).click();
 
-    // Step 3: Time step
-    await expect(page.getByText("ویزیت کامل")).toBeVisible({ timeout: 5000 });
-    // Click the first non-disabled day button inside the dialog
-    const dayButton = page
-      .locator("[role='dialog'] button:not([disabled])")
-      .filter({ hasText: /^[۰-۹0-9]{1,2}$/ })
-      .first();
-    await dayButton.click();
-    await page.waitForTimeout(200);
-    const timeInput = page.locator('input[type="time"]');
-    await expect(timeInput).toBeVisible({ timeout: 5000 });
-    await timeInput.fill(futureTime());
+    // Step 3: Time step — Persian day grid + period/hour/minute selects + suggested slots
+    await expect(
+      page.getByRole("dialog").getByRole("button", { name: "۵", exact: true })
+    ).toBeVisible({
+      timeout: 5000,
+    });
+    await page.getByRole("dialog").getByRole("button", { name: "۵", exact: true }).click();
+    // Suggested-time chips carry a colon (e.g. «۱۰:۰۰ صبح»); day cells never do.
+    const timeChip = page.getByRole("dialog").getByRole("button", { name: /:/ }).first();
+    await expect(timeChip).toBeVisible({ timeout: 5000 });
+    await timeChip.click();
 
     await expect(page.getByRole("dialog").getByRole("button", { name: "ثبت نوبت" })).toBeEnabled({
       timeout: 5000,
@@ -369,28 +274,22 @@ test.describe("Complete Patient → Visit → Payment Flow", () => {
     await page.waitForTimeout(500);
     expect(visitStatus).toBe("confirmed");
 
-    /* ===== PHASE 4: Complete ===== */
+    /* ===== PHASE 4+5: Complete & Record Payment (merged action) ===== */
+    // «تمام شدن و تسویه» opens checkout and completes the visit after the sale lands.
     await page.getByText("مسیر کامل").first().click();
-    await expect(page.getByRole("button", { name: "انجام شد" })).toBeVisible({ timeout: 5000 });
-    await page.getByRole("button", { name: "انجام شد" }).click();
-    await page.waitForTimeout(500);
-    expect(visitStatus).toBe("completed");
-
-    /* ===== PHASE 5: Record Payment ===== */
-    await page.goto("/accounting");
-    await page.waitForTimeout(1000);
-
-    // The completed visit shows up as unsettled; settle it straight from its row.
-    await expect(page.getByText("نوبت‌های تکمیل‌شده و تسویه‌نشده")).toBeVisible({ timeout: 5000 });
-    await page.getByRole("button", { name: "تسویه" }).first().click();
+    const checkoutButton = page.getByRole("button", { name: "تمام شدن و تسویه" }).first();
+    await expect(checkoutButton).toBeVisible({ timeout: 5000 });
+    await checkoutButton.click();
     await expect(page.getByRole("heading", { name: "تسویه و ثبت فروش" })).toBeVisible({
       timeout: 5000,
     });
     await expect(page.getByLabel("مبلغ کل (تومان)")).toHaveValue("۳۰۰٬۰۰۰");
 
     await page.getByRole("dialog").getByRole("button", { name: "ثبت فروش" }).click();
-    await expect(page.getByText("فروش ثبت شد")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("تسویه با موفقیت ثبت شد")).toBeVisible({ timeout: 10000 });
     expect(checkoutCreated).toBe(true);
     await expect(page.getByRole("heading", { name: "تسویه و ثبت فروش" })).not.toBeVisible();
+    // Sale success triggers the deferred complete mutation.
+    await expect.poll(() => visitStatus, { timeout: 5000 }).toBe("completed");
   });
 });

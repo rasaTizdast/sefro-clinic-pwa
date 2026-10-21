@@ -5,21 +5,6 @@ import { mockAllApiEndpoints } from "./helpers";
 test.describe("Dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await mockAllApiEndpoints(page);
-    // Dashboard components call finance-specific endpoints not covered by mockAllApiEndpoints
-    await page.route("**/api/finance/reports/dashboard/**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({}),
-      });
-    });
-    await page.route("**/api/finance/exchange-rates/**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ count: 0, results: [] }),
-      });
-    });
   });
 
   test("displays dashboard with stats cards and today appointments", async ({ page }) => {
@@ -28,11 +13,13 @@ test.describe("Dashboard", () => {
     await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible({ timeout: 10000 });
     await expect(page.getByText("امروز:", { exact: false })).toBeVisible();
 
-    await expect(page.getByText("مراجعین امروز")).toBeVisible();
-    await expect(page.getByText("کل مشتریان")).toBeVisible();
-    await expect(page.getByText("درآمد امروز")).toBeVisible();
-    await expect(page.getByText("بیماران جدید")).toBeVisible();
-    await expect(page.getByText("مشتریان وفادار")).toBeVisible();
+    // "درآمد امروز" renders in both the KPI grid and FinanceKpiCards — scope to the stats tour region
+    const stats = page.locator('[data-tour="dash-stats"]');
+    await expect(stats.getByText("مراجعین امروز")).toBeVisible();
+    await expect(stats.getByText("کل مشتریان")).toBeVisible();
+    await expect(stats.getByText("درآمد امروز")).toBeVisible();
+    await expect(stats.getByText("بیماران جدید")).toBeVisible();
+    await expect(stats.getByText("مشتریان وفادار")).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "اقدامات سریع" })).toBeVisible();
     await expect(page.getByRole("button", { name: "پذیرش" })).toBeVisible();

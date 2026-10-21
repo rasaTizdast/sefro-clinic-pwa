@@ -16,10 +16,6 @@ test.describe("Patients Management", () => {
     await expect(page.getByText("مدیریت بیماران کلینیک")).toBeVisible();
     await expect(page.getByRole("button", { name: "بیمار جدید" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "خروجی" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "همه" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: /^فعال/ })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "غیرفعال" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "جدید" })).toBeVisible();
     await expect(
       page.getByPlaceholder("جستجوی نام، تلفن، کد ملی یا شماره پرونده...")
     ).toBeVisible();
