@@ -187,7 +187,7 @@ export function ExtraProductsBlock({
           <Select
             label="محصول جدید"
             searchable
-            options={[{ value: "", label: "جستجو و انتخاب محصول…" }, ...availableOptions]}
+            options={availableOptions}
             placeholder="جستجو و انتخاب محصول…"
             value={selectedId}
             onChange={(e) => {

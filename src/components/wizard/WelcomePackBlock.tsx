@@ -118,13 +118,11 @@ export function WelcomePackBlock({
           ) : (
             <Select
               label="انتخاب ولکام‌پک"
-              options={[
-                { value: "", label: "یک ولکام‌پک انتخاب کنید" },
-                ...(packsData ?? []).map((p) => ({
-                  value: String(p.id),
-                  label: p.name,
-                })),
-              ]}
+              placeholder="یک ولکام‌پک انتخاب کنید"
+              options={(packsData ?? []).map((p) => ({
+                value: String(p.id),
+                label: p.name,
+              }))}
               value={welcomePack ? String(welcomePack.packId) : ""}
               error={showSelectError ? "یک ولکام‌پک انتخاب کنید" : undefined}
               onChange={(e) => {

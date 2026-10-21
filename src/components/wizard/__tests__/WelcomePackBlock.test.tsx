@@ -121,6 +121,29 @@ describe("WelcomePackBlock", () => {
     expect(await screen.findByRole("option", { name: "ولکام‌پک استاندارد" })).toBeInTheDocument();
   });
 
+  it("shows the unchosen state as a placeholder, never as a selectable option", async () => {
+    const user = userEvent.setup();
+    mockUseAllWelcomePacks.mockReturnValue({
+      data: packs,
+      isPending: false,
+      isError: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+
+    renderBlock();
+
+    const trigger = screen.getByRole("combobox", { name: "انتخاب ولکام‌پک" });
+    expect(trigger).toHaveTextContent("یک ولکام‌پک انتخاب کنید");
+
+    await user.click(trigger);
+    const options = await screen.findAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(
+      screen.queryByRole("option", { name: "یک ولکام‌پک انتخاب کنید" })
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps the picker hidden until packs arrive", async () => {
     mockUseAllWelcomePacks.mockReturnValue({
       data: packs,
