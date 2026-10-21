@@ -85,6 +85,91 @@ describe("visits service", () => {
       const result = await listVisits();
       expect(result.data[0].duration).toBe(90);
     });
+
+    it("maps the read-only per-service operators rows", async () => {
+      // Wire shape is already camelCased by the api-client interceptor.
+      mock.get.mockResolvedValue({
+        data: {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              id: 1,
+              customer: 10,
+              startAt: "2026-06-15 10:00:00",
+              endAt: "2026-06-15 11:00:00",
+              status: "confirmed",
+              operators: [
+                {
+                  service: 7,
+                  serviceName: "تزریق",
+                  staff: 3,
+                  staffName: "دکتر احمدی",
+                  compensationRole: "doctor",
+                },
+                {
+                  service: 8,
+                  serviceName: "لیزر",
+                  staff: null,
+                  staffName: null,
+                  compensationRole: "laser",
+                },
+              ],
+            },
+          ],
+        },
+      });
+
+      const result = await listVisits();
+      expect(result.data[0].operators).toEqual([
+        {
+          service: 7,
+          serviceName: "تزریق",
+          staff: 3,
+          staffName: "دکتر احمدی",
+          compensationRole: "doctor",
+        },
+        {
+          service: 8,
+          serviceName: "لیزر",
+          staff: null,
+          staffName: null,
+          compensationRole: "laser",
+        },
+      ]);
+    });
+
+    it("defaults operators to an empty list and drops malformed rows", async () => {
+      mock.get.mockResolvedValue({
+        data: {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              id: 1,
+              customer: 10,
+              startAt: "2026-06-15 10:00:00",
+              endAt: "2026-06-15 11:00:00",
+              status: "pending",
+              operators: [null, "junk", { serviceName: "بدون سرویس" }, { service: "not-a-number" }],
+            },
+            {
+              id: 2,
+              customer: 11,
+              startAt: "2026-06-15 12:00:00",
+              endAt: "2026-06-15 13:00:00",
+              status: "pending",
+            },
+          ],
+        },
+      });
+
+      const result = await listVisits();
+      expect(result.data[0].operators).toEqual([]);
+      expect(result.data[1].operators).toEqual([]);
+    });
   });
 
   describe("getVisit", () => {

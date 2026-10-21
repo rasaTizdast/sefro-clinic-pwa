@@ -3,13 +3,20 @@ import { useMemo } from "react";
 
 import { queryKeys } from "../../lib/query-keys";
 import * as authService from "../../services/auth";
+import type { CompensationRole } from "../../types/finance";
 import { usePermissions } from "../usePermissions";
 import { useProfitByStaff } from "./useFinanceReportsQuery";
 
-/** Who a visit's operator can be — the visit serializer takes any active ClinicUser id. */
+/**
+ * Who a visit's operator can be — the visit serializer takes any active
+ * ClinicUser id. `compensationRole` is known for staff coming from the
+ * employee directory (admins); the profit report carries no role, so it
+ * stays undefined there and callers must degrade gracefully.
+ */
 export interface VisitStaffOption {
   id: number;
   label: string;
+  compensationRole?: CompensationRole;
 }
 
 /**
@@ -20,7 +27,8 @@ export interface VisitStaffOption {
  * - the per-staff profit report for the current Shamsi year — any authenticated
  *   user can read it, and it covers everyone who has run a completed visit;
  * - the employee directory — admins only, and it also covers people who have not
- *   run a visit yet. It returns usernames only, so it only fills in gaps.
+ *   run a visit yet. It also carries each person's `compensation_role`, the only
+ *   client-side role source for a whole staff list.
  */
 function useVisitStaffOptions(): VisitStaffOption[] {
   const { canManageUsers } = usePermissions();
@@ -45,9 +53,15 @@ function useVisitStaffOptions(): VisitStaffOption[] {
     if (canManageUsers) {
       for (const employee of employees ?? []) {
         const id = employee.id;
-        if (id == null || options.has(id)) continue;
+        if (id == null) continue;
         const label = (employee.username ?? "").trim() || `پرسنل ${id}`;
-        options.set(id, { id, label });
+        const existing = options.get(id);
+        if (existing) {
+          // The profit row came first — it has no role, the directory does.
+          existing.compensationRole ??= employee.compensationRole;
+        } else {
+          options.set(id, { id, label, compensationRole: employee.compensationRole });
+        }
       }
     }
 

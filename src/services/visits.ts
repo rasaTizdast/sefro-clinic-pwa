@@ -3,7 +3,13 @@ import { apiClient } from "../lib/api-client";
 import { apiDateTimeToMillis } from "../lib/date";
 import { type PaginationParams, toPaginatedResponse } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
-import type { Appointment, ReserveVisitPayload, UpdateVisitPayload } from "../types/appointment";
+import type {
+  Appointment,
+  ReserveVisitPayload,
+  UpdateVisitPayload,
+  VisitOperator,
+} from "../types/appointment";
+import type { CompensationRole } from "../types/finance";
 import { fetchAllPages } from "./fetch-all-pages";
 
 type RawAppointment = Record<string, unknown> & {
@@ -12,11 +18,40 @@ type RawAppointment = Record<string, unknown> & {
   staff?: number | null;
   services?: number[];
   serviceNames?: string[];
+  operators?: unknown;
   startAt?: string;
   endAt?: string;
   status?: string;
   notes?: string;
 };
+
+const COMPENSATION_ROLES: readonly CompensationRole[] = ["none", "doctor", "facial", "laser"];
+
+/**
+ * Defensive parse of the serializer's read-only `operators` rows (already
+ * camelCased by the api-client: `service_name` → `serviceName`, etc.).
+ * Rows without a numeric `service` are dropped; unknown roles degrade to
+ * `none` so a future backend role never blanks the whole list.
+ */
+function toVisitOperators(raw: unknown): VisitOperator[] {
+  if (!Array.isArray(raw)) return [];
+  const rows: VisitOperator[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const row = entry as Record<string, unknown>;
+    if (typeof row.service !== "number") continue;
+    rows.push({
+      service: row.service,
+      serviceName: typeof row.serviceName === "string" ? row.serviceName : "",
+      staff: typeof row.staff === "number" ? row.staff : null,
+      staffName: typeof row.staffName === "string" ? row.staffName : null,
+      compensationRole: COMPENSATION_ROLES.includes(row.compensationRole as CompensationRole)
+        ? (row.compensationRole as CompensationRole)
+        : "none",
+    });
+  }
+  return rows;
+}
 
 function computeDuration(startAt: string, endAt: string): number {
   if (!startAt || !endAt) return 0;
@@ -50,6 +85,7 @@ const toAppointment = (raw: RawAppointment): Appointment => ({
   staff: raw.staff ?? null,
   services: raw.services ?? [],
   serviceNames: raw.serviceNames ?? [],
+  operators: toVisitOperators(raw.operators),
   startAt: raw.startAt ?? "",
   endAt: raw.endAt ?? "",
   date: extractDate(raw.startAt ?? ""),

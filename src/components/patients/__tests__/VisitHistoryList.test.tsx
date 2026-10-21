@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
       staff: null,
       services: [1],
       serviceNames: ["فیشال صورت"],
+      operators: [],
       startAt: "2026-10-12 14:30:00",
       endAt: "2026-10-12 15:00:00",
       date: "2026-10-12",

@@ -1,4 +1,21 @@
+import type { CompensationRole } from "./finance";
+
 export type AppointmentStatus = "pending" | "confirmed" | "completed" | "canceled";
+
+/**
+ * One per-service operator row from the visit serializer's read-only
+ * `operators` — explicit `service_operators` first, auto-resolution fallback.
+ * `staff`/`staffName` are null when no one covers the service's role yet
+ * (the visit cannot be completed until that is fixed).
+ */
+export interface VisitOperator {
+  service: number;
+  serviceName: string;
+  staff: number | null;
+  staffName: string | null;
+  /** The service's compensation role: doctor / facial / laser / none. */
+  compensationRole: CompensationRole;
+}
 
 export interface Appointment {
   id: number;
@@ -8,6 +25,8 @@ export interface Appointment {
   staff: number | null;
   services: number[];
   serviceNames: string[];
+  /** Resolved per-service operators, one row per visit service. */
+  operators: VisitOperator[];
   startAt: string;
   endAt: string;
   date: string;
@@ -63,4 +82,12 @@ export interface UpdateVisitPayload {
    * payout is booked is a 400.
    */
   staff?: number | null;
+  /**
+   * Explicit per-service operator assignments (`{service, staff}`). Each staff
+   * must hold the service's compensation role (or the role must be `none`);
+   * the backend 400s on a mismatch. Entries replace that service's assignment;
+   * services left out keep their current operator. The API cannot clear an
+   * assignment once set (staff is not nullable there).
+   */
+  service_operators?: { service: number; staff: number }[];
 }
