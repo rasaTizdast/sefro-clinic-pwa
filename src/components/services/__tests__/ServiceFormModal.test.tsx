@@ -45,4 +45,30 @@ describe("ServiceFormModal", () => {
     // price_usd is the backend's job now — the form must not send a client rate conversion.
     expect(createMutateAsync.mock.calls[0][0].priceUsd).toBeUndefined();
   });
+
+  it("offers the none role (no operator) and saves it", async () => {
+    const user = userEvent.setup();
+    render(
+      <ToastProvider>
+        <ServiceFormModal onClose={() => {}} />
+      </ToastProvider>
+    );
+
+    await user.type(screen.getByLabelText("نام خدمت"), "مشاوره");
+    await user.type(screen.getByLabelText("مدت زمان (دقیقه)"), "15");
+    await user.type(screen.getByLabelText("قیمت (تومان)"), "50000");
+
+    const selects = screen.getAllByRole("combobox");
+    await user.click(selects[0]);
+    await user.click(await screen.findByText("بدون اپراتور", undefined, { timeout: 5000 }));
+
+    await user.click(screen.getByRole("button", { name: "ذخیره" }));
+
+    expect(createMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "مشاوره",
+        compensationRole: "none",
+      })
+    );
+  });
 });

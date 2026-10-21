@@ -1,3 +1,5 @@
+import type { CompensationRole } from "./finance";
+
 export type { Role } from "../config/roles";
 
 export interface LoginState {
@@ -12,6 +14,7 @@ export interface AuthUser {
   username: string;
   role: "admin" | "employee";
   dateJoined: string;
+  compensationRole?: CompensationRole;
 }
 
 export interface LoginRequest {

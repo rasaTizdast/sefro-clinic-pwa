@@ -1,5 +1,13 @@
+import type { CompensationRole } from "../types/finance";
 import type { ConsumableSelection } from "../types/wizard";
 import { toLatinDigits } from "./digits";
+
+export const compensationRoleLabels: Record<CompensationRole, string> = {
+  doctor: "پزشک",
+  facial: "فیشال",
+  laser: "لیزر",
+  none: "بدون اپراتور",
+};
 
 export function formatPrice(amount: number): string {
   return new Intl.NumberFormat("fa-IR", {

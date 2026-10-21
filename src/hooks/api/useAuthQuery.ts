@@ -5,6 +5,7 @@ import { useToast } from "../../components/ui";
 import { useAuth } from "../../contexts/AuthContext";
 import { queryKeys } from "../../lib/query-keys";
 import * as authService from "../../services/auth";
+import type { CompensationRole } from "../../types/finance";
 
 export function useCurrentUser() {
   return useQuery({
@@ -70,12 +71,14 @@ export function useCreateEmployee() {
       firstName,
       lastName,
       phoneNumber,
+      compensationRole,
     }: {
       username: string;
       password: string;
       firstName?: string;
       lastName?: string;
       phoneNumber?: string;
+      compensationRole?: CompensationRole;
     }) =>
       authService.createEmployee({
         username,
@@ -83,6 +86,7 @@ export function useCreateEmployee() {
         first_name: firstName,
         last_name: lastName,
         phone_number: phoneNumber,
+        compensation_role: compensationRole ?? "none",
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.employees });

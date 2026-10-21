@@ -20,6 +20,7 @@ interface ServiceFormModalProps {
 }
 
 const roleOptions = [
+  { value: "none", label: "بدون اپراتور" },
   { value: "doctor", label: "پزشک" },
   { value: "facial", label: "فیشال" },
   { value: "laser", label: "لیزر" },

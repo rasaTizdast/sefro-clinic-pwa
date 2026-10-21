@@ -1,3 +1,5 @@
+import type { CompensationRole } from "./finance";
+
 export type UserRole = "مدیر" | "پزشک" | "منشی";
 
 export interface ClinicUser {
@@ -6,6 +8,7 @@ export interface ClinicUser {
   role: UserRole;
   email: string;
   status: "active" | "inactive";
+  compensationRole?: CompensationRole;
 }
 
 export interface DayHours {

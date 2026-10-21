@@ -7,6 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
+import { Select } from "../components/ui/Select";
 import type { Column } from "../components/ui/Table";
 import { Table } from "../components/ui/Table";
 import { TabPanel, Tabs } from "../components/ui/Tabs";
@@ -18,6 +19,8 @@ import {
   useUpdateEmployee,
 } from "../hooks/api";
 import { usePermissions } from "../hooks/usePermissions";
+import { compensationRoleLabels } from "../lib/format";
+import type { CompensationRole } from "../types/finance";
 import type { ClinicUser, UserRole } from "../types/settings";
 
 const settingsTabs = [{ id: "users", label: "کاربران" }];
@@ -32,6 +35,10 @@ const statusMap: Record<ClinicUser["status"], { label: string; variant: "success
   active: { label: "فعال", variant: "success" },
   inactive: { label: "غیرفعال", variant: "danger" },
 };
+
+const compensationRoleOptions = (["doctor", "facial", "laser", "none"] as CompensationRole[]).map(
+  (value) => ({ value, label: compensationRoleLabels[value] })
+);
 
 function Settings() {
   const toast = useToast();
@@ -51,6 +58,7 @@ function Settings() {
     firstName: "",
     lastName: "",
     phoneNumber: "",
+    compensationRole: "none" as CompensationRole,
   });
 
   const users: ClinicUser[] = Array.isArray(employees)
@@ -60,6 +68,7 @@ function Settings() {
         role: emp.role === "admin" ? "مدیر" : emp.role === "employee" ? "پزشک" : "منشی",
         email: "",
         status: "active" as const,
+        compensationRole: emp.compensationRole ?? "none",
       }))
     : [];
 
@@ -73,6 +82,15 @@ function Settings() {
         <Badge variant={roleBadgeVariant[user.role]} size="sm">
           {user.role}
         </Badge>
+      ),
+    },
+    {
+      key: "compensationRole",
+      header: "نقش پرداخت",
+      render: (user) => (
+        <span className="text-surface-600 text-sm">
+          {compensationRoleLabels[user.compensationRole ?? "none"]}
+        </span>
       ),
     },
     { key: "email", header: "ایمیل" },
@@ -107,6 +125,7 @@ function Settings() {
                 firstName: "",
                 lastName: "",
                 phoneNumber: "",
+                compensationRole: user.compensationRole ?? "none",
               });
               setUserModalOpen(true);
             }}
@@ -124,7 +143,14 @@ function Settings() {
 
   function handleOpenUserModal() {
     setEditingUser(null);
-    setUserForm({ username: "", password: "", firstName: "", lastName: "", phoneNumber: "" });
+    setUserForm({
+      username: "",
+      password: "",
+      firstName: "",
+      lastName: "",
+      phoneNumber: "",
+      compensationRole: "none",
+    });
     setUserModalOpen(true);
   }
 
@@ -139,6 +165,7 @@ function Settings() {
         first_name: userForm.firstName,
         last_name: userForm.lastName,
         phone_number: userForm.phoneNumber,
+        compensation_role: userForm.compensationRole,
       };
       if (userForm.password) data.password = userForm.password;
       await updateEmployee.mutateAsync({ id: editingUser.id, data });
@@ -153,6 +180,7 @@ function Settings() {
         firstName: userForm.firstName,
         lastName: userForm.lastName,
         phoneNumber: userForm.phoneNumber,
+        compensationRole: userForm.compensationRole,
       });
     }
     setUserModalOpen(false);
@@ -257,6 +285,17 @@ function Settings() {
             value={userForm.phoneNumber}
             onChange={(e) => setUserForm((prev) => ({ ...prev, phoneNumber: e.target.value }))}
             startIcon={<BiUser className="size-4" />}
+          />
+          <Select
+            label="نقش پرداخت"
+            options={compensationRoleOptions}
+            value={userForm.compensationRole}
+            onChange={(e) =>
+              setUserForm((prev) => ({
+                ...prev,
+                compensationRole: e.target.value as CompensationRole,
+              }))
+            }
           />
           <Input
             label="نام کاربری"
