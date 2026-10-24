@@ -3,8 +3,16 @@ import type { Locator, Page } from "@playwright/test";
 export async function login(page: Page, username?: string, password?: string) {
   const user = username ?? process.env.E2E_USERNAME ?? "";
   const pass = password ?? process.env.E2E_PASSWORD ?? "";
-  await page.goto("/auth");
-  await page.getByLabel("نام کاربری یا شماره موبایل").fill(user);
+  await page.goto("/");
+  const usernameInput = page.getByLabel("نام کاربری یا شماره موبایل");
+  if (!(await usernameInput.isVisible().catch(() => false))) {
+    await page.goto("/auth");
+  }
+  if (!(await usernameInput.isVisible().catch(() => false))) {
+    await page.waitForURL("/");
+    return;
+  }
+  await usernameInput.fill(user);
   await page.getByLabel("رمز عبور", { exact: true }).fill(pass);
   await page.getByRole("button", { name: "ورود به حساب" }).click();
   await page.waitForURL("/");

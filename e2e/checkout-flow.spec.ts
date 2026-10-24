@@ -55,7 +55,7 @@ const MOCK_VISIT = {
   notes: "",
 };
 
-async function setupMocks(page: any, state: { checkoutCalled: boolean }) {
+async function setupMocks(page: any, state: { checkoutCalled: boolean; settlementPayload?: any }) {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "onLine", { configurable: true, get: () => true });
   });
@@ -110,24 +110,24 @@ async function setupMocks(page: any, state: { checkoutCalled: boolean }) {
     })
   );
 
-  await page.route("**/api/finance/checkout/", async (r: any, req: any) => {
+  await page.route("**/api/finance/visits/*/settle/", async (r: any, req: any) => {
     if (req.method() === "POST") {
       state.checkoutCalled = true;
+      state.settlementPayload = req.postDataJSON();
       await r.fulfill({
         status: 201,
         contentType: "application/json",
         body: JSON.stringify({
-          id: 9301,
-          customer: 9001,
-          visit: 9201,
-          package: null,
-          amount_usd: "10.00",
-          discount_usd: "0.00",
-          exchange_rate: "100000.00",
-          amount_toman: "1000000",
-          status: "paid",
-          idempotency_key: "uuid-e2e",
-          created_at: "2026-09-20T08:00:00Z",
+          visit: MOCK_VISIT,
+          service_sale: {
+            id: 9301,
+            customer: 9001,
+            visit: 9201,
+            amount_usd: "10.00",
+            status: "paid",
+          },
+          goods_sale: null,
+          welcome_pack_usage: null,
         }),
       });
       return;
@@ -142,7 +142,7 @@ async function setupMocks(page: any, state: { checkoutCalled: boolean }) {
 
 test.describe("Visit → Checkout → Sale", () => {
   test("completed visit offers checkout; split cash/card submits a sale", async ({ page }) => {
-    const state = { checkoutCalled: false };
+    const state: { checkoutCalled: boolean; settlementPayload?: any } = { checkoutCalled: false };
     await setupMocks(page, state);
 
     await page.goto("/calendar");
@@ -172,5 +172,10 @@ test.describe("Visit → Checkout → Sale", () => {
     await page.getByRole("dialog").getByRole("button", { name: "ثبت فروش" }).click();
     await expect(page.getByText("تسویه با موفقیت ثبت شد")).toBeVisible({ timeout: 10000 });
     expect(state.checkoutCalled).toBe(true);
+    expect(state.settlementPayload).toMatchObject({
+      customer: 9001,
+      idempotency_key: expect.any(String),
+      service_sale: { customer: 9001, visit: 9201 },
+    });
   });
 });

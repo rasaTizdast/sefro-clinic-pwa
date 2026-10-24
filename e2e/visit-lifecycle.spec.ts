@@ -32,12 +32,6 @@ function todayPersian(): { year: number; month: number; day: number } {
 const today = todayPersian();
 const VISIT_DATE_STR = `${today.year}-${today.month}-${today.day}`;
 
-/** Return an HH:MM time string ~2 hours from now (guaranteed future, within work hours) */
-function futureTime(): string {
-  const h = new Date().getHours() + 2;
-  return `${String(Math.min(h, 16)).padStart(2, "0")}:00`;
-}
-
 /** Mock all endpoints explicitly — no mockAllApiEndpoints to avoid route conflicts */
 async function setupMocks(page: any) {
   // Ensure PwaUpdater never shows offline banner
@@ -150,6 +144,25 @@ async function setupMocks(page: any) {
       }),
     });
   });
+  await page.route("**/api/finance/exchange-rates/**", async (route: any) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        count: 1,
+        results: [
+          {
+            id: 1,
+            rate: "88000",
+            currency_from: "USD",
+            currency_to: "TOMAN",
+            effective_at: "2026-10-24T00:00:00Z",
+            is_active: true,
+          },
+        ],
+      }),
+    });
+  });
   // Reports
   await page.route("**/api/reports/**", async (route: any) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
@@ -162,6 +175,13 @@ async function setupMocks(page: any) {
   });
   await page.route("**/api/reports/visits/**", async (route: any) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+  });
+  await page.route("**/api/reports/exchange-dollar/**", async (route: any) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ rate: "88000", rate_toman_per_usd: "88000", source: "mock" }),
+    });
   });
   // Payments
   await page.route("**/api/payments/**", async (route: any) => {
@@ -257,7 +277,7 @@ test.describe("Visit Lifecycle", () => {
     await page.getByRole("button", { name: "بعدی" }).click();
 
     // Step 3: Time step — pick a date on the mini calendar
-    await expect(page.getByText("ویزیت عمومی")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("button", { name: /ویزیت عمومی/ })).toBeVisible({ timeout: 5000 });
     // Click the first non-disabled day button inside the dialog
     // The wizard calendar uses Persian digits for day numbers
     const dayButton = page
@@ -268,9 +288,11 @@ test.describe("Visit Lifecycle", () => {
     await page.waitForTimeout(300);
 
     // Fill time
-    const timeInput = page.locator('input[type="time"]');
-    await expect(timeInput).toBeVisible({ timeout: 5000 });
-    await timeInput.fill(futureTime());
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^[۰-۹]+:[۰-۹]{2}\s/ })
+      .first()
+      .click();
 
     await expect(page.getByRole("dialog").getByRole("button", { name: "ثبت نوبت" })).toBeEnabled({
       timeout: 5000,
@@ -283,7 +305,7 @@ test.describe("Visit Lifecycle", () => {
     expect(visitCreated).toBe(true);
   });
 
-  test("confirms a visit and completes it", async ({ page }) => {
+  test("confirms a visit and opens atomic checkout", async ({ page }) => {
     let visitStatus = "pending";
     await page.route("**/api/visits/**", async (route: any, request: any) => {
       const url = request.url();
@@ -296,12 +318,22 @@ test.describe("Visit Lifecycle", () => {
         });
         return;
       }
-      if (url.includes("/complete/")) {
-        visitStatus = "completed";
+      if (/\/api\/visits\/401\/$/.test(url)) {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ id: 401, status: "completed" }),
+          body: JSON.stringify({
+            id: 401,
+            customer: 201,
+            customer_name: "نوبت تستی",
+            customer_mobile: "09121112233",
+            services: [301],
+            service_names: ["ویزیت عمومی"],
+            start_at: `${VISIT_DATE_STR} 10:00:00`,
+            end_at: `${VISIT_DATE_STR} 10:30:00`,
+            status: visitStatus,
+            notes: "",
+          }),
         });
         return;
       }
@@ -341,10 +373,12 @@ test.describe("Visit Lifecycle", () => {
 
     // Expand again and complete
     await page.getByText("نوبت تستی").first().click();
-    await expect(page.getByRole("button", { name: "انجام شد" })).toBeVisible({ timeout: 5000 });
-    await page.getByRole("button", { name: "انجام شد" }).click();
-    await page.waitForTimeout(500);
-    expect(visitStatus).toBe("completed");
+    await expect(page.getByRole("button", { name: "تمام شدن و تسویه" })).toBeVisible({
+      timeout: 5000,
+    });
+    await page.getByRole("button", { name: "تمام شدن و تسویه" }).click();
+    await expect(page.getByRole("heading", { name: "تسویه و ثبت فروش" })).toBeVisible();
+    await expect(page.getByLabel("مبلغ کل (تومان)")).toHaveValue("۱۵۰٬۰۰۰");
   });
 
   test("cancels a pending visit", async ({ page }) => {

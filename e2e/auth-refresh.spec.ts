@@ -15,7 +15,7 @@ test.describe("Auth token proactive refresh (issue #1)", () => {
     await login(page);
     // Fresh navigation resets module state (lastRotatedAt = null), so the
     // next unsafe POST must rotate first — exactly the stale-token case.
-    await page.goto("/dashboard");
+    await page.goto("/");
 
     const order: string[] = [];
     await page.route("**/api/**", async (route) => {

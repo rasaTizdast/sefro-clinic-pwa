@@ -11,6 +11,10 @@ test.describe("Analytics profit tables", () => {
     // Wait for tables to load
     await page.waitForTimeout(500);
     // Should show empty state with explanation
-    await expect(page.getByText("خدمت تکمیل‌شده‌ای در این بازه وجود ندارد")).toBeVisible();
+    await expect(
+      page
+        .getByText(/خدمت تکمیل‌شده‌ای در این بازه وجود ندارد — جدول پس از تکمیل نوبت‌ها پر می‌شود/)
+        .first()
+    ).toBeVisible();
   });
 });

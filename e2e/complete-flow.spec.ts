@@ -118,15 +118,6 @@ test.describe("Complete Patient → Visit → Payment Flow", () => {
         });
         return;
       }
-      if (url.includes("/complete/")) {
-        visitStatus = "completed";
-        await r.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({ id: 9201, status: "completed" }),
-        });
-        return;
-      }
       if (req.method() === "POST") {
         visitCreated = true;
         visitStatus = "pending";
@@ -178,25 +169,19 @@ test.describe("Complete Patient → Visit → Payment Flow", () => {
       })
     );
 
-    // --- Checkout (registered after setupCoreMocks so it wins over **/api/finance/**) ---
-    await page.route("**/api/finance/checkout/", async (r: any, req: any) => {
+    // --- Atomic visit settlement (registered after setupCoreMocks so it wins over **/api/finance/**) ---
+    await page.route("**/api/finance/visits/9201/settle/", async (r: any, req: any) => {
       if (req.method() === "POST") {
         checkoutCreated = true;
+        visitStatus = "completed";
         await r.fulfill({
           status: 201,
           contentType: "application/json",
           body: JSON.stringify({
-            id: 9301,
-            customer: 9001,
-            visit: 9201,
-            package: null,
-            amount_usd: "0.38",
-            discount_usd: "0.00",
-            exchange_rate: "800000.00",
-            amount_toman: "300000",
-            status: "paid",
-            idempotency_key: "uuid-e2e-flow",
-            created_at: "2026-09-20T08:00:00Z",
+            visit: { id: 9201, status: "completed" },
+            service_sale: { id: 9301, status: "paid" },
+            goods_sale: null,
+            welcome_pack_usage: null,
           }),
         });
         return;

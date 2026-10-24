@@ -24,6 +24,18 @@ const SERVICE = { id: 301, name: "ویزیت عمومی", time: 30, price: "1500
 
 async function setupWizardBackend(page: any) {
   await installMockBackend(page);
+  await page.route("**/api/finance/visits/*/settle/", async (route) => {
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        visit: { id: 1, status: "completed" },
+        service_sale: { id: 1, status: "paid" },
+        goods_sale: null,
+        welcome_pack_usage: null,
+      }),
+    });
+  });
   // Spec fixtures registered after the backend win route matching.
   await page.route("**/api/customers/**", async (r: any) =>
     r.fulfill({
