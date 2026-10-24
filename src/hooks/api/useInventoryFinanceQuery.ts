@@ -147,8 +147,9 @@ export function useRecordConsumption(options?: { silent?: boolean }) {
         extraProducts,
         zeroConsumption,
       }),
-    onSuccess: () => {
+    onSuccess: (_data, { visitId }) => {
       queryClient.invalidateQueries({ queryKey: ["finance", "usages"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.visitUsages(visitId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
     },
     onError: (error) => {

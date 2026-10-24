@@ -201,6 +201,15 @@ export const listAllPayouts = async (
   return rows.map(toStaffPayout);
 };
 
+export const transitionPayout = async (
+  id: number,
+  action: "approve" | "pay"
+): Promise<StaffPayout> => {
+  const endpoint = action === "approve" ? endpoints.payouts.approve(id) : endpoints.payouts.pay(id);
+  const { data } = await apiClient.post(endpoint);
+  return toStaffPayout(data as RawStaffPayout);
+};
+
 /** Unpaginated aggregate for the payouts report header. */
 export const listPayoutSummary = async (
   params?: PayoutSummaryParams

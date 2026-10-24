@@ -60,6 +60,8 @@ export const endpoints = {
   },
   payouts: {
     list: "/finance/staff-payouts/",
+    approve: (id: number) => `/finance/staff-payouts/${id}/approve/`,
+    pay: (id: number) => `/finance/staff-payouts/${id}/pay/`,
     summary: "/finance/reports/staff-payout-summary/",
     rules: "/finance/staff-compensation-rules/",
     ruleDetail: (id: number) => `/finance/staff-compensation-rules/${id}/`,
@@ -84,6 +86,7 @@ export const endpoints = {
     usages: "/finance/product-usages/",
     costHistory: "/finance/product-cost-history/",
     recordConsumption: (visitId: number) => `/finance/visits/${visitId}/record-consumption/`,
+    settleVisit: (visitId: number) => `/finance/visits/${visitId}/settle/`,
     welcomePacks: "/finance/welcome-packs/",
     welcomePackDetail: (id: number) => `/finance/welcome-packs/${id}/`,
     welcomePackIssue: (id: number) => `/finance/welcome-packs/${id}/issue/`,

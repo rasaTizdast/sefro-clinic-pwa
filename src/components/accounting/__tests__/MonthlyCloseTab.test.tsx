@@ -101,7 +101,13 @@ const hookState: {
 };
 
 vi.mock("../../../hooks/api", () => ({
+  useCloseMonthlyMonth: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useMonthlyCloseMonths: () => hookState,
+  useReopenMonthlyMonth: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+vi.mock("../../../hooks/usePermissions", () => ({
+  usePermissions: () => ({ canManageFinance: true }),
 }));
 
 const monthRow = (name: string) => {
@@ -134,13 +140,13 @@ describe("MonthlyCloseTab", () => {
     expect(monthRow("مرداد").className).not.toContain("monthly-close-empty");
   });
 
-  it("counts closed months in the summary and offers no close/reopen controls", () => {
+  it("counts closed months and offers close/reopen controls", () => {
     render(<MonthlyCloseTab />);
 
     expect(screen.getByText("ماه‌های بسته")).toBeTruthy();
     expect(screen.getByText("۱ از ۱۲")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "بستن ماه" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "بازگشایی" })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "بستن ماه" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "بازگشایی" }).length).toBeGreaterThan(0);
   });
 
   it("shows an error badge on a month whose request failed", () => {

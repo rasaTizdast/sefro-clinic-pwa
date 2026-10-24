@@ -57,6 +57,33 @@ export function useCheckout(options?: { silent?: boolean }) {
   });
 }
 
+export function useSettleVisit(options?: { silent?: boolean }) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: ({
+      visitId,
+      payload,
+    }: {
+      visitId: number;
+      payload: salesService.VisitSettlementPayload;
+    }) => salesService.settleVisit(visitId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sales.all });
+      queryClient.invalidateQueries({ queryKey: ["finance", "dashboard"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.payouts.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+      queryClient.invalidateQueries({ queryKey: ["finance", "usages"] });
+      queryClient.invalidateQueries({ queryKey: ["finance", "welcomePacks", "usages"] });
+      if (!options?.silent) toast.success("تسویه با موفقیت ثبت شد");
+    },
+    onError: (error) => {
+      if (!options?.silent) toast.error(extractApiError(error));
+    },
+  });
+}
+
 export function useRefundSale() {
   const queryClient = useQueryClient();
   const toast = useToast();

@@ -2,15 +2,8 @@ import { useMemo, useState } from "react";
 import { PiGiftBold } from "react-icons/pi";
 
 import { useToast } from "../../components/ui";
-import {
-  useCheckout,
-  useCurrentRate,
-  useIssueWelcomePack,
-  useRecordConsumption,
-  useVisitConsumptionCount,
-} from "../../hooks/api";
+import { useCheckout, useCurrentRate, useSettleVisit } from "../../hooks/api";
 import { ensureFreshToken } from "../../lib/api-client";
-import { extractApiError } from "../../lib/api-error";
 import { formatUsd, tomanToUsd } from "../../lib/currency";
 import { toLatinDigits } from "../../lib/digits";
 import { consumablesTotalToman, formatPrice } from "../../lib/format";
@@ -83,18 +76,14 @@ export function CheckoutModal({
   /** serviceId → reason for services the receptionist marked «استفاده نشد». */
   const [zeroConsumption, setZeroConsumption] = useState<Record<number, string>>({});
   const [formError, setFormError] = useState("");
+  const [operationKey, setOperationKey] = useState(() => crypto.randomUUID());
 
   const { data: currentRate, isLoading: rateLoading } = useCurrentRate();
   const toast = useToast();
   // Both split sales must stay quiet — a single final «تسویه با موفقیت ثبت شد»
   // covers one payment even when it posts as two sales.
   const checkout = useCheckout({ silent: true });
-  const recordConsumption = useRecordConsumption({ silent: true });
-  const issuePack = useIssueWelcomePack({ silent: true });
-  // The backend rejects re-recording a service that already has usage, so only
-  // send one when the visit has none. This is what deducts the recipe's stock.
-  const { data: recordedUsages } = useVisitConsumptionCount(visitId);
-  const consumptionAlreadyRecorded = (recordedUsages ?? 0) > 0;
+  const settle = useSettleVisit({ silent: true });
 
   const extraTotal = useMemo(() => consumablesTotalToman({}, extraProducts), [extraProducts]);
   const packToman = useMemo(
@@ -112,7 +101,7 @@ export function CheckoutModal({
   const rateMissing = !rateLoading && rate === null;
   const paidToman = splitPaidToman(cashToman, cardToman, cashUsdNum, rate);
   const splitValid = paidToman === totalToman && totalToman > 0;
-  const isPending = checkout.isPending || recordConsumption.isPending || issuePack.isPending;
+  const isPending = checkout.isPending || settle.isPending;
   // Latched synchronously on click (plan 08): `isPending` only flips when a
   // mutation starts, but ensureFreshToken runs before that.
   const [submitting, setSubmitting] = useState(false);
@@ -211,70 +200,49 @@ export function CheckoutModal({
       const billedSelection = Object.fromEntries(
         Object.entries(selection).filter(([serviceId]) => !(Number(serviceId) in zeroConsumption))
       ) as ConsumptionSelection;
-      const hasConsumptionContent =
-        Object.keys(billedSelection).length > 0 ||
-        Object.keys(zeroConsumption).length > 0 ||
-        extraProducts.length > 0;
-      // An empty body records nothing server-side anymore, so there is no reason
-      // to fire the request when no quantities, zero rows or extras are queued.
-      if (visitId != null && !consumptionAlreadyRecorded && hasConsumptionContent) {
-        // The prefilled selection already carries every recipe product's actual
-        // quantity — the backend no longer applies recipe defaults, so a missing
-        // one 400s. Services marked «استفاده نشد» leave the selection and are
-        // recorded through zero_consumption instead. extraProducts are the
-        // billable non-recipe rows («محصولات این صورتحساب») — same call deducts
-        // their stock too.
-        try {
-          await recordConsumption.mutateAsync({
-            visitId,
-            selection: billedSelection,
+      servicePayload.idempotencyKey = `${operationKey}-service`;
+      let goodsPayload = null;
+      if (parts) {
+        goodsPayload = buildCheckoutPayload({
+          customerId,
+          totalToman: goodsShare,
+          rate,
+          cashToman: parts.goods.cashToman,
+          cardToman: parts.goods.cardToman,
+          cashUsd: parts.goods.cashUsd,
+          visitId: null,
+          packageId: null,
+          ...descriptionField,
+        });
+        goodsPayload.idempotencyKey = `${operationKey}-goods`;
+      }
+      if (visitId != null) {
+        await settle.mutateAsync({
+          visitId,
+          payload: {
+            idempotencyKey: `${operationKey}-settle`,
+            customer: customerId,
+            selection: billedSelection as Record<string, ConsumableSelection[]>,
             extraProducts,
             zeroConsumption,
-          });
-        } catch (consumptionError) {
-          // The sale matters more than the stock note: finish the checkout and say
-          // plainly that the consumables were not recorded.
-          toast.warning("فروش ثبت شد اما مصرف مواد ثبت نشد", extractApiError(consumptionError));
-        }
-      }
-      await checkout.mutateAsync(servicePayload);
-      if (parts) {
-        try {
-          await checkout.mutateAsync(
-            buildCheckoutPayload({
-              customerId,
-              totalToman: goodsShare,
-              rate,
-              cashToman: parts.goods.cashToman,
-              cardToman: parts.goods.cardToman,
-              cashUsd: parts.goods.cashUsd,
-              visitId: null,
-              packageId: null,
-              ...descriptionField,
-            })
-          );
-        } catch (goodsError) {
-          // The service sale already exists; a goods failure must not undo it.
-          toast.warning("خدمت ثبت شد اما فروش محصولات ثبت نشد", extractApiError(goodsError));
-        }
-      }
-      // The pack is its own financial event and is deliberately excluded from
-      // defaultTotalToman above — issue it only once the sale is recorded. A pack
-      // failure (e.g. not enough stock) must not undo a completed sale.
-      if (welcomePack && visitId != null && customerId) {
-        try {
-          await issuePack.mutateAsync({
-            packId: welcomePack.packId,
-            customer: customerId,
-            visit: visitId,
-            quantity: "1",
-          });
-        } catch (packError) {
-          toast.warning("فروش ثبت شد اما ولکام‌پک صادر نشد", extractApiError(packError));
-        }
+            serviceSale: servicePayload,
+            goodsSale: goodsPayload,
+            welcomePack: welcomePack
+              ? {
+                  pack: welcomePack.packId,
+                  quantity: "1",
+                  idempotencyKey: `${operationKey}-welcome-pack`,
+                }
+              : null,
+          },
+        });
+      } else {
+        await checkout.mutateAsync(servicePayload);
+        if (goodsPayload) await checkout.mutateAsync(goodsPayload);
       }
       onSuccess?.();
       toast.success("تسویه با موفقیت ثبت شد");
+      setOperationKey(crypto.randomUUID());
       onClose();
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : "خطا در ثبت فروش");

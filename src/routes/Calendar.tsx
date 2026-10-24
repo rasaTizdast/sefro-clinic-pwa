@@ -597,6 +597,7 @@ function Calendar() {
     // Same rule as the /wizard payment step: "with" requires a chosen pack.
     if (welcomePackMode === "with" && !welcomePack) {
       setWelcomePackInvalid(true);
+      setWizardStep("service");
       return;
     }
     setWelcomePackInvalid(false);
@@ -638,10 +639,9 @@ function Calendar() {
   }
 
   /**
-   * Open checkout first, complete afterwards: the backend refuses to complete a
-   * visit whose recipe consumption is not recorded, and the checkout modal is
-   * what records it (record-consumption → sale). Completion runs from the
-   * modal's success callback, so a cancelled checkout leaves the visit open.
+   * Open checkout first. Its atomic settlement records usage, sales, payouts,
+   * and completion together, so closing the modal without submitting leaves
+   * the visit open.
    */
   function completeAndCheckout(id: number) {
     // A completion that failed after the sale (e.g. an uncovered compensation
@@ -1831,13 +1831,9 @@ function Calendar() {
           welcomePack={checkoutExtras?.welcomePack ?? null}
           onSuccess={() => {
             clearVisitExtras(checkoutVisitId);
-            // «تمام شدن و تسویه» waits for this point: the sale (and with it the
-            // consumption record) has landed, so the visit may now be completed.
-            const completeId = pendingCompleteId;
-            if (completeId != null && completeId === checkoutVisitId) {
-              setPendingCompleteId(null);
-              completeVisit(completeId);
-            }
+            // Visit settlement commits the sale, stock usage, payouts, and
+            // completion together on the backend.
+            if (pendingCompleteId === checkoutVisitId) setPendingCompleteId(null);
           }}
         />
       )}

@@ -60,3 +60,17 @@ export function useUpsertCompensationRule() {
     },
   });
 }
+
+export function useTransitionPayout() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: ({ id, action }: { id: number; action: "approve" | "pay" }) =>
+      payoutsService.transitionPayout(id, action),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.payouts.all });
+      toast.success(variables.action === "approve" ? "تسویه تأیید شد" : "تسویه پرداخت شد");
+    },
+    onError: (error) => toast.error(extractApiError(error)),
+  });
+}

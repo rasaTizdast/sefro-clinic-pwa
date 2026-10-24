@@ -1,5 +1,7 @@
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useToast } from "../../components/ui";
+import { extractApiError } from "../../lib/api-error";
 import { queryKeys } from "../../lib/query-keys";
 import type { ReportQuery } from "../../services/financeReports";
 import * as financeReportsService from "../../services/financeReports";
@@ -78,4 +80,32 @@ export function useMonthlyCloseMonths(year: number) {
     isError: results.some((result) => result.isError),
     refetchAll: () => Promise.all(results.map((result) => result.refetch())),
   };
+}
+
+export function useCloseMonthlyMonth() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: financeReportsService.closeMonthlyMonth,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance", "monthlyClose"] });
+      toast.success("ماه با موفقیت بسته شد.");
+    },
+    onError: (error) => toast.error(extractApiError(error)),
+  });
+}
+
+export function useReopenMonthlyMonth() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: financeReportsService.reopenMonthlyMonth,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["finance", "monthlyClose"] });
+      toast.success("ماه با موفقیت بازگشایی شد.");
+    },
+    onError: (error) => toast.error(extractApiError(error)),
+  });
 }

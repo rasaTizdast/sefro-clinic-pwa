@@ -2,14 +2,21 @@ import jalaali from "jalaali-js";
 import { useMemo, useState } from "react";
 import { BiChevronLeft, BiChevronRight } from "react-icons/bi";
 
-import { useMonthlyCloseMonths } from "../../hooks/api";
+import {
+  useCloseMonthlyMonth,
+  useMonthlyCloseMonths,
+  useReopenMonthlyMonth,
+} from "../../hooks/api";
+import { usePermissions } from "../../hooks/usePermissions";
 import { toPersianDigits } from "../../lib/digits";
 import { formatPrice } from "../../lib/format";
 import type { MonthlyCloseMonth } from "../../types/finance";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { Modal } from "../ui/Modal";
 import { type Column, Table } from "../ui/Table";
+import { Textarea } from "../ui/Textarea";
 
 const currentShamsiYear = () => jalaali.toJalaali(new Date()).jy;
 
@@ -34,6 +41,8 @@ type MonthRow = {
   report?: MonthlyCloseMonth;
   isError: boolean;
 };
+
+type CloseAction = { report: MonthlyCloseMonth; kind: "close" | "reopen" };
 
 /** Toman first and emphasized; the USD twin sits beside it, quieter. */
 function moneyPair(usd: string | undefined, toman: string | undefined) {
@@ -68,12 +77,42 @@ function isEmptyMonth(report: MonthlyCloseMonth | undefined) {
  * Numbers for a closed month come from the frozen snapshot, so what this table
  * shows for a closed row is exactly what closing stored — edits after the fact
  * land in later months, never in that one. Months with nothing in them are
- * striped; closing/reopening is the backend's own automation, not a button here.
+ * striped; closing/reopening is available to finance administrators with an
+ * audited note or reason.
  */
 export function MonthlyCloseTab() {
   const [year, setYear] = useState<number>(currentShamsiYear);
+  const [closeAction, setCloseAction] = useState<CloseAction | null>(null);
+  const [actionText, setActionText] = useState("");
+  const { canManageFinance } = usePermissions();
+  const closeMonth = useCloseMonthlyMonth();
+  const reopenMonth = useReopenMonthlyMonth();
 
   const { rows, isLoading, isError, refetchAll } = useMonthlyCloseMonths(year);
+
+  function openAction(report: MonthlyCloseMonth, kind: CloseAction["kind"]) {
+    setActionText("");
+    setCloseAction({ report, kind });
+  }
+
+  async function submitAction() {
+    if (!closeAction || !actionText.trim()) return;
+    const { report, kind } = closeAction;
+    if (kind === "close") {
+      await closeMonth.mutateAsync({
+        year: report.year,
+        month: report.month,
+        note: actionText.trim(),
+      });
+    } else {
+      await reopenMonth.mutateAsync({
+        year: report.year,
+        month: report.month,
+        reason: actionText.trim(),
+      });
+    }
+    setCloseAction(null);
+  }
 
   const summary = useMemo(() => {
     const loaded = rows.map((row) => row.report).filter((report) => report != null);
@@ -168,6 +207,36 @@ export function MonthlyCloseTab() {
           "—"
         ),
     },
+    ...(canManageFinance
+      ? [
+          {
+            key: "actions",
+            header: "عملیات",
+            align: "center" as const,
+            render: (row: MonthRow) =>
+              row.report ? (
+                row.report.isClosed ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openAction(row.report!, "reopen")}
+                  >
+                    بازگشایی
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={row.report.isCurrent}
+                    onClick={() => openAction(row.report!, "close")}
+                  >
+                    بستن ماه
+                  </Button>
+                )
+              ) : null,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -226,6 +295,35 @@ export function MonthlyCloseTab() {
           </Button>
         </div>
       )}
+
+      <Modal
+        open={closeAction !== null}
+        onClose={() => setCloseAction(null)}
+        title={closeAction?.kind === "close" ? "بستن ماه" : "بازگشایی ماه"}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setCloseAction(null)}>
+              انصراف
+            </Button>
+            <Button
+              variant={closeAction?.kind === "reopen" ? "danger" : "primary"}
+              onClick={submitAction}
+              loading={closeMonth.isPending || reopenMonth.isPending}
+              disabled={!actionText.trim()}
+            >
+              تأیید
+            </Button>
+          </>
+        }
+      >
+        <Textarea
+          label={closeAction?.kind === "close" ? "یادداشت بستن" : "دلیل بازگشایی"}
+          value={actionText}
+          onChange={(event) => setActionText(event.target.value)}
+          placeholder={closeAction?.kind === "close" ? "یادداشت اختیاری" : "دلیل الزامی است"}
+          required={closeAction?.kind === "reopen"}
+        />
+      </Modal>
     </div>
   );
 }

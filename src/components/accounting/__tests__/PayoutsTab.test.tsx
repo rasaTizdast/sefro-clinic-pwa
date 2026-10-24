@@ -88,7 +88,12 @@ vi.mock("../../../hooks/api", () => ({
     };
   },
   useCompensationRules: () => ({ data: { data: [] } }),
+  useTransitionPayout: () => ({ isPending: false, mutate: vi.fn() }),
   useFinancialSummary: () => ({ data: financialSummary, isLoading: false }),
+}));
+
+vi.mock("../../../hooks/usePermissions", () => ({
+  usePermissions: () => ({ canManageFinance: false }),
 }));
 
 // `react-calendar-datetime-picker` is a CJS bundle that cannot be transformed in

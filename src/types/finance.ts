@@ -634,4 +634,5 @@ export interface IssueWelcomePackInput {
   customer: number;
   quantity?: string;
   visit?: number | null;
+  idempotencyKey?: string;
 }

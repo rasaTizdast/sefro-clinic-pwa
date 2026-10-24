@@ -109,7 +109,11 @@ function Dashboard() {
     isLoading: statsLoading,
     isError: statsError,
   } = useDashboardStats();
-  const { data: todayVisits, isLoading: visitsLoading } = useAllVisits({
+  const {
+    data: todayVisits,
+    isLoading: visitsLoading,
+    isError: visitsError,
+  } = useAllVisits({
     dateFrom: todayStr,
     dateTo: todayStr,
   });
@@ -135,13 +139,13 @@ function Dashboard() {
   );
 
   const isLoading = statsLoading || visitsLoading;
-  const hasError = statsError;
+  const hasError = statsError || visitsError;
 
   const stats: DashboardStat[] = dashboardStats
     ? [
         {
           title: "مراجعین امروز",
-          value: toPersianDigits(String(dashboardStats.todayVisits)),
+          value: toPersianDigits(String(appointments.length)),
           change: "",
           trend: "flat",
           icon: <MdPeople className="size-5" />,

@@ -5,6 +5,7 @@ import {
   buildCheckoutPayload,
   checkout,
   getSale,
+  listPaidVisitIds,
   listSales,
   partitionVisitPayment,
   refundSale,
@@ -390,6 +391,28 @@ describe("sales service", () => {
       expect(mock.get).toHaveBeenCalledWith("/finance/sales/12/");
       expect(sale.idempotencyKey).toBe("uuid-1");
       expect(sale.createdAt).toBe("2026-09-20T08:00:00Z");
+    });
+  });
+
+  describe("listPaidVisitIds", () => {
+    it("keeps refunded visit sales out of the calendar's unpaid list", async () => {
+      mock.get.mockResolvedValue({
+        data: {
+          count: 3,
+          next: null,
+          previous: null,
+          results: [
+            { id: 1, visit: 10, status: "paid" },
+            { id: 2, visit: 11, status: "refunded" },
+            { id: 3, visit: 12, status: "pending" },
+          ],
+        },
+      });
+
+      await expect(listPaidVisitIds()).resolves.toEqual([10, 11]);
+      expect(mock.get).toHaveBeenCalledWith("/finance/sales/", {
+        params: { page: 1, per_page: 100 },
+      });
     });
   });
 

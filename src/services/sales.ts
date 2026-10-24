@@ -4,7 +4,13 @@ import { tomanToUsd, tomanToUsdHalfEven } from "../lib/currency";
 import { type PaginationParams, toPaginatedResponse, toQueryParams } from "../lib/pagination";
 import type { PaginatedResponse } from "../types/api";
 import type { CheckoutPayload, PaymentComponentInput, Sale, SaleStatus } from "../types/finance";
+import type { ConsumableSelection } from "../types/wizard";
 import { fetchAllPages } from "./fetch-all-pages";
+import {
+  toExtraProductsPayload,
+  toSelectedProductsPayload,
+  toZeroConsumptionPayload,
+} from "./inventoryFinance";
 
 const DEFAULT_PER_PAGE = 20;
 
@@ -121,6 +127,36 @@ export async function checkout(payload: CheckoutPayload): Promise<Sale> {
   return toSale(data as RawSale);
 }
 
+export interface VisitSettlementPayload {
+  idempotencyKey: string;
+  customer: number;
+  selection: Record<string, ConsumableSelection[]>;
+  extraProducts?: ConsumableSelection[];
+  zeroConsumption?: Record<number, string>;
+  serviceSale: CheckoutPayload;
+  goodsSale?: CheckoutPayload | null;
+  welcomePack?: { pack: number; quantity?: string; idempotencyKey?: string } | null;
+}
+
+export async function settleVisit(visitId: number, payload: VisitSettlementPayload) {
+  const selectedProducts = toSelectedProductsPayload(payload.selection);
+  for (const id of Object.keys(toZeroConsumptionPayload(payload.zeroConsumption)))
+    delete selectedProducts[id];
+  const { data } = await apiClient.post(endpoints.finance.settleVisit(visitId), {
+    idempotencyKey: payload.idempotencyKey,
+    customer: payload.customer,
+    consumption: {
+      selectedProducts,
+      zeroConsumption: toZeroConsumptionPayload(payload.zeroConsumption),
+      extraProducts: toExtraProductsPayload(payload.extraProducts),
+    },
+    serviceSale: payload.serviceSale,
+    goodsSale: payload.goodsSale ?? null,
+    welcomePack: payload.welcomePack ?? null,
+  });
+  return data;
+}
+
 export interface PaymentParts {
   cashToman: number;
   cardToman: number;
@@ -230,14 +266,16 @@ export const refundSale = async (
 };
 
 /**
- * Every visit that has a paid sale (across all pages), used by the calendar to
- * hide the "تمام شدن و تسویه" button once a visit has been settled.
+ * Every visit that already has a terminal sale state (across all pages).
+ * Refunded and partially-refunded visits must not silently look unpaid in the
+ * calendar; a new charge should be a deliberate new business action.
  */
 export async function listPaidVisitIds(): Promise<number[]> {
-  const rows = await fetchAllPages<RawSale>(endpoints.sales.list, { status: "paid" });
+  const rows = await fetchAllPages<RawSale>(endpoints.sales.list);
+  const terminalStatuses = new Set<SaleStatus>(["paid", "refunded", "partially_refunded"]);
   const ids = new Set<number>();
   for (const row of rows) {
-    if (row.visit) ids.add(row.visit);
+    if (row.visit && terminalStatuses.has(row.status ?? "pending")) ids.add(row.visit);
   }
   return [...ids];
 }

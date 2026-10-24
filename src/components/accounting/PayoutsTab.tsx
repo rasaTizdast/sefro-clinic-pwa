@@ -1,6 +1,12 @@
 import { useMemo, useState } from "react";
 
-import { useCompensationRules, usePayoutsList, usePayoutSummary } from "../../hooks/api";
+import {
+  useCompensationRules,
+  usePayoutsList,
+  usePayoutSummary,
+  useTransitionPayout,
+} from "../../hooks/api";
+import { usePermissions } from "../../hooks/usePermissions";
 import { formatJalaliDate, toShamsiApiDay } from "../../lib/date";
 import { formatPrice } from "../../lib/format";
 import { REPORT_PERIOD_OPTIONS, reportPeriodLabel } from "../../lib/report-period";
@@ -11,6 +17,7 @@ import type {
   ReportPeriod,
 } from "../../types/finance";
 import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { JalaliDatePicker } from "../ui/JalaliDatePicker";
 import { Pagination } from "../ui/Pagination";
@@ -61,8 +68,7 @@ const payoutStatusConfig: Record<
 const PAGE_SIZE = 20;
 
 /**
- * Payouts reporting view (list + summary + status badges). Approve/pay actions are
- * deferred — the backend `StaffPayoutViewSet` exposes no approve/pay endpoints.
+ * Payouts reporting view (list + summary + auditable admin settlement actions).
  * The period select scopes the summary only; the list below is every payout.
  */
 export function PayoutsTab() {
@@ -72,6 +78,8 @@ export function PayoutsTab() {
   const [role, setRole] = useState<CompensationRole | "">("");
   const [status, setStatus] = useState<PayoutStatus | "">("");
   const [page, setPage] = useState(1);
+  const { canManageFinance } = usePermissions();
+  const transitionPayout = useTransitionPayout();
 
   // An explicit range wins over the named period inside the service layer, and
   // both travel as Jalali `start_date`/`end_date` days.
@@ -186,6 +194,36 @@ export function PayoutsTab() {
         );
       },
     },
+    ...(canManageFinance
+      ? [
+          {
+            key: "actions",
+            header: "اقدام",
+            align: "center" as const,
+            render: (item: (typeof payouts)[number]) =>
+              item.status === "pending" ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={transitionPayout.isPending}
+                  onClick={() => transitionPayout.mutate({ id: item.id, action: "approve" })}
+                >
+                  تأیید
+                </Button>
+              ) : item.status === "approved" ? (
+                <Button
+                  size="sm"
+                  loading={transitionPayout.isPending}
+                  onClick={() => transitionPayout.mutate({ id: item.id, action: "pay" })}
+                >
+                  ثبت پرداخت
+                </Button>
+              ) : (
+                <span className="text-surface-400">—</span>
+              ),
+          },
+        ]
+      : []),
   ];
 
   return (

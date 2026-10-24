@@ -11,7 +11,7 @@ const recordConsumptionMutateAsync = vi.fn().mockResolvedValue(undefined);
 const issueWelcomePackMutateAsync = vi.fn().mockResolvedValue(undefined);
 const toastWarning = vi.fn();
 
-const state = vi.hoisted(() => ({ recordedUsages: 0 }));
+const state = vi.hoisted(() => ({ recordedUsages: 0, usagesAfterRefetch: null as number | null }));
 
 // handleSubmit awaits a proactive token refresh; without a backend that real
 // request stalls and leaks between tests, so stub it out.
@@ -28,6 +28,7 @@ vi.mock("../../../hooks/api", () => ({
     mutateAsync: checkoutMutateAsync,
     isPending: false,
   }),
+  useSettleVisit: () => ({ mutateAsync: checkoutMutateAsync, isPending: false }),
   useRecordConsumption: () => ({
     mutateAsync: recordConsumptionMutateAsync,
     isPending: false,
@@ -36,7 +37,11 @@ vi.mock("../../../hooks/api", () => ({
     mutateAsync: issueWelcomePackMutateAsync,
     isPending: false,
   }),
-  useVisitConsumptionCount: () => ({ data: state.recordedUsages }),
+  useVisitConsumptionCount: () => ({
+    data: state.recordedUsages,
+    isLoading: false,
+    refetch: async () => ({ data: state.usagesAfterRefetch ?? state.recordedUsages }),
+  }),
 }));
 
 vi.mock("../../ui/Toast", async () => {
@@ -54,6 +59,7 @@ describe("CheckoutModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     state.recordedUsages = 0;
+    state.usagesAfterRefetch = null;
     recordConsumptionMutateAsync.mockResolvedValue(undefined);
   });
 
@@ -134,10 +140,15 @@ describe("CheckoutModal", () => {
 
     expect(checkoutMutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        customer: 5,
-        amountUsd: "10.00",
-        visit: 9,
-        components: expect.any(Array),
+        visitId: 9,
+        payload: expect.objectContaining({
+          customer: 5,
+          serviceSale: expect.objectContaining({
+            amountUsd: "10.00",
+            visit: 9,
+            components: expect.any(Array),
+          }),
+        }),
       })
     );
     expect(onClose).toHaveBeenCalled();
@@ -161,14 +172,10 @@ describe("CheckoutModal", () => {
     // go out explicitly (the backend applies no recipe defaults anymore).
     await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
 
-    expect(recordConsumptionMutateAsync).toHaveBeenCalledWith({
-      visitId: 12,
-      selection: { 4: [{ product: 2, quantity: "1.500" }] },
-      extraProducts: [],
-      zeroConsumption: {},
-    });
-    expect(recordConsumptionMutateAsync.mock.invocationCallOrder[0]).toBeLessThan(
-      checkoutMutateAsync.mock.invocationCallOrder[0]
+    expect(checkoutMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ selection: { 4: [{ product: 2, quantity: "1.500" }] } }),
+      })
     );
   });
 
@@ -190,12 +197,11 @@ describe("CheckoutModal", () => {
 
     await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
 
-    expect(recordConsumptionMutateAsync).toHaveBeenCalledWith({
-      visitId: 15,
-      selection: {},
-      extraProducts: extras,
-      zeroConsumption: {},
-    });
+    expect(checkoutMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ extraProducts: extras }),
+      })
+    );
   });
 
   it("does not record consumption when there is nothing to record", async () => {
@@ -213,8 +219,11 @@ describe("CheckoutModal", () => {
     // An empty body records nothing server-side anymore, so no request is sent.
     await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
 
-    expect(recordConsumptionMutateAsync).not.toHaveBeenCalled();
-    expect(checkoutMutateAsync).toHaveBeenCalled();
+    expect(checkoutMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ selection: {}, extraProducts: [] }),
+      })
+    );
   });
 
   it("keeps the quantities the user edited", async () => {
@@ -236,12 +245,11 @@ describe("CheckoutModal", () => {
     await user.type(qty, "2.000");
     await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
 
-    expect(recordConsumptionMutateAsync).toHaveBeenCalledWith({
-      visitId: 12,
-      selection: { 4: [{ product: 2, quantity: "2.000" }] },
-      extraProducts: [],
-      zeroConsumption: {},
-    });
+    expect(checkoutMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ selection: { 4: [{ product: 2, quantity: "2.000" }] } }),
+      })
+    );
   });
 
   it("routes a service marked «استفاده نشد» to zeroConsumption instead of quantities", async () => {
@@ -271,12 +279,14 @@ describe("CheckoutModal", () => {
 
     await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
 
-    expect(recordConsumptionMutateAsync).toHaveBeenCalledWith({
-      visitId: 12,
-      selection: { 5: [{ product: 3, quantity: "2" }] },
-      extraProducts: [],
-      zeroConsumption: { 4: "استفاده نشد" },
-    });
+    expect(checkoutMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          selection: { 5: [{ product: 3, quantity: "2" }] },
+          zeroConsumption: { 4: "استفاده نشد" },
+        }),
+      })
+    );
   });
 
   it("blocks the sale while a «استفاده نشد» reason is empty", async () => {
@@ -329,9 +339,9 @@ describe("CheckoutModal", () => {
     expect(checkoutMutateAsync).toHaveBeenCalled();
   });
 
-  it("still records the sale and warns when consumption fails", async () => {
+  it("keeps the checkout open when the atomic settlement fails", async () => {
     const user = userEvent.setup();
-    recordConsumptionMutateAsync.mockRejectedValue(new Error("موجودی کافی نیست"));
+    checkoutMutateAsync.mockRejectedValueOnce(new Error("موجودی کافی نیست"));
     renderModal(
       <CheckoutModal
         open
@@ -347,10 +357,29 @@ describe("CheckoutModal", () => {
     await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
 
     expect(checkoutMutateAsync).toHaveBeenCalled();
-    expect(toastWarning).toHaveBeenCalledWith(
-      "فروش ثبت شد اما مصرف مواد ثبت نشد",
-      expect.stringContaining("موجودی کافی نیست")
+    expect(toastWarning).not.toHaveBeenCalled();
+    expect(await screen.findByText(/موجودی کافی نیست/)).toBeInTheDocument();
+  });
+
+  it("continues checkout when a failed consumption response was committed", async () => {
+    const user = userEvent.setup();
+    recordConsumptionMutateAsync.mockRejectedValue(new Error("response lost"));
+    state.usagesAfterRefetch = 1;
+    renderModal(
+      <CheckoutModal
+        open
+        onClose={() => {}}
+        customerId={1}
+        visitId={12}
+        defaultTotalToman={500000}
+        consumables={{ 4: [{ product: 2, quantity: "1.500" }] }}
+        productNames={{ 2: "ژل" }}
+      />
     );
+
+    await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
+
+    expect(checkoutMutateAsync).toHaveBeenCalled();
   });
 
   it("does not render a discount field", () => {
@@ -495,16 +524,12 @@ describe("CheckoutModal", () => {
 
       await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
 
-      expect(checkoutMutateAsync).toHaveBeenCalledTimes(1);
-      expect(issueWelcomePackMutateAsync).toHaveBeenCalledWith({
-        packId: 3,
-        customer: 5,
-        visit: 9,
-        quantity: "1",
-      });
-      // sale first, pack second
-      expect(issueWelcomePackMutateAsync.mock.invocationCallOrder[0]).toBeGreaterThan(
-        checkoutMutateAsync.mock.invocationCallOrder[0]
+      expect(checkoutMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            welcomePack: expect.objectContaining({ pack: 3, quantity: "1" }),
+          }),
+        })
       );
     });
 
@@ -523,7 +548,7 @@ describe("CheckoutModal", () => {
     it("keeps the sale when the pack cannot be issued", async () => {
       const user = userEvent.setup();
       const onClose = vi.fn();
-      issueWelcomePackMutateAsync.mockRejectedValue(new Error("موجودی کافی نیست"));
+      checkoutMutateAsync.mockRejectedValueOnce(new Error("موجودی کافی نیست"));
       renderModal(
         <CheckoutModal
           open
@@ -543,11 +568,9 @@ describe("CheckoutModal", () => {
       await user.click(screen.getByRole("button", { name: "ثبت فروش" }));
 
       expect(checkoutMutateAsync).toHaveBeenCalled();
-      expect(onClose).toHaveBeenCalled();
-      expect(toastWarning).toHaveBeenCalledWith(
-        "فروش ثبت شد اما ولکام‌پک صادر نشد",
-        expect.stringContaining("موجودی کافی نیست")
-      );
+      expect(onClose).not.toHaveBeenCalled();
+      expect(toastWarning).not.toHaveBeenCalled();
+      expect(await screen.findByText(/موجودی کافی نیست/)).toBeInTheDocument();
     });
   });
 });

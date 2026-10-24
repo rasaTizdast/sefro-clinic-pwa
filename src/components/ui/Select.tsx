@@ -136,7 +136,7 @@ export function Select({
 
   useEffect(() => {
     if (isOpen && searchable) {
-      searchInputRef.current?.focus();
+      searchInputRef.current?.focus({ preventScroll: true });
     }
   }, [isOpen, searchable]);
 
