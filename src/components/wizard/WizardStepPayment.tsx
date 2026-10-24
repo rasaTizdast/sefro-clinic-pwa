@@ -2,13 +2,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { MdPayment } from "react-icons/md";
 
-import { useAllWelcomePacks, useCheckout, useWelcomePack } from "../../hooks/api";
+import { useAllWelcomePacks, useSettleVisit, useWelcomePack } from "../../hooks/api";
 import { useCreateCustomer } from "../../hooks/api/useCustomersQuery";
 import { useCurrentRate } from "../../hooks/api/useExchangeRatesQuery";
-import { useRecordConsumption } from "../../hooks/api/useInventoryFinanceQuery";
 import { useAllProducts } from "../../hooks/api/useProductsQuery";
 import { useReserveVisit } from "../../hooks/api/useVisitsQuery";
-import { useIssueWelcomePack } from "../../hooks/api/useWelcomePacksQuery";
 import { ensureFreshToken } from "../../lib/api-client";
 import { extractApiError } from "../../lib/api-error";
 import { toShamsiDateInput } from "../../lib/date";
@@ -45,6 +43,10 @@ import { useToast } from "../ui/Toast";
 import { UsdTag } from "../ui/UsdTag";
 
 interface Props {
+  /** Stable for the lifetime of the persisted wizard tab; makes retries idempotent. */
+  idempotencyPrefix?: string;
+  visitId?: number | null;
+  onUpdateVisitId?: (visitId: number | null) => void;
   patient: PatientData;
   selectedServices: ServiceSelection[];
   consumables: Record<string, ConsumableSelection[]>;
@@ -58,6 +60,9 @@ interface Props {
 }
 
 export default function WizardStepPayment({
+  idempotencyPrefix,
+  visitId: initialVisitId,
+  onUpdateVisitId,
   patient,
   selectedServices,
   consumables,
@@ -68,7 +73,7 @@ export default function WizardStepPayment({
   onComplete,
   onUpdatePatient,
 }: Props) {
-  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
+  const { success: toastSuccess, error: toastError } = useToast();
   const queryClient = useQueryClient();
   const [cashToman, setCashToman] = useState("");
   const [cashUsd, setCashUsd] = useState("");
@@ -77,6 +82,9 @@ export default function WizardStepPayment({
     welcomePack ? "with" : "without"
   );
   const [formError, setFormError] = useState("");
+  const [draftVisitId, setDraftVisitId] = useState<number | null>(initialVisitId ?? null);
+  const [fallbackOperationPrefix] = useState(() => `wizard-${crypto.randomUUID()}`);
+  const operationPrefix = idempotencyPrefix ?? fallbackOperationPrefix;
 
   const isPackage = selectedServices.some((s) => s.isPackage);
   const packageId = selectedServices.find((s) => s.isPackage)?.packageId ?? null;
@@ -85,6 +93,7 @@ export default function WizardStepPayment({
       selectedServices.filter((s) => !s.isPackage && s.serviceId).map((s) => s.serviceId as number),
     [selectedServices]
   );
+  const serviceIdKeySet = useMemo(() => new Set(serviceIds.map(String)), [serviceIds]);
 
   // Service/package fee (customer-billable).
   const serviceFeeTotal = useMemo(
@@ -101,10 +110,8 @@ export default function WizardStepPayment({
   // Final customer payable: fee + goods + consumables.
   const totalToman = serviceFeeTotal + consumableTotal;
 
-  const checkoutMutation = useCheckout({ silent: true });
+  const settleMutation = useSettleVisit({ silent: true });
   const reserveMutation = useReserveVisit({ silent: true });
-  const consumptionMutation = useRecordConsumption({ silent: true });
-  const issuePackMutation = useIssueWelcomePack({ silent: true });
   const createCustomerMutation = useCreateCustomer({ silent: true });
 
   const { data: currentRate } = useCurrentRate();
@@ -122,9 +129,6 @@ export default function WizardStepPayment({
   const remaining = totalToman - paidTotal;
   const isComplete = isSplitComplete(totalToman, cashNum, cardNum, cashUsdNum, rate);
   const consumablesInvalid = hasInvalidConsumableQuantity(consumables, extraProducts);
-
-  // Only numeric service-id keys go to record-consumption (pkg:* keys are bill-only).
-  const serviceIdKeySet = useMemo(() => new Set(serviceIds.map(String)), [serviceIds]);
 
   const {
     data: packsData,
@@ -162,9 +166,7 @@ export default function WizardStepPayment({
   const isPending =
     submitting ||
     reserveMutation.isPending ||
-    checkoutMutation.isPending ||
-    consumptionMutation.isPending ||
-    issuePackMutation.isPending ||
+    settleMutation.isPending ||
     createCustomerMutation.isPending;
 
   const handleFinish = async () => {
@@ -198,8 +200,10 @@ export default function WizardStepPayment({
     // Fresh session cookies first — this flow posts customer → visit →
     // consumption → checkout back to back and a stale token can fail the
     // later requests after the earlier ones already succeeded.
-    let reservedVisitId: number | null = null;
-    let saleBooked = false;
+    let reservedVisitId = draftVisitId;
+    // A prior failed attempt may have reached the backend before its response
+    // was lost, so never cancel a reservation that is being retried.
+    let settlementStarted = draftVisitId !== null;
     try {
       await ensureFreshToken();
 
@@ -258,49 +262,25 @@ export default function WizardStepPayment({
       // produces. No `staff` is sent: the backend auto-resolves the operator from each
       // service's compensation role, and a role it cannot resolve (e.g. two people hold
       // it) leaves the visit open to be finished from the calendar.
-      const now = new Date();
-      const dateStr = toShamsiDateInput(now);
-      const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-      const reserveRes = await reserveMutation.mutateAsync({
-        customer: finalCustomerId,
-        services: serviceIds,
-        date: dateStr,
-        time: timeStr,
-        notes: `پذیرش سریع - ${patient.firstName} ${patient.lastName}`,
-      });
-      const visitId: number = (reserveRes as unknown as { data: { id: number } }).data.id;
-      reservedVisitId = visitId;
-
-      // 3. Record recipe consumables AND manual extras («محصولات این صورتحساب»)
-      //    for stock/ProductUsage (billable amounts already included in totalToman).
-      //    Recipe rows carry their actual quantities — the backend no longer
-      //    applies recipe defaults, so a service whose every row is zero is routed
-      //    to zero_consumption instead (zero rows inside a partly-used service are
-      //    simply omitted). Failure must not block billing.
-      const recipeRows = Object.fromEntries(
-        Object.entries(consumables).filter(
-          ([key, rows]) => rows.length > 0 && serviceIdKeySet.has(key)
-        )
-      ) as Record<string, ConsumableSelection[]>;
-      const { selection: recipeSelection, zeroConsumption } = splitRecipeRowsByQuantity(recipeRows);
-      let consumptionFailure: unknown = null;
-      try {
-        await consumptionMutation.mutateAsync({
-          visitId,
-          selection: recipeSelection,
-          includeMandatoryOnly: true,
-          extraProducts,
-          zeroConsumption,
+      if (reservedVisitId === null) {
+        const now = new Date();
+        const dateStr = toShamsiDateInput(now);
+        const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+        const reserveRes = await reserveMutation.mutateAsync({
+          customer: finalCustomerId,
+          services: serviceIds,
+          date: dateStr,
+          time: timeStr,
+          notes: `پذیرش سریع - ${patient.firstName} ${patient.lastName}`,
         });
-      } catch (consumptionError) {
-        consumptionFailure = consumptionError;
+        reservedVisitId = (reserveRes as unknown as { data: { id: number } }).data.id;
+        setDraftVisitId(reservedVisitId);
+        onUpdateVisitId?.(reservedVisitId);
       }
+      const visitId = reservedVisitId;
 
-      // 4. Checkout the bill as TWO sales so staff compensation is computed from
-      //    services only: the service fee rides on the visit-bound sale, the
-      //    consumables/products on a visit-less sale (products must never inflate
-      //    an operator's share). Exact partitioning is not always possible with
-      //    heavy-USD payments — then one combined sale books the whole visit.
+      // 3. Prepare service and goods sales, then commit both with stock, pack,
+      //    visit completion, and payouts through one atomic backend operation.
       const description = `پذیرش ${patient.firstName} ${patient.lastName}`;
       const parts =
         serviceFeeTotal > 0 && consumableTotal > 0
@@ -313,7 +293,7 @@ export default function WizardStepPayment({
               cashUsd: cashUsdNum,
             })
           : null;
-      const payload = parts
+      const serviceSale = parts
         ? buildCheckoutPayload({
             customerId: finalCustomerId,
             visitId,
@@ -336,72 +316,50 @@ export default function WizardStepPayment({
             cashUsd: cashUsdNum > 0 ? cashUsdNum.toFixed(2) : 0,
             description,
           });
-      await checkoutMutation.mutateAsync(payload);
-      saleBooked = true;
+      serviceSale.idempotencyKey = `${operationPrefix}-service`;
+      let goodsSale = null;
       if (parts) {
-        try {
-          await checkoutMutation.mutateAsync(
-            buildCheckoutPayload({
-              customerId: finalCustomerId,
-              visitId: null,
-              packageId: null,
-              totalToman: consumableTotal,
-              rate: billingRate,
-              cashToman: parts.goods.cashToman,
-              cardToman: parts.goods.cardToman,
-              cashUsd: parts.goods.cashUsd,
-              description,
-            })
-          );
-        } catch (goodsError) {
-          // The service sale already exists; a goods failure must not undo it.
-          toastWarning("خدمت ثبت شد اما فروش محصولات ثبت نشد", extractApiError(goodsError));
-        }
+        goodsSale = buildCheckoutPayload({
+          customerId: finalCustomerId,
+          visitId: null,
+          packageId: null,
+          totalToman: consumableTotal,
+          rate: billingRate,
+          cashToman: parts.goods.cashToman,
+          cardToman: parts.goods.cardToman,
+          cashUsd: parts.goods.cashUsd,
+          description,
+        });
+        goodsSale.idempotencyKey = `${operationPrefix}-goods`;
       }
+      const recipeRows = Object.fromEntries(
+        Object.entries(consumables).filter(([key]) => serviceIdKeySet.has(key))
+      ) as Record<string, ConsumableSelection[]>;
+      const { selection: recipeSelection, zeroConsumption } = splitRecipeRowsByQuantity(recipeRows);
+      settlementStarted = true;
+      await settleMutation.mutateAsync({
+        visitId,
+        payload: {
+          idempotencyKey: `${operationPrefix}-settle`,
+          customer: finalCustomerId,
+          selection: recipeSelection as Record<string, ConsumableSelection[]>,
+          extraProducts,
+          zeroConsumption,
+          serviceSale,
+          goodsSale,
+          welcomePack:
+            welcomeMode === "with" && packIsValid && welcomePack
+              ? {
+                  pack: welcomePack.packId,
+                  quantity: "1",
+                  idempotencyKey: `${operationPrefix}-welcome-pack`,
+                }
+              : null,
+        },
+      });
 
-      // 5. Issue the welcome pack against the same customer+visit (its own financial event).
-      if (welcomeMode === "with" && packIsValid && welcomePack) {
-        try {
-          await issuePackMutation.mutateAsync({
-            packId: welcomePack.packId,
-            customer: finalCustomerId,
-            quantity: "1",
-            visit: visitId,
-          });
-        } catch (packError) {
-          // The sale and the visit are already recorded — a pack failure (e.g. not
-          // enough stock) must not block the patient from being checked out.
-          toastWarning("پذیرش ثبت شد اما ولکام‌پک صادر نشد", extractApiError(packError));
-        }
-      }
-
-      // 6. Finish the visit itself — the backend refuses completion until
-      //    consumption is recorded, so a consumption failure leaves the visit
-      //    open on purpose (the calendar checkout can still finish it). A 400
-      //    here is almost always an uncovered compensation role: the visit
-      //    stays «در انتظار» and must be completed from the calendar, where the
-      //    operator can be assigned first.
-      let completionFailure: unknown = null;
-      if (consumptionFailure === null) {
-        try {
-          await visitsService.completeVisit(visitId);
-          await queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
-        } catch (completionError) {
-          completionFailure = completionError;
-        }
-      }
-
-      if (consumptionFailure) {
-        // Billing landed; only the stock note is missing. Say it plainly.
-        toastWarning("پذیرش ثبت شد اما مصرف مواد ثبت نشد", extractApiError(consumptionFailure));
-      }
-      if (completionFailure) {
-        toastWarning(
-          "پذیرش ثبت شد اما نوبت تکمیل نشد — اپراتور خدمت را در ویرایش نوبت تعیین کنید",
-          extractApiError(completionFailure)
-        );
-      }
-
+      setDraftVisitId(null);
+      onUpdateVisitId?.(null);
       toastSuccess(`پذیرش ${patient.firstName} ${patient.lastName} با موفقیت ثبت شد`);
       onComplete({
         method: cardNum > 0 ? "card" : "cash",
@@ -413,10 +371,12 @@ export default function WizardStepPayment({
     } catch (err: unknown) {
       // Nothing was billed: release the reservation so a failed checkout never
       // leaves a phantom «در انتظار» visit on the dashboard.
-      if (reservedVisitId !== null && !saleBooked) {
+      if (reservedVisitId !== null && !settlementStarted) {
         try {
           await visitsService.cancelVisit(reservedVisitId);
           await queryClient.invalidateQueries({ queryKey: queryKeys.visits.all });
+          setDraftVisitId(null);
+          onUpdateVisitId?.(null);
         } catch {
           // Secondary to the original failure — keep reporting that one.
         }

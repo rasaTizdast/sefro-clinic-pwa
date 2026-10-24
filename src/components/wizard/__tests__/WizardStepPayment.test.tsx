@@ -25,10 +25,12 @@ const mockAllWelcomePacks = vi.fn();
 const mockWelcomePackDetail = vi.fn();
 const mockEnsureFreshToken = vi.fn();
 const mockGetBillingRate = vi.fn();
+const mockCountConsumptions = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../hooks/api", () => ({
   useAllWelcomePacks: (...args: unknown[]) => mockAllWelcomePacks(...args),
   useCheckout: () => ({ mutateAsync: mockCheckout, isPending: false }),
+  useSettleVisit: () => ({ mutateAsync: mockCheckout, isPending: false }),
   useWelcomePack: (...args: unknown[]) => mockWelcomePackDetail(...args),
 }));
 vi.mock("../../../hooks/api/useCustomersQuery", () => ({
@@ -57,6 +59,10 @@ vi.mock("../../../lib/api-client", () => ({
 vi.mock("../../../services/exchangeRates", () => ({
   getBillingRate: (...args: unknown[]) => mockGetBillingRate(...args),
 }));
+vi.mock("../../../services/inventoryFinance", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../services/inventoryFinance")>();
+  return { ...actual, countVisitConsumptions: mockCountConsumptions };
+});
 vi.mock("../../../services/visits", () => ({
   completeVisit: vi.fn(),
   cancelVisit: vi.fn(),
@@ -165,6 +171,7 @@ describe("WizardStepPayment", () => {
     vi.clearAllMocks();
     mockEnsureFreshToken.mockResolvedValue(undefined);
     mockGetBillingRate.mockResolvedValue(600000);
+    mockCountConsumptions.mockResolvedValue(0);
     mockCheckout.mockResolvedValue({ data: {} });
     mockConsumption.mockResolvedValue({});
     mockIssuePack.mockResolvedValue({});
@@ -238,7 +245,7 @@ describe("WizardStepPayment", () => {
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it("completes the visit after checkout when a pack is chosen", async () => {
+  it("settles the visit atomically when a pack is chosen", async () => {
     const user = userEvent.setup();
     const onComplete = vi.fn<(payment: PaymentSelection) => void>();
     render(<PackAwareStep onComplete={onComplete} />, { wrapper: createWrapper() });
@@ -251,17 +258,20 @@ describe("WizardStepPayment", () => {
     await user.click(screen.getByRole("button", { name: "ثبت نهایی" }));
 
     await waitFor(() => expect(mockCheckout).toHaveBeenCalled());
-    await waitFor(() => expect(vi.mocked(visitsService.completeVisit)).toHaveBeenCalledWith(42));
-    expect(mockIssuePack).toHaveBeenCalledWith({
-      packId: pack.id,
-      customer: 1,
-      quantity: "1",
-      visit: 42,
-    });
+    expect(mockCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        visitId: 42,
+        payload: expect.objectContaining({
+          customer: 1,
+          welcomePack: expect.objectContaining({ pack: pack.id, quantity: "1" }),
+        }),
+      })
+    );
+    expect(vi.mocked(visitsService.completeVisit)).not.toHaveBeenCalled();
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
   });
 
-  it("completes the visit without a pack when reception is pack-free", async () => {
+  it("settles the visit without a pack when reception is pack-free", async () => {
     const user = userEvent.setup();
     const props = renderStep();
     mockReserve.mockResolvedValue({ data: { id: 43 } });
@@ -269,40 +279,55 @@ describe("WizardStepPayment", () => {
     await payInFull(user);
     await user.click(screen.getByRole("button", { name: "ثبت نهایی" }));
 
-    await waitFor(() => expect(vi.mocked(visitsService.completeVisit)).toHaveBeenCalledWith(43));
+    await waitFor(() =>
+      expect(mockCheckout).toHaveBeenCalledWith(
+        expect.objectContaining({
+          visitId: 43,
+          payload: expect.objectContaining({ welcomePack: null }),
+        })
+      )
+    );
     expect(mockIssuePack).not.toHaveBeenCalled();
     await waitFor(() => expect(props.onComplete).toHaveBeenCalled());
   });
 
-  it("keeps the reception when completion is refused, without cancelling the visit", async () => {
+  it("keeps the reception open when atomic settlement is refused", async () => {
     const user = userEvent.setup();
     const props = renderStep();
     mockReserve.mockResolvedValue({ data: { id: 44 } });
-    vi.mocked(visitsService.completeVisit).mockRejectedValue({
+    mockCheckout.mockRejectedValueOnce({
       response: { data: { detail: "uncovered compensation role" } },
     });
 
     await payInFull(user);
     await user.click(screen.getByRole("button", { name: "ثبت نهایی" }));
 
-    await waitFor(() => expect(props.onComplete).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(props.onComplete).not.toHaveBeenCalled();
     expect(mockCheckout).toHaveBeenCalled();
     expect(vi.mocked(visitsService.cancelVisit)).not.toHaveBeenCalled();
   });
 
-  it("skips completion when consumption failed so the calendar can still finish the visit", async () => {
+  it("does not finish the reception when settlement fails and reuses the visit on retry", async () => {
     const user = userEvent.setup();
     const props = renderStep();
     mockReserve.mockResolvedValue({ data: { id: 45 } });
-    mockConsumption.mockRejectedValue({
+    mockCheckout.mockRejectedValueOnce({
       response: { data: { detail: "stock empty" } },
     });
 
     await payInFull(user);
     await user.click(screen.getByRole("button", { name: "ثبت نهایی" }));
 
+    const alert = await screen.findByRole("alert");
+    expect(alert).toBeInTheDocument();
+    expect(mockCheckout).toHaveBeenCalledTimes(1);
+    expect(props.onComplete).not.toHaveBeenCalled();
+    expect(vi.mocked(visitsService.cancelVisit)).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "ثبت نهایی" }));
     await waitFor(() => expect(props.onComplete).toHaveBeenCalled());
-    expect(mockCheckout).toHaveBeenCalled();
-    expect(vi.mocked(visitsService.completeVisit)).not.toHaveBeenCalled();
+    expect(mockReserve).toHaveBeenCalledTimes(1);
+    expect(mockCheckout).toHaveBeenCalledTimes(2);
   });
 });

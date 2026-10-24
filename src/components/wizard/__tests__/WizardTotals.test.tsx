@@ -40,6 +40,7 @@ vi.mock("../../../hooks/api/useProductsQuery", () => ({
 
 vi.mock("../../../hooks/api", () => ({
   useCheckout: () => ({ mutateAsync: mockCheckoutMutate, isPending: false }),
+  useSettleVisit: () => ({ mutateAsync: mockCheckoutMutate, isPending: false }),
   useWelcomePack: () => ({ data: undefined }),
   useWelcomePacksList: () => ({ data: { data: [] } }),
   useAllWelcomePacks: () => ({ data: [] }),
@@ -90,7 +91,13 @@ vi.mock("../../../services/exchangeRates", async (importOriginal) => {
 
 vi.mock("../../../services/visits", () => ({
   cancelVisit: (id: number) => mockCancelVisit(id),
+  completeVisit: vi.fn().mockResolvedValue({ data: { id: 77, status: "completed" } }),
 }));
+
+vi.mock("../../../services/inventoryFinance", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../services/inventoryFinance")>();
+  return { ...actual, countVisitConsumptions: vi.fn().mockResolvedValue(0) };
+});
 
 const toastWarningMock = vi.fn();
 const toastErrorMock = vi.fn();
@@ -396,7 +403,7 @@ describe("wizard consumable totals", () => {
     ).toBeInTheDocument();
   });
 
-  it("finish splits checkout into a visit sale (fee) and a visit-less sale (goods)", async () => {
+  it("settles the visit with a visit sale and a visit-less goods sale", async () => {
     const user = userEvent.setup();
     const extras: ConsumableSelection[] = [
       { product: 99, productName: "ژل", quantity: "2", priceToman: "100000", priceUsd: "0" },
@@ -411,37 +418,31 @@ describe("wizard consumable totals", () => {
     await user.type(screen.getByLabelText("نقدی (تومان)"), "2700000");
     await user.click(screen.getByRole("button", { name: "ثبت نهایی" }));
 
-    // Two sales: service fee on the visit, goods off the visit (products must
-    // never inflate staff compensation).
+    // One atomic request carries service and goods sales separately.
     await waitFor(() => {
-      expect(mockCheckoutMutate).toHaveBeenCalledTimes(2);
+      expect(mockCheckoutMutate).toHaveBeenCalledTimes(1);
     });
 
     // Visit reserved for the right patient/service.
     expect(mockReserveVisitMutate).toHaveBeenCalledTimes(1);
     expect(mockReserveVisitMutate.mock.calls[0][0]).toMatchObject({ customer: 1, services: [1] });
 
-    // One consumption call: recipe rows (numeric keys only) + extras (product 99)
-    // forwarded as extra_products so their stock is deducted too.
-    expect(mockRecordConsumptionMutate).toHaveBeenCalledTimes(1);
-    const consumption = mockRecordConsumptionMutate.mock.calls[0][0];
-    expect(consumption.visitId).toBe(77);
-    expect(consumption.includeMandatoryOnly).toBe(true);
-    expect(Object.keys(consumption.selection)).toEqual(["1"]);
-    expect(consumption.selection["1"].map((r: ConsumableSelection) => r.product)).toEqual([50, 51]);
-    expect(consumption.extraProducts).toEqual(extras);
-    // No service was marked unused in this flow — the key is still sent.
-    expect(consumption.zeroConsumption).toEqual({});
+    const settlement = mockCheckoutMutate.mock.calls[0][0];
+    expect(settlement.visitId).toBe(77);
+    expect(settlement.payload.selection["1"].map((r: ConsumableSelection) => r.product)).toEqual([
+      50, 51,
+    ]);
+    expect(settlement.payload.extraProducts).toEqual(extras);
+    expect(settlement.payload.zeroConsumption).toEqual({});
 
-    // Sale 1: the service fee (2,000,000) bound to the visit.
-    const feePayload = mockCheckoutMutate.mock.calls[0][0];
+    const feePayload = settlement.payload.serviceSale;
     expect(feePayload.amountUsd).toBe("20.00");
     expect(feePayload.customer).toBe(1);
     expect(feePayload.visit).toBe(77);
     expect(feePayload.components).toEqual([{ method: "cash_toman", amountUsd: "2000000" }]);
 
     // Sale 2: the goods (700,000) with NO visit — excluded from compensation.
-    const goodsPayload = mockCheckoutMutate.mock.calls[1][0];
+    const goodsPayload = settlement.payload.goodsSale;
     expect(goodsPayload.amountUsd).toBe("7.00");
     expect(goodsPayload.customer).toBe(1);
     expect(goodsPayload.visit).toBeNull();
@@ -451,16 +452,12 @@ describe("wizard consumable totals", () => {
     const usdSum = Number(feePayload.amountUsd) + Number(goodsPayload.amountUsd);
     expect(usdSum).toBeCloseTo(27.0, 2);
 
-    // Consumption is recorded before the sale is checked out.
-    expect(mockRecordConsumptionMutate.mock.invocationCallOrder[0]).toBeLessThan(
-      mockCheckoutMutate.mock.invocationCallOrder[0]
-    );
     // A successful checkout never releases the reservation.
     expect(mockCancelVisit).not.toHaveBeenCalled();
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it("releases the reserved visit when checkout is rejected", async () => {
+  it("keeps the visit reservation when checkout is rejected after consumption", async () => {
     const user = userEvent.setup();
     mockCheckoutMutate.mockRejectedValueOnce({
       message: "Request failed with status code 400",
@@ -475,9 +472,8 @@ describe("wizard consumable totals", () => {
     await user.type(screen.getByLabelText("نقدی (تومان)"), "2500000");
     await user.click(screen.getByRole("button", { name: "ثبت نهایی" }));
 
-    await waitFor(() => {
-      expect(mockCancelVisit).toHaveBeenCalledWith(77);
-    });
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(mockCancelVisit).not.toHaveBeenCalled();
     expect(mockCheckoutMutate).toHaveBeenCalledTimes(1);
     expect(onComplete).not.toHaveBeenCalled();
     expect(toastErrorMock).toHaveBeenCalledWith(
@@ -485,9 +481,9 @@ describe("wizard consumable totals", () => {
     );
   });
 
-  it("a consumption failure does not block the two-sale checkout", async () => {
+  it("keeps the visit open when atomic settlement fails", async () => {
     const user = userEvent.setup();
-    mockRecordConsumptionMutate.mockRejectedValueOnce(new Error("موجودی ناکافی"));
+    mockCheckoutMutate.mockRejectedValueOnce(new Error("موجودی ناکافی"));
     const onComplete = vi.fn();
     render(<PaymentWithSeed onComplete={onComplete} />, { wrapper: createWrapper() });
 
@@ -496,14 +492,9 @@ describe("wizard consumable totals", () => {
     await user.type(screen.getByLabelText("نقدی (تومان)"), "2500000");
     await user.click(screen.getByRole("button", { name: "ثبت نهایی" }));
 
-    // Both sales still land and the wizard completes.
-    await waitFor(() => {
-      expect(mockCheckoutMutate).toHaveBeenCalledTimes(2);
-    });
-    expect(onComplete).toHaveBeenCalledTimes(1);
-    expect(toastWarningMock).toHaveBeenCalledWith(
-      "پذیرش ثبت شد اما مصرف مواد ثبت نشد",
-      "موجودی ناکافی"
-    );
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(mockCheckoutMutate).toHaveBeenCalledTimes(1);
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(mockCancelVisit).not.toHaveBeenCalled();
   });
 });

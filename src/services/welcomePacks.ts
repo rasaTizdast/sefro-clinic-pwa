@@ -188,6 +188,7 @@ export const issueWelcomePack = async (input: IssueWelcomePackInput): Promise<We
     customer: input.customer,
     quantity: input.quantity ?? "1",
     ...(input.visit != null ? { visit: input.visit } : {}),
+    ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
   });
   return toWelcomePackUsage(data as RawWelcomePackUsage);
 };

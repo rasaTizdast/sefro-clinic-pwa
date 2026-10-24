@@ -250,6 +250,9 @@ function WizardStepContent({
       )}
       {step === "payment" && (
         <WizardStepPayment
+          idempotencyPrefix={`wizard-${tab.id}`}
+          visitId={tab.visitId}
+          onUpdateVisitId={(visitId) => onUpdateTab({ visitId })}
           patient={tab.patient}
           selectedServices={tab.selectedServices}
           consumables={tab.consumables ?? {}}

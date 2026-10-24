@@ -114,7 +114,10 @@ export function WelcomePackBlock({
               />
             </div>
           ) : (packsData ?? []).length === 0 ? (
-            <Alert variant="info">ولکام‌پک فعالی ثبت نشده است.</Alert>
+            <div className="space-y-2">
+              <Alert variant="info">ولکام‌پک فعالی ثبت نشده است.</Alert>
+              {showSelectError && <Alert variant="error">یک ولکام‌پک انتخاب کنید</Alert>}
+            </div>
           ) : (
             <Select
               label="انتخاب ولکام‌پک"
