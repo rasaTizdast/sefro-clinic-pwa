@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 
 import { useToast } from "../components/ui";
 import { useAuth } from "../contexts/AuthContext";
+import { normalizeRouterPath } from "../lib/router-path";
 import type { LoginState } from "../types/auth";
 
 const PERSIAN_ARABIC_DIGITS = "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩";
@@ -56,7 +57,7 @@ export const useLoginForm = () => {
         await login(normalizeIdentifier(identifier), password);
         toast.success("ورود موفق", "به پنل مدیریت خوش آمدید.");
         const next = new URLSearchParams(window.location.search).get("next");
-        navigate(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
+        navigate(normalizeRouterPath(next), { replace: true });
         return {
           status: "success",
           errors: {},

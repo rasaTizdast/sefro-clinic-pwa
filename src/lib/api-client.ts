@@ -2,9 +2,8 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
 import { API_URL, endpoints } from "../config/api";
 import type { ApiError } from "../types/api";
+import { normalizeRouterPath, toAppPath } from "./router-path";
 import { toCamelCase, toSnakeCase } from "./transform";
-
-const BASE_PATH = import.meta.env.DEV ? "" : "/dashboard";
 
 const CSRF_COOKIE_NAME = "csrftoken";
 const CSRF_HEADER_NAME = "X-CSRFToken";
@@ -132,10 +131,12 @@ apiClient.interceptors.response.use(
         await doRefresh();
         return apiClient(originalRequest);
       } catch {
-        const authPath = `${BASE_PATH}/auth`;
+        const authPath = toAppPath("/auth");
         if (window.location.pathname !== authPath) {
           // Preserve where the employee was so login can return here instead of losing work.
-          const next = encodeURIComponent(window.location.pathname + window.location.search);
+          const next = encodeURIComponent(
+            normalizeRouterPath(window.location.pathname + window.location.search)
+          );
           window.location.href = `${authPath}?next=${next}`;
         }
         return Promise.reject(error);

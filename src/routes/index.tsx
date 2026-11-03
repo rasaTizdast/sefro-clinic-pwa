@@ -14,11 +14,11 @@ export const router = createBrowserRouter(
   [
     {
       path: "/",
-      Component: App,
+      Component: RequireAuth,
       errorElement: <ErrorFallback />,
       children: [
         {
-          Component: RequireAuth,
+          Component: App,
           children: [
             { index: true, lazy: lazyRoute(() => import("./Dashboard")) },
             { path: "wizard", lazy: lazyRoute(() => import("./WizardPage")) },
