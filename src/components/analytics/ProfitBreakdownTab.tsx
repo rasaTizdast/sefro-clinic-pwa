@@ -262,7 +262,7 @@ export function ProfitBreakdownTab({
   useEffect(() => registerExport?.(buildExportSheets), [registerExport, buildExportSheets]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" data-tour="anl-profit-breakdown">
       <div className="w-full sm:w-64">
         <Select
           label="بازه زمانی"

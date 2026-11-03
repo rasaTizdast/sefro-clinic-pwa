@@ -199,13 +199,15 @@ function Settings() {
         <SearchButton />
       </div>
 
-      <Tabs tabs={settingsTabs} activeTab={activeTab} onChange={setActiveTab} />
+      <div data-tour="set-tabs">
+        <Tabs tabs={settingsTabs} activeTab={activeTab} onChange={setActiveTab} />
+      </div>
 
       <TabPanel id="users" activeTab={activeTab}>
         <div className="flex flex-col gap-4" data-tour="set-users">
           {canManageUsers && (
             <>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between" data-tour="set-user-actions">
                 <h2 className="text-surface-900 text-lg font-semibold">مدیریت کاربران</h2>
                 <Button
                   variant="primary"
@@ -216,7 +218,7 @@ function Settings() {
                 </Button>
               </div>
 
-              <Card variant="outlined" padding="none">
+              <Card variant="outlined" padding="none" data-tour="set-user-table">
                 <Table
                   columns={userColumns}
                   data={users}

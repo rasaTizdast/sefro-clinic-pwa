@@ -111,7 +111,9 @@ export default function DesignSystem() {
     <div className="flex flex-col gap-6 pb-8">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-surface-900 text-2xl font-bold">سیستم طراحی</h1>
+          <h1 className="text-surface-900 text-2xl font-bold" data-tour="ds-header">
+            سیستم طراحی
+          </h1>
           <p className="text-surface-500 text-sm">نمایش و تست تمامی کامپوننت‌های سیستم طراحی</p>
         </div>
         <SearchButton />

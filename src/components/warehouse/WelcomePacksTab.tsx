@@ -266,7 +266,7 @@ export function WelcomePacksTab() {
 
       {isError && <Alert variant="error">{extractApiError(error)}</Alert>}
 
-      <Card variant="outlined" padding="none">
+      <Card variant="outlined" padding="none" data-tour="wh-pack-list">
         <Table columns={columns} data={packs} rowKey={(p) => p.id} />
       </Card>
 

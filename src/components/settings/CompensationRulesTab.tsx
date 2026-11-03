@@ -242,7 +242,9 @@ export function CompensationRulesTab() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-surface-900 text-sm font-semibold">قوانین تسویه پرسنل</h3>
+        <h3 className="text-surface-900 text-sm font-semibold" data-tour="acc-compensation-rules">
+          قوانین تسویه پرسنل
+        </h3>
         <Button variant="primary" startIcon={<BiPlus className="size-4" />} onClick={openNew}>
           قانون جدید
         </Button>

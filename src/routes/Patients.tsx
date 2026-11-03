@@ -258,39 +258,41 @@ function Patients() {
       align: "center",
       width: "70px",
       render: (item) => (
-        <Select
-          align="start"
-          trigger={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="border-surface-200 hover:border-surface-300 hover:bg-surface-50 border"
-              startIcon={<PiDotsThreeVertical className="size-4" />}
-            />
-          }
-          items={[
-            {
-              label: "ویرایش",
-              icon: <BiEdit className="size-4" />,
-              onClick: () => {
-                setEditingPatient(item);
-                setModalOpen(true);
+        <span data-tour="pat-row-actions">
+          <Select
+            align="start"
+            trigger={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="border-surface-200 hover:border-surface-300 hover:bg-surface-50 border"
+                startIcon={<PiDotsThreeVertical className="size-4" />}
+              />
+            }
+            items={[
+              {
+                label: "ویرایش",
+                icon: <BiEdit className="size-4" />,
+                onClick: () => {
+                  setEditingPatient(item);
+                  setModalOpen(true);
+                },
               },
-            },
-            {
-              label: "ویزیت‌های قبلی",
-              icon: <BiHistory className="size-4" />,
-              onClick: () => setHistoryPatient(item),
-            },
-            { divider: true },
-            {
-              label: "حذف",
-              icon: <BiTrash className="size-4" />,
-              danger: true,
-              onClick: () => handleDeletePatient(item.id),
-            },
-          ]}
-        />
+              {
+                label: "ویزیت‌های قبلی",
+                icon: <BiHistory className="size-4" />,
+                onClick: () => setHistoryPatient(item),
+              },
+              { divider: true },
+              {
+                label: "حذف",
+                icon: <BiTrash className="size-4" />,
+                danger: true,
+                onClick: () => handleDeletePatient(item.id),
+              },
+            ]}
+          />
+        </span>
       ),
     },
   ];

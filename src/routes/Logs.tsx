@@ -112,24 +112,28 @@ function Logs() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-surface-900 text-2xl font-bold">لاگ سیستم</h1>
+          <h1 className="text-surface-900 text-2xl font-bold" data-tour="logs-header">
+            لاگ سیستم
+          </h1>
           <p className="text-surface-500 mt-1 text-sm">ثبت رویدادهای مهم سیستم</p>
         </div>
         <SearchButton />
       </div>
 
-      <Card variant="outlined" padding="none">
+      <Card variant="outlined" padding="none" data-tour="logs-card">
         <div className="border-surface-200 flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>رویدادها</CardTitle>
-          <Input
-            placeholder="جستجو در لاگ‌ها..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="sm:max-w-xs"
-          />
+          <div data-tour="logs-search">
+            <Input
+              placeholder="جستجو در لاگ‌ها..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="sm:max-w-xs"
+            />
+          </div>
         </div>
 
         {isLoading ? (
@@ -145,7 +149,7 @@ function Logs() {
             </Alert>
           </div>
         ) : logs.length === 0 ? (
-          <div className="p-5">
+          <div className="p-5" data-tour="logs-empty">
             <EmptyState
               icon={<MdHistory className="size-12" />}
               title="لاگی ثبت نشده"
@@ -154,37 +158,39 @@ function Logs() {
           </div>
         ) : (
           <>
-            <Table
-              columns={columns}
-              data={logs}
-              rowKey={(item) => item.id}
-              className="rounded-none border-0"
-            />
-            {totalPages > 1 && (
-              <div className="border-surface-200 flex items-center justify-between border-t px-5 py-3">
-                <span className="text-surface-500 text-sm">
-                  صفحه {page} از {totalPages}
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  >
-                    قبلی
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    بعدی
-                  </Button>
+            <div data-tour="logs-table">
+              <Table
+                columns={columns}
+                data={logs}
+                rowKey={(item) => item.id}
+                className="rounded-none border-0"
+              />
+              {totalPages > 1 && (
+                <div className="border-surface-200 flex items-center justify-between border-t px-5 py-3">
+                  <span className="text-surface-500 text-sm">
+                    صفحه {page} از {totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      قبلی
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      بعدی
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
       </Card>

@@ -86,7 +86,7 @@ export default function WizardStepPatient({ patient, onBack, onComplete }: Props
   }, [showNewForm, selectedPatient, onBack]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour="wiz-patient">
       <h2 className="text-surface-900 text-lg font-bold">انتخاب بیمار</h2>
 
       {!showNewForm && (

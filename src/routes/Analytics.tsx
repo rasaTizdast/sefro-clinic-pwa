@@ -248,7 +248,11 @@ function Analytics() {
             گزارش‌ها و آمار
           </h1>
         </div>
-        <div className="mt-3 flex items-center gap-3 sm:mt-0" data-print-hide>
+        <div
+          className="mt-3 flex items-center gap-3 sm:mt-0"
+          data-print-hide
+          data-tour="anl-actions"
+        >
           <Button
             variant="outline"
             startIcon={<BiDownload className="size-5" />}
@@ -267,7 +271,9 @@ function Analytics() {
         </div>
       </div>
 
-      <Tabs tabs={analyticsTabs} activeTab={analyticsTab} onChange={setAnalyticsTab} />
+      <div data-tour="anl-tabs">
+        <Tabs tabs={analyticsTabs} activeTab={analyticsTab} onChange={setAnalyticsTab} />
+      </div>
 
       <TabPanel id="overview" activeTab={analyticsTab}>
         <div className="flex flex-col gap-6">

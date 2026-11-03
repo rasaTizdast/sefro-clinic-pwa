@@ -437,7 +437,9 @@ function Warehouse() {
         </div>
       </div>
 
-      <Tabs tabs={warehouseTabs} activeTab={activeTab} onChange={setActiveTab} />
+      <div data-tour="wh-tabs">
+        <Tabs tabs={warehouseTabs} activeTab={activeTab} onChange={setActiveTab} />
+      </div>
 
       <TabPanel id="products" activeTab={activeTab}>
         <div className="flex flex-col gap-6">
@@ -488,7 +490,7 @@ function Warehouse() {
         </div>
         {/* Registered purchases history + stock entry */}
         <div className="mt-6">
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-3 flex items-center justify-between gap-3" data-tour="wh-purchase">
             <h2 className="text-surface-900 text-sm font-medium">خریدهای ثبت شده</h2>
             <Button
               variant="primary"

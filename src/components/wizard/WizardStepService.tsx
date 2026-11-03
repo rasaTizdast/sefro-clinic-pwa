@@ -239,7 +239,7 @@ export default function WizardStepService({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour="wiz-service">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

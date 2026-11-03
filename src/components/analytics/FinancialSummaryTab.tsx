@@ -343,7 +343,7 @@ export function FinancialSummaryTab({ registerExport }: FinancialExportRegister)
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" data-tour="anl-financial-summary">
       <div className="w-full sm:w-64">
         <Select
           label="بازه زمانی"

@@ -76,7 +76,7 @@ export function PackagesTab() {
   ];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-tour="srv-packages">
       <div className="flex items-center justify-end">
         <Button
           variant="primary"

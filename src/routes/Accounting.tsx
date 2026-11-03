@@ -34,59 +34,63 @@ function Accounting() {
         </div>
       </div>
 
-      <Tabs
-        ariaLabel="بخش‌های حسابداری"
-        tabs={[
-          {
-            id: "operating-expenses",
-            label: "هزینه‌های جاری",
-            icon: <CiMoneyBill className="size-4" />,
-            badge: expenseSummary?.count || undefined,
-          },
-          {
-            id: "personnel",
-            label: "پرسنل",
-            icon: <CiUser className="size-4" />,
-            badge: pendingTotal || undefined,
-          },
-          {
-            id: "closing",
-            label: "بستن ماه",
-            icon: <BiLock className="size-4" />,
-          },
-          {
-            id: "compensation-rules",
-            label: "قوانین تسویه",
-            icon: <CiSettings className="size-4" />,
-          },
-        ]}
-        activeTab={activeTab}
-        onChange={setActiveTab}
-      />
+      <div data-tour="acc-tabs">
+        <Tabs
+          ariaLabel="بخش‌های حسابداری"
+          tabs={[
+            {
+              id: "operating-expenses",
+              label: "هزینه‌های جاری",
+              icon: <CiMoneyBill className="size-4" />,
+              badge: expenseSummary?.count || undefined,
+            },
+            {
+              id: "personnel",
+              label: "پرسنل",
+              icon: <CiUser className="size-4" />,
+              badge: pendingTotal || undefined,
+            },
+            {
+              id: "closing",
+              label: "بستن ماه",
+              icon: <BiLock className="size-4" />,
+            },
+            {
+              id: "compensation-rules",
+              label: "قوانین تسویه",
+              icon: <CiSettings className="size-4" />,
+            },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
+      </div>
 
       <TabPanel id="operating-expenses" activeTab={activeTab}>
         <OperatingExpensesTab />
       </TabPanel>
       <TabPanel id="personnel" activeTab={activeTab}>
-        <Tabs
-          ariaLabel="بخش‌های پرسنل"
-          tabs={[
-            {
-              id: "staff-expenses",
-              label: "مطالبات پرسنل",
-              icon: <CiWallet className="size-4" />,
-              badge: pendingClaims?.total || undefined,
-            },
-            {
-              id: "payouts",
-              label: "تسویه پرسنل",
-              icon: <CiUser className="size-4" />,
-              badge: pendingPayouts?.total || undefined,
-            },
-          ]}
-          activeTab={personnelTab}
-          onChange={setPersonnelTab}
-        />
+        <div data-tour="acc-personnel-tabs">
+          <Tabs
+            ariaLabel="بخش‌های پرسنل"
+            tabs={[
+              {
+                id: "staff-expenses",
+                label: "مطالبات پرسنل",
+                icon: <CiWallet className="size-4" />,
+                badge: pendingClaims?.total || undefined,
+              },
+              {
+                id: "payouts",
+                label: "تسویه پرسنل",
+                icon: <CiUser className="size-4" />,
+                badge: pendingPayouts?.total || undefined,
+              },
+            ]}
+            activeTab={personnelTab}
+            onChange={setPersonnelTab}
+          />
+        </div>
         <TabPanel id="staff-expenses" activeTab={personnelTab} className="pt-6">
           <StaffExpensesTab />
         </TabPanel>

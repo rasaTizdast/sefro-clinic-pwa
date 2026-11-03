@@ -6,6 +6,12 @@ import { useLocation } from "react-router";
 
 import { walkthroughSteps } from "../data/walkthroughSteps";
 
+function isVisibleTarget(element: Element): boolean {
+  if (!element.isConnected || element.getClientRects().length === 0) return false;
+  const style = window.getComputedStyle(element);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
+
 const isWalkthroughEnabled = (): boolean => {
   try {
     return import.meta.env.VITE_WALKTHROUGH_ENABLED !== "false";
@@ -45,12 +51,13 @@ export function useWalkthrough() {
     const visibleSteps = steps.filter((step) => {
       if (!step.element) return true;
       if (typeof step.element === "string") {
-        return document.querySelector(step.element) !== null;
+        const element = document.querySelector(step.element);
+        return element !== null && isVisibleTarget(element);
       }
       if (typeof step.element === "function") {
         try {
           const el = step.element();
-          return el !== null;
+          return el !== null && isVisibleTarget(el);
         } catch {
           return false;
         }

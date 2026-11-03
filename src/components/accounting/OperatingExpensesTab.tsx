@@ -244,7 +244,12 @@ export function OperatingExpensesTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card variant="outlined" padding="none" className="overflow-hidden">
+      <Card
+        variant="outlined"
+        padding="none"
+        className="overflow-hidden"
+        data-tour="acc-expense-summary"
+      >
         <div className="flex flex-col gap-5 p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
@@ -304,7 +309,7 @@ export function OperatingExpensesTab() {
             {paginated ? `${formatPrice(paginated.total)} ردیف` : "—"} بر اساس فیلترهای زیر
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" data-tour="acc-expense-actions">
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               حذف فیلترها
@@ -319,7 +324,10 @@ export function OperatingExpensesTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        data-tour="acc-expense-filters"
+      >
         <Input
           label="جستجو"
           value={search}
@@ -376,7 +384,7 @@ export function OperatingExpensesTab() {
         />
       </div>
 
-      <Card variant="outlined" padding="none">
+      <Card variant="outlined" padding="none" data-tour="acc-expense-table">
         <Table
           columns={columns}
           data={expenses}

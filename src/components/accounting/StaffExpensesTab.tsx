@@ -241,7 +241,9 @@ export function StaffExpensesTab() {
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <h3 className="text-surface-900 text-base font-semibold">لیست مطالبات</h3>
+          <h3 className="text-surface-900 text-base font-semibold" data-tour="acc-staff-claims">
+            لیست مطالبات
+          </h3>
           <p className="text-surface-400 text-xs">
             {`${formatPrice(filtered.length)} ردیف`} بر اساس فیلترهای زیر
           </p>

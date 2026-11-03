@@ -329,9 +329,11 @@ function Dashboard() {
         ))}
       </div>
 
-      <FinanceKpiCards />
+      <div data-tour="dash-finance">
+        <FinanceKpiCards />
+      </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-tour="dash-rate">
         <ExchangeRateCard />
       </div>
 

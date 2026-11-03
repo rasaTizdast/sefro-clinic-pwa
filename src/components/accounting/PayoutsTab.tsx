@@ -232,7 +232,9 @@ export function PayoutsTab() {
         <div className="flex flex-col gap-5 p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex flex-col gap-0.5">
-              <h3 className="text-surface-900 text-base font-semibold">خلاصه تسویه‌ها</h3>
+              <h3 className="text-surface-900 text-base font-semibold" data-tour="acc-payouts">
+                خلاصه تسویه‌ها
+              </h3>
               <p className="text-surface-400 text-xs">جمع تسویه‌های ثبت‌شده در {periodText}</p>
               {role && basisLabel && (
                 <p className="text-surface-500 mt-1 text-xs">

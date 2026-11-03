@@ -390,7 +390,7 @@ export default function WizardStepPayment({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour="wiz-payment">
       <h2 className="text-surface-900 text-lg font-bold">پرداخت و خلاصه مالی</h2>
       <p className="text-surface-500 text-sm">
         بیمار: {patient.firstName} {patient.lastName}

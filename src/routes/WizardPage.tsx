@@ -61,10 +61,13 @@ function WizardPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-surface-200 flex items-center gap-3 border-b px-4 py-3">
+      <div
+        className="border-surface-200 flex items-center gap-3 border-b px-4 py-3"
+        data-tour="wiz-header"
+      >
         <MdPerson className="text-primary-600 size-5" />
         <span className="text-surface-800 font-bold">پذیرش بیمار</span>
-        <div className="me-auto flex items-center gap-2">
+        <div className="me-auto flex items-center gap-2" data-tour="wiz-tabs">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -96,7 +99,7 @@ function WizardPage() {
               </span>
             </button>
           ))}
-          <Button variant="ghost" size="sm" onClick={() => createTab()}>
+          <Button variant="ghost" size="sm" onClick={() => createTab()} aria-label="پذیرش جدید">
             <span className="text-lg leading-none">+</span>
           </Button>
         </div>
@@ -125,22 +128,27 @@ function WizardPage() {
               </div>
             </div>
           ) : (
-            <WizardStepContent
-              tab={activeTab}
-              onComplete={handleStepComplete}
-              onUpdateTab={handleUpdateTab}
-              onBack={() => {
-                if (!activeTabId) return;
-                const stepOrder: WizardStep[] = ["patient", "service", "payment"];
-                const currentIdx = stepOrder.indexOf(activeTab.step ?? "patient");
-                if (currentIdx > 0) {
-                  updateTab(activeTabId, { step: stepOrder[currentIdx - 1] });
-                }
-              }}
-            />
+            <div data-tour="wiz-step">
+              <WizardStepContent
+                tab={activeTab}
+                onComplete={handleStepComplete}
+                onUpdateTab={handleUpdateTab}
+                onBack={() => {
+                  if (!activeTabId) return;
+                  const stepOrder: WizardStep[] = ["patient", "service", "payment"];
+                  const currentIdx = stepOrder.indexOf(activeTab.step ?? "patient");
+                  if (currentIdx > 0) {
+                    updateTab(activeTabId, { step: stepOrder[currentIdx - 1] });
+                  }
+                }}
+              />
+            </div>
           )
         ) : (
-          <div className="text-surface-400 flex h-full flex-col items-center justify-center gap-4">
+          <div
+            className="text-surface-400 flex h-full flex-col items-center justify-center gap-4"
+            data-tour="wiz-empty"
+          >
             <MdPerson className="size-16 opacity-30" />
             <p className="text-lg">برای شروع پذیرش، دکمه + را بزنید</p>
             <Button variant="primary" onClick={() => createTab()}>
@@ -203,7 +211,7 @@ function WizardStepContent({
   const currentIdx = steps.findIndex((s) => s.key === step);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6" data-tour="wiz-progress">
       <div className="flex items-center gap-2">
         {steps.map((s, i) => (
           <div key={s.key} className="flex items-center gap-2">

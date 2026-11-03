@@ -88,14 +88,16 @@ export default function ExchangeRatePage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-surface-900 text-2xl font-bold">نرخ ارز</h1>
+          <h1 className="text-surface-900 text-2xl font-bold" data-tour="ex-header">
+            نرخ ارز
+          </h1>
           <p className="text-surface-500 mt-1 text-sm">نرخ رسمی دلار و تاریخچه ثبت نرخ‌ها</p>
         </div>
         <SearchButton />
       </div>
 
       {/* Current rate */}
-      <Card variant="outlined" padding="lg">
+      <Card variant="outlined" padding="lg" data-tour="ex-current">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <CardTitle>نرخ ارز فعلی</CardTitle>
@@ -116,7 +118,7 @@ export default function ExchangeRatePage() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" data-tour="ex-actions">
             <Button
               variant="outline"
               size="sm"
@@ -140,7 +142,7 @@ export default function ExchangeRatePage() {
       </Card>
 
       {/* Fetch log */}
-      <Card variant="outlined" padding="none">
+      <Card variant="outlined" padding="none" data-tour="ex-history">
         <div className="border-surface-200 flex items-center justify-between border-b px-5 py-3">
           <h3 className="text-surface-900 text-sm font-semibold">تاریخچه ثبت نرخ‌ها</h3>
           {!ratesLoading && rates.length > 0 && (

@@ -200,14 +200,16 @@ function Services() {
         </div>
       </div>
 
-      <Tabs
-        tabs={[
-          { id: "services", label: "خدمات" },
-          { id: "packages", label: "پکیج‌ها" },
-        ]}
-        activeTab={activeTab}
-        onChange={setActiveTab}
-      />
+      <div data-tour="srv-tabs">
+        <Tabs
+          tabs={[
+            { id: "services", label: "خدمات" },
+            { id: "packages", label: "پکیج‌ها" },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
+      </div>
 
       <TabPanel id="services" activeTab={activeTab}>
         <Card variant="outlined" padding="none" data-tour="srv-table">

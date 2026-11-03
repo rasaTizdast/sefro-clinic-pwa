@@ -272,7 +272,7 @@ export function UsagesTab() {
       </Card>
 
       {/* Filters */}
-      <Card variant="outlined" padding="md">
+      <Card variant="outlined" padding="md" data-tour="wh-usage-filters">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-surface-900 flex items-center gap-2 text-sm font-medium">
             <BiFilter className="text-primary-600 size-4" />
@@ -349,7 +349,12 @@ export function UsagesTab() {
       </Card>
 
       {/* Table */}
-      <Card variant="outlined" padding="none" className="overflow-hidden">
+      <Card
+        variant="outlined"
+        padding="none"
+        className="overflow-hidden"
+        data-tour="wh-usage-table"
+      >
         {isLoading ? (
           <Table
             columns={columns}
